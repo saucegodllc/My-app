@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/connectsphere-mobile/"
+title = "ConnectSphere Mobile"
+version = "1.0.0"
+id = "artifacts/connectsphere-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/connectsphere-mobile/" ]
+localPort = 20305
+
+[services.development]
+run = "pnpm --filter @workspace/connectsphere-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/connectsphere-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/connectsphere-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "20305"
+BASE_PATH = "/connectsphere-mobile/"

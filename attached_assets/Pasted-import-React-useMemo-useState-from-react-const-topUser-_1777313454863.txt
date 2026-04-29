@@ -1,0 +1,73 @@
+import React, { useMemo, useState } from "react";
+
+  const topUser = filteredUsers[0];
+
+  return (
+    <div className="min-h-screen bg-[#050505] text-white font-sans overflow-hidden">
+      <div className="mx-auto min-h-screen max-w-md bg-[#050505] pb-24">
+        <header className="flex items-center justify-between px-5 pt-8">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight">Discover</h1>
+            <div className="mt-1 flex items-center gap-1 text-xs text-zinc-400"><Flame size={14} className="text-pink-400" /> Active Now <span className="h-2 w-2 rounded-full bg-green-400" /></div>
+          </div>
+          <button className="rounded-full border border-white/10 bg-white/5 p-3 text-zinc-200"><SlidersHorizontal size={20} /></button>
+        </header>
+
+        <IntentTabs active={intent} setActive={(next) => { setIntent(next); setSubIntent("All"); setDismissed([]); }} />
+        <SubIntentChips intent={intent} active={subIntent} setActive={(chip) => { setSubIntent(chip); setDismissed([]); }} />
+
+        <div className="relative mx-5 mt-4 h-[58vh] min-h-[480px]">
+          <AnimatePresence>
+            {filteredUsers.slice(0, 2).reverse().map((user, index, arr) => {
+              const isTop = index === arr.length - 1;
+              return <SwipeCard key={user.id} user={user} isTop={isTop} onSwipe={handleSwipe} onOpen={() => setPreview(user)} />;
+            })}
+          </AnimatePresence>
+
+          {filteredUsers.length === 0 && (
+            <div className="grid h-full place-items-center rounded-[30px] border border-white/10 bg-white/[.03] p-8 text-center">
+              <div>
+                <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-gradient-to-r from-pink-500 to-purple-700 text-4xl"><Zap /></div>
+                <h2 className="mt-5 text-2xl font-black">You’re all caught up!</h2>
+                <p className="mt-2 text-sm text-zinc-400">Try another vibe or expand your search.</p>
+                <button onClick={() => { setSubIntent("All"); setDismissed([]); }} className="mt-5 rounded-full bg-gradient-to-r from-pink-500 to-purple-700 px-6 py-3 font-bold">Reset Discover</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {topUser && <ActionButtons onPass={() => handleSwipe("pass", topUser)} onSuper={() => handleSwipe("super", topUser)} onLike={() => handleSwipe("like", topUser)} />}
+
+        <nav className="fixed bottom-0 left-1/2 grid w-full max-w-md -translate-x-1/2 grid-cols-5 border-t border-white/10 bg-zinc-950/95 px-3 pb-5 pt-3 text-[11px] backdrop-blur-xl">
+          {["Discover", "Connect", "Events", "Map", "Profile"].map((item, i) => <div key={item} className={`text-center ${i === 0 ? "text-pink-400" : "text-zinc-500"}`}>{item}</div>)}
+        </nav>
+      </div>
+
+      <AnimatePresence>{matchUser && <MatchModal user={matchUser} onClose={() => setMatchUser(null)} />}</AnimatePresence>
+
+      <AnimatePresence>
+        {preview && (
+          <motion.div className="fixed inset-0 z-40 bg-black/80 p-5 backdrop-blur-xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPreview(null)}>
+            <motion.div onClick={(e) => e.stopPropagation()} initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80, opacity: 0 }} className="mx-auto mt-10 max-w-md overflow-hidden rounded-[32px] border border-white/10 bg-zinc-950">
+              {preview.photo ? (
+                <img src={preview.photo} className="h-80 w-full object-cover" />
+              ) : (
+                <div className="grid h-80 w-full place-items-center bg-gradient-to-br from-zinc-900 via-fuchsia-950 to-black">
+                  <div className="grid h-32 w-32 place-items-center rounded-full border border-white/15 bg-white/10 text-5xl font-black text-white">
+                    {getInitials(preview.name)}
+                  </div>
+                </div>
+              )}
+              <div className="p-5">
+                <h2 className="text-3xl font-black">{preview.name}, {preview.age}</h2>
+                <p className="mt-2 text-zinc-300">{preview.bio}</p>
+                <p className="mt-3 rounded-2xl bg-pink-500/15 p-3 text-sm text-pink-100">{preview.vibe}</p>
+                <button onClick={() => setPreview(null)} className="mt-5 w-full rounded-full bg-gradient-to-r from-pink-500 to-purple-700 py-4 font-bold">Like</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
