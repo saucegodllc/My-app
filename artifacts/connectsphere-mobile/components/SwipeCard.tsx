@@ -16,7 +16,7 @@ import { useColors } from "@/hooks/useColors";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 32;
-const CARD_HEIGHT = SCREEN_HEIGHT * 0.62;
+const CARD_HEIGHT = SCREEN_HEIGHT * 0.78;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.28;
 const ROTATION_RANGE = 12;
 
@@ -64,6 +64,45 @@ function getInitials(name = "User") {
     .toUpperCase();
 }
 
+function getIntentTheme(intent: string) {
+  if (intent === "friendship") {
+    return {
+      accent: "#22D3EE",
+      accentSoft: "rgba(34,211,238,0.18)",
+      label: "Friends",
+      fitLabel: "Friend Fit",
+      rightStamp: "ADD",
+      upStamp: "INVITE",
+      leftStamp: "SKIP",
+      headlinePrefix: "Looking for",
+    };
+  }
+
+  if (intent === "networking") {
+    return {
+      accent: "#A855F7",
+      accentSoft: "rgba(168,85,247,0.18)",
+      label: "Networking",
+      fitLabel: "Network Fit",
+      rightStamp: "CONNECT",
+      upStamp: "VIEW",
+      leftStamp: "NOT NOW",
+      headlinePrefix: "Open to",
+    };
+  }
+
+  return {
+    accent: "#FF299B",
+    accentSoft: "rgba(255,41,155,0.18)",
+    label: "Dating",
+    fitLabel: "Match",
+    rightStamp: "LIKE",
+    upStamp: "SUPER",
+    leftStamp: "PASS",
+    headlinePrefix: "Looking for",
+  };
+}
+
 export function SwipeCard({
   profile,
   onSwipeLeft,
@@ -79,6 +118,8 @@ export function SwipeCard({
   useEffect(() => {
     setPhotoIndex(0);
   }, [profile.id]);
+
+  const theme = getIntentTheme(profile.intent);
 
   const rotate = position.x.interpolate({
     inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
@@ -148,20 +189,27 @@ export function SwipeCard({
 
   const photoCount = profile.photos?.length ?? 0;
   const photoUrl = photoCount > 0 ? profile.photos?.[Math.min(photoIndex, photoCount - 1)] : undefined;
-  const intentColors: Record<string, string> = {
-    dating: "#FF299B",
-    friendship: "#22D3EE",
-    networking: "#60A5FA",
-    all: "#A78BFA",
-  };
-  const intentColor = intentColors[profile.intent] ?? "#FF299B";
   const compatibility = deterministicPct(profile.userId);
   const isOnline = deterministicPct(profile.userId + "-online") % 2 === 0;
   const locationText = [profile.location, profile.country].filter(Boolean).join(", ");
+  const isNetworking = profile.intent === "networking";
+  const primaryTitle = isNetworking && profile.profession ? profile.profession : profile.displayName;
+  const secondaryTitle = isNetworking
+    ? profile.displayName
+    : profile.age
+      ? `${profile.age}`
+      : "";
+  const intentLine = profile.connectionSubtype
+    ? `${theme.headlinePrefix}: ${profile.connectionSubtype}`
+    : theme.label;
 
   return (
     <Animated.View
-      style={[styles.card, cardStyle, { backgroundColor: colors.card }]}
+      style={[
+        styles.card,
+        cardStyle,
+        { backgroundColor: colors.card, borderColor: theme.accentSoft },
+      ]}
       {...(isTop ? panResponder.panHandlers : {})}
     >
       <View style={styles.tapLayer}>
@@ -175,7 +223,7 @@ export function SwipeCard({
           </LinearGradient>
         )}
 
-        <LinearGradient colors={["transparent", "rgba(0,0,0,0.28)", "rgba(0,0,0,0.96)"]} style={styles.gradient} />
+        <LinearGradient colors={["transparent", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.98)"]} style={styles.gradient} />
 
         {photoCount > 1 ? (
           <View style={styles.photoProgress}>
@@ -184,7 +232,7 @@ export function SwipeCard({
                 key={`${profile.id}-photo-${index}`}
                 style={[
                   styles.photoProgressDot,
-                  index === photoIndex ? styles.photoProgressDotActive : null,
+                  index === photoIndex ? [styles.photoProgressDotActive, { backgroundColor: theme.accent }] : null,
                 ]}
               />
             ))}
@@ -215,23 +263,37 @@ export function SwipeCard({
             <View style={[styles.statusDot, { backgroundColor: isOnline ? "#4ADE80" : "#71717A" }]} />
             <Text style={styles.statusText}>{isOnline ? "Online" : "Recently active"}</Text>
           </View>
-          <View style={styles.matchPill}>
-            <Text style={styles.matchText}>{compatibility}% Match</Text>
+          <View style={[styles.matchPill, { borderColor: theme.accentSoft }]}> 
+            <Text style={styles.matchText}>{compatibility}% {theme.fitLabel}</Text>
           </View>
         </View>
 
         <Pressable onPress={onOpenProfile} style={styles.info}>
+          <View style={styles.intentHeadline}>
+            <Ionicons
+              name={profile.intent === "friendship" ? "people" : profile.intent === "networking" ? "briefcase" : "flame"}
+              size={14}
+              color={theme.accent}
+            />
+            <Text style={[styles.intentHeadlineText, { color: theme.accent }]} numberOfLines={1}>
+              {intentLine}
+            </Text>
+          </View>
+
           <View style={styles.nameRow}>
             <Text style={styles.name} numberOfLines={1}>
-              {profile.displayName}
-              {profile.age ? `, ${profile.age}` : ""}
+              {primaryTitle}{secondaryTitle ? `, ${secondaryTitle}` : ""}
             </Text>
             {profile.isVerified ? (
-              <View style={styles.verifiedBadge}>
+              <View style={[styles.verifiedBadge, { backgroundColor: theme.accent, shadowColor: theme.accent }]}>
                 <Ionicons name="checkmark-circle" size={18} color="#fff" />
               </View>
             ) : null}
           </View>
+
+          {isNetworking && profile.displayName ? (
+            <Text style={styles.professionalName} numberOfLines={1}>{profile.displayName}</Text>
+          ) : null}
 
           {locationText ? (
             <View style={styles.locationRow}>
@@ -241,12 +303,8 @@ export function SwipeCard({
           ) : null}
 
           <View style={styles.badgeRow}>
-            <View style={[styles.intentBadge, { backgroundColor: intentColor + "28" }]}>
-              <Text style={[styles.intentText, { color: "#fff" }]}>
-                {profile.intent === "friendship"
-                  ? "Friends"
-                  : profile.intent.charAt(0).toUpperCase() + profile.intent.slice(1)}
-              </Text>
+            <View style={[styles.intentBadge, { backgroundColor: theme.accentSoft }]}>
+              <Text style={styles.intentText}>{theme.label}</Text>
             </View>
             {profile.connectionSubtype ? (
               <View style={[styles.intentBadge, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
@@ -256,7 +314,7 @@ export function SwipeCard({
           </View>
 
           {profile.bio ? (
-            <Text style={styles.bio} numberOfLines={2}>
+            <Text style={styles.bio} numberOfLines={profile.intent === "friendship" ? 3 : 2}>
               {profile.bio}
             </Text>
           ) : null}
@@ -264,7 +322,7 @@ export function SwipeCard({
           {profile.interests && profile.interests.length > 0 ? (
             <View style={styles.interests}>
               {profile.interests.slice(0, 4).map((interest) => (
-                <View key={interest} style={styles.interestTag}>
+                <View key={interest} style={[styles.interestTag, { borderColor: theme.accentSoft }]}> 
                   <Text style={styles.interestTagText}>{interest}</Text>
                 </View>
               ))}
@@ -276,13 +334,13 @@ export function SwipeCard({
       {isTop ? (
         <>
           <Animated.View style={[styles.likeStamp, { opacity: likeOpacity }]}>
-            <Text style={[styles.stampText, { color: "#FF84C5", borderColor: "#FF84C5" }]}>LIKE</Text>
+            <Text style={[styles.stampText, { color: theme.accent, borderColor: theme.accent }]}>{theme.rightStamp}</Text>
           </Animated.View>
           <Animated.View style={[styles.nopeStamp, { opacity: nopeOpacity }]}>
-            <Text style={[styles.stampText, { color: "#F87171", borderColor: "#F87171" }]}>PASS</Text>
+            <Text style={[styles.stampText, { color: "#F87171", borderColor: "#F87171" }]}>{theme.leftStamp}</Text>
           </Animated.View>
           <Animated.View style={[styles.superStamp, { opacity: superOpacity }]}>
-            <Text style={[styles.stampText, { color: "#C084FC", borderColor: "#C084FC" }]}>SUPER</Text>
+            <Text style={[styles.stampText, { color: "#C084FC", borderColor: "#C084FC" }]}>{theme.upStamp}</Text>
           </Animated.View>
         </>
       ) : null}
@@ -418,6 +476,23 @@ const styles = StyleSheet.create({
     paddingTop: 130,
     gap: 8,
   },
+  intentHeadline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: "rgba(0,0,0,0.42)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+  },
+  intentHeadlineText: {
+    fontSize: 12,
+    fontFamily: "Inter_800ExtraBold",
+  },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -429,6 +504,11 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     fontFamily: "Inter_700Bold",
     flex: 1,
+  },
+  professionalName: {
+    color: "rgba(255,255,255,0.76)",
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
   },
   locationRow: {
     flexDirection: "row",
@@ -486,6 +566,7 @@ const styles = StyleSheet.create({
   interestTag: {
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -516,7 +597,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    fontSize: 28,
+    fontSize: 24,
     fontFamily: "Inter_700Bold",
     overflow: "hidden",
   },
