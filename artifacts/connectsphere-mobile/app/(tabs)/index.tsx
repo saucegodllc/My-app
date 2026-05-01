@@ -1,14 +1,10 @@
-import { useAuth } from "@clerk/clerk-expo";
-import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import { useMemo, useRef, useState, type ComponentProps } from "react";
 import {
-  ActivityIndicator,
   Animated,
-  Dimensions,
-  Modal,
+  Image,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -18,1327 +14,930 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ActionButton } from "@/components/ActionButton";
-import { SwipeCard, type Profile } from "@/components/SwipeCard";
-import { useDiscoveryMode, type DiscoveryMode } from "@/contexts/DiscoveryModeContext";
-import { useColors } from "@/hooks/useColors";
-import {
-  useGetDiscoveryFeed,
-  useGetMyProfile,
-  usePerformDiscoveryAction,
-} from "@workspace/api-client-react";
-import type { ConnectionIntent } from "@workspace/api-client-react";
-
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
+type MaterialIconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const CARD_HEIGHT = SCREEN_HEIGHT * 0.62;
+type IntentId = "dating" | "friends" | "networking";
 
-const MODE_TABS: { value: DiscoveryMode; label: string; icon: IoniconName; color: string }[] = [
-  { value: "dating", label: "Dating", icon: "flame", color: "#FF299B" },
-  { value: "friendship", label: "Friends", icon: "people", color: "#22D3EE" },
-  { value: "networking", label: "Networking", icon: "briefcase", color: "#A855F7" },
+type IntentTab = {
+  id: IntentId;
+  label: string;
+  icon: IoniconName;
+  accent: [string, string];
+};
+
+type Profile = {
+  id: number;
+  name: string;
+  age: number;
+  location: string;
+  intent: IntentId;
+  subGenre: string;
+  bio: string;
+  interests: string[];
+  matchScore: number;
+  online: boolean;
+  image: string;
+};
+
+type ActionDef = {
+  label: string;
+  iconLib: "ion" | "material";
+  iconName: IoniconName | MaterialIconName;
+  hot?: boolean;
+};
+
+const currentUserIntent: IntentId | "all" = "all";
+
+const intentTabs: IntentTab[] = [
+  {
+    id: "dating",
+    label: "Dating",
+    icon: "flame",
+    accent: ["#EC4899", "#D946EF"],
+  },
+  {
+    id: "friends",
+    label: "Friends",
+    icon: "people",
+    accent: ["#8B5CF6", "#3B82F6"],
+  },
+  {
+    id: "networking",
+    label: "Networking",
+    icon: "briefcase",
+    accent: ["#10B981", "#FACC15"],
+  },
 ];
 
-const SUBTYPE_CHIPS: Record<DiscoveryMode, string[]> = {
-  dating: ["All", "Serious", "Casual", "Long-Term", "Luxury", "Adventure", "Creative", "Double Dates", "Active Tonight", "New in Town"],
-  friendship: ["All", "Going Out", "Gym", "Study", "Travel", "Foodies", "Nightlife"],
-  networking: ["All", "Entrepreneurs", "Creators", "Students", "Investors", "Jobs", "Mentors"],
+const subTabs: Record<IntentId, string[]> = {
+  dating: ["For You", "Active Tonight", "Double Dates", "Serious", "Casual", "Miami Nightlife"],
+  friends: ["For You", "Brunch", "Gym", "Beach Day", "Events", "New to Miami"],
+  networking: ["For You", "Founders", "Creators", "Real Estate", "Nightlife Pros", "Investors"],
 };
 
-const MOCK_DISCOVERY_PROFILES: Record<DiscoveryMode, Profile[]> = {
-  dating: [
-    {
-      id: "mock-dating-1",
-      userId: "mock-dating-1",
-      displayName: "Maya",
-      age: 24,
-      location: "Miami",
-      country: "FL",
-      intent: "dating",
-      connectionSubtype: "Active Tonight",
-      bio: "Looking for people to go out and have fun tonight. Love rooftop bars, dancing, and spontaneous plans.",
-      interests: ["Nightlife", "Travel", "Yoga", "Foodie"],
-      photos: [
-        "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1200&q=80",
-        "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=1200&q=80",
-        "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&q=80",
-      ],
-      isPremium: true,
-      isVerified: true,
-    },
-    {
-      id: "mock-dating-2",
-      userId: "mock-dating-2",
-      displayName: "Andre",
-      age: 27,
-      location: "Brickell",
-      country: "Miami",
-      intent: "dating",
-      connectionSubtype: "Serious",
-      bio: "Big on chemistry, consistency, and planning cute dates that turn into stories.",
-      interests: ["Fitness", "Restaurants", "Beach", "Live Music"],
-      photos: [
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=1200&q=80",
-        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=1200&q=80",
-        "https://images.unsplash.com/photo-1504593811423-6dd665756598?w=1200&q=80",
-      ],
-      isPremium: false,
-      isVerified: true,
-    },
-    {
-      id: "mock-dating-3",
-      userId: "mock-dating-3",
-      displayName: "Sofia",
-      age: 25,
-      location: "Wynwood",
-      country: "Miami",
-      intent: "dating",
-      connectionSubtype: "Casual",
-      bio: "Sunset walks, art nights, and playful energy. Down for last-minute plans if the vibe is right.",
-      interests: ["Art", "Coffee", "Fashion", "Pilates"],
-      photos: [
-        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=1200&q=80",
-        "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=1200&q=80",
-        "https://images.unsplash.com/photo-1521119989659-a83eee488004?w=1200&q=80",
-      ],
-      isPremium: true,
-      isVerified: false,
-    },
-    {
-      id: "mock-dating-4",
-      userId: "mock-dating-4",
-      displayName: "Leo",
-      age: 29,
-      location: "Fort Lauderdale",
-      country: "FL",
-      intent: "dating",
-      connectionSubtype: "Double Dates",
-      bio: "Usually with my crew, always down for a fun dinner and something that turns into an adventure.",
-      interests: ["Boating", "Brunch", "Comedy", "Travel"],
-      photos: [
-        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=1200&q=80",
-        "https://images.unsplash.com/photo-1507591064344-4c6ce005b128?w=1200&q=80",
-      ],
-      isPremium: false,
-      isVerified: true,
-    },
-    {
-      id: "mock-dating-5",
-      userId: "mock-dating-5",
-      displayName: "Ariella",
-      age: 26,
-      location: "Sunny Isles",
-      country: "FL",
-      intent: "dating",
-      connectionSubtype: "Long-Term",
-      bio: "Soft life energy with real intention. Looking for consistency, chemistry, and someone who actually dates with purpose.",
-      interests: ["Pilates", "Dinner Dates", "Wellness", "Travel"],
-      photos: [
-        "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=1200&q=80",
-        "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=1200&q=80",
-      ],
-      isPremium: true,
-      isVerified: true,
-    },
-    {
-      id: "mock-dating-6",
-      userId: "mock-dating-6",
-      displayName: "Damian",
-      age: 31,
-      location: "Bal Harbour",
-      country: "FL",
-      intent: "dating",
-      connectionSubtype: "Luxury",
-      bio: "I like beautiful spaces, clean style, and dates that feel elevated without trying too hard.",
-      interests: ["Fine Dining", "Boats", "Design", "Weekend Escapes"],
-      photos: [
-        "https://images.unsplash.com/photo-1507591064344-4c6ce005b128?w=1200&q=80",
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=1200&q=80&sat=-25",
-      ],
-      isPremium: true,
-      isVerified: true,
-    },
-    {
-      id: "mock-dating-7",
-      userId: "mock-dating-7",
-      displayName: "Kiara",
-      age: 23,
-      location: "Coconut Grove",
-      country: "FL",
-      intent: "dating",
-      connectionSubtype: "Adventure",
-      bio: "Say yes to jet skis, hidden cafes, random drives, and someone who can match spontaneous energy.",
-      interests: ["Hiking", "Kayaking", "Travel", "Sunsets"],
-      photos: [
-        "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=1200&q=80",
-        "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&q=80",
-      ],
-      isPremium: false,
-      isVerified: true,
-    },
-    {
-      id: "mock-dating-8",
-      userId: "mock-dating-8",
-      displayName: "Noah",
-      age: 28,
-      location: "Wynwood",
-      country: "Miami",
-      intent: "dating",
-      connectionSubtype: "Creative",
-      bio: "Photographer and visual storyteller. Looking for someone inspiring, playful, and down for late-night idea spirals.",
-      interests: ["Photography", "Art", "Fashion", "Music"],
-      photos: [
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=1200&q=80&sat=-20",
-        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=1200&q=80&sat=-20",
-      ],
-      isPremium: false,
-      isVerified: false,
-    },
-    {
-      id: "mock-dating-9",
-      userId: "mock-dating-9",
-      displayName: "Valentina",
-      age: 25,
-      location: "Edgewater",
-      country: "Miami",
-      intent: "dating",
-      connectionSubtype: "New in Town",
-      bio: "Just moved here and want one person who makes Miami feel instantly exciting, warm, and a little dangerous.",
-      interests: ["Trying New Spots", "Beach Walks", "Latin Music", "Coffee"],
-      photos: [
-        "https://images.unsplash.com/photo-1521119989659-a83eee488004?w=1200&q=80",
-        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=1200&q=80&sat=10",
-      ],
-      isPremium: true,
-      isVerified: true,
-    },
-  ],
-  friendship: [
-    {
-      id: "mock-friends-1",
-      userId: "mock-friends-1",
-      displayName: "Janelle",
-      age: 23,
-      location: "Aventura",
-      country: "FL",
-      intent: "friendship",
-      connectionSubtype: "Going Out",
-      bio: "New in town and building a solid friend group for brunches, girls' nights, and beach days.",
-      interests: ["Brunch", "Beach", "Concerts", "Shopping"],
-      photos: ["https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=1200&q=80"],
-      isPremium: false,
-      isVerified: true,
-    },
-    {
-      id: "mock-friends-2",
-      userId: "mock-friends-2",
-      displayName: "Chris",
-      age: 26,
-      location: "Downtown",
-      country: "Miami",
-      intent: "friendship",
-      connectionSubtype: "Gym",
-      bio: "Looking for friends who are into fitness, matcha runs, and actually sticking to plans.",
-      interests: ["Gym", "Running", "Smoothies", "Recovery"],
-      photos: ["https://images.unsplash.com/photo-1504593811423-6dd665756598?w=1200&q=80"],
-      isPremium: true,
-      isVerified: false,
-    },
-    {
-      id: "mock-friends-3",
-      userId: "mock-friends-3",
-      displayName: "Nia",
-      age: 22,
-      location: "Coral Gables",
-      country: "FL",
-      intent: "friendship",
-      connectionSubtype: "Study",
-      bio: "Med student who still wants balance. Study buddy energy with occasional iced coffee escapes.",
-      interests: ["Study", "Coffee", "Books", "Wellness"],
-      photos: ["https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=1200&q=80"],
-      isPremium: false,
-      isVerified: true,
-    },
-    {
-      id: "mock-friends-4",
-      userId: "mock-friends-4",
-      displayName: "Marco",
-      age: 28,
-      location: "Hollywood",
-      country: "FL",
-      intent: "friendship",
-      connectionSubtype: "Travel",
-      bio: "Always looking for a passport-ready crew, random road trips, and people who say yes to experiences.",
-      interests: ["Travel", "Photography", "Food", "Road Trips"],
-      photos: ["https://images.unsplash.com/photo-1504257432389-52343af06ae3?w=1200&q=80"],
-      isPremium: true,
-      isVerified: true,
-    },
-  ],
-  networking: [
-    {
-      id: "mock-network-1",
-      userId: "mock-network-1",
-      displayName: "Alex Carter",
-      age: 30,
-      location: "Brickell",
-      country: "Miami",
-      intent: "networking",
-      connectionSubtype: "Entrepreneurs",
-      role: "founder",
-      profession: "Founder & CEO",
-      bio: "Building an AI growth tool for creators. Looking for operators, early hires, and sharp people who move fast.",
-      interests: ["Startups", "AI", "Growth", "Pitch Nights"],
-      photos: ["https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=1200&q=80"],
-      isPremium: true,
-      isVerified: true,
-    },
-    {
-      id: "mock-network-2",
-      userId: "mock-network-2",
-      displayName: "Jasmine Lee",
-      age: 28,
-      location: "Wynwood",
-      country: "Miami",
-      intent: "networking",
-      connectionSubtype: "Creators",
-      role: "creativeDirector",
-      profession: "Creative Director",
-      bio: "Running campaigns for nightlife and hospitality brands. Always down to meet photographers, editors, and founders.",
-      interests: ["Branding", "Events", "Content", "Fashion"],
-      photos: ["https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=1200&q=80"],
-      isPremium: false,
-      isVerified: true,
-    },
-    {
-      id: "mock-network-3",
-      userId: "mock-network-3",
-      displayName: "Marcus Webb",
-      age: 33,
-      location: "Downtown",
-      country: "Miami",
-      intent: "networking",
-      connectionSubtype: "Investors",
-      role: "investor",
-      profession: "Angel Investor",
-      bio: "Backing bold South Florida founders in AI, fintech, and consumer social. I like people with edge and execution.",
-      interests: ["Venture", "Fintech", "AI", "Founder Dinners"],
-      photos: ["https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&q=80"],
-      isPremium: true,
-      isVerified: true,
-    },
-    {
-      id: "mock-network-4",
-      userId: "mock-network-4",
-      displayName: "Sofia Mendez",
-      age: 27,
-      location: "Coral Gables",
-      country: "FL",
-      intent: "networking",
-      connectionSubtype: "Mentors",
-      role: "engineer",
-      profession: "Senior Product Engineer",
-      bio: "Helping first-time founders go from messy idea to clean launch. Especially into women-led products and community apps.",
-      interests: ["Product", "Engineering", "Mentorship", "Coffee Chats"],
-      photos: ["https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=1200&q=80"],
-      isPremium: true,
-      isVerified: false,
-    },
-  ],
-};
+const profiles: Profile[] = [
+  {
+    id: 1,
+    name: "Maya",
+    age: 24,
+    location: "Miami, FL",
+    intent: "dating",
+    subGenre: "Active Tonight",
+    bio: "Looking for people to go out and have fun tonight. Love rooftop bars, dancing, and spontaneous plans.",
+    interests: ["Nightlife", "Travel", "Yoga", "Foodie"],
+    matchScore: 78,
+    online: true,
+    image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    id: 2,
+    name: "Sofia",
+    age: 25,
+    location: "Brickell, Miami",
+    intent: "dating",
+    subGenre: "Double Dates",
+    bio: "Here for fun plans, good energy, and people who actually make it out of the group chat.",
+    interests: ["Dancing", "Rooftops", "Fashion", "Sushi"],
+    matchScore: 86,
+    online: true,
+    image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    id: 3,
+    name: "Ari",
+    age: 26,
+    location: "South Beach",
+    intent: "friends",
+    subGenre: "Brunch",
+    bio: "New friends, brunch plans, beach days, and people who actually want to go outside.",
+    interests: ["Brunch", "Beach", "Events", "Coffee"],
+    matchScore: 84,
+    online: true,
+    image: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    id: 4,
+    name: "Jade",
+    age: 23,
+    location: "Coral Gables",
+    intent: "friends",
+    subGenre: "Gym",
+    bio: "Looking for workout partners, casual hangs, and girls who love trying new spots.",
+    interests: ["Gym", "Pilates", "Smoothies", "Beach"],
+    matchScore: 81,
+    online: false,
+    image: "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    id: 5,
+    name: "Marcus",
+    age: 29,
+    location: "Wynwood",
+    intent: "networking",
+    subGenre: "Founders",
+    bio: "Building startups, meeting creators, and connecting with people who move with purpose.",
+    interests: ["Startups", "AI", "Real Estate", "Creators"],
+    matchScore: 91,
+    online: false,
+    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    id: 6,
+    name: "Camila",
+    age: 27,
+    location: "Design District",
+    intent: "networking",
+    subGenre: "Creators",
+    bio: "Creative director looking to meet founders, artists, nightlife pros, and brand builders.",
+    interests: ["Branding", "Events", "Content", "Fashion"],
+    matchScore: 88,
+    online: true,
+    image: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=900&q=80",
+  },
+];
 
-function normalizeSubtype(value?: string | null) {
-  return (value ?? "").trim().toLowerCase();
-}
+const datingActions: ActionDef[] = [
+  { label: "Pass", iconLib: "ion", iconName: "close" },
+  { label: "Like", iconLib: "ion", iconName: "heart", hot: true },
+  { label: "Message", iconLib: "ion", iconName: "chatbubble" },
+];
 
-function getInitials(name = "User") {
-  return name
-    .split(" ")
-    .map((part) => part[0] ?? "")
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
+const friendsActions: ActionDef[] = [
+  { label: "Skip", iconLib: "ion", iconName: "close" },
+  { label: "Add Friend", iconLib: "ion", iconName: "person-add", hot: true },
+  { label: "Invite", iconLib: "ion", iconName: "calendar" },
+];
 
-function deterministicPct(id: string) {
-  let hash = 0;
-  for (let index = 0; index < id.length; index += 1) {
-    hash = (((hash << 5) - hash) + id.charCodeAt(index)) | 0;
-  }
-  return 70 + (Math.abs(hash) % 30);
-}
-
-function PreviewModal({
-  visible,
-  profile,
-  onClose,
-  onLike,
-}: {
-  visible: boolean;
-  profile: Profile | null;
-  onClose: () => void;
-  onLike: () => void;
-}) {
-  const [photoIndex, setPhotoIndex] = useState(0);
-
-  useEffect(() => {
-    setPhotoIndex(0);
-  }, [profile?.id, visible]);
-
-  if (!profile) {
-    return null;
-  }
-
-  const photoCount = Math.min(profile.photos?.length ?? 0, 5);
-  const photoUrl = photoCount > 0 ? profile.photos?.[Math.min(photoIndex, photoCount - 1)] : undefined;
-  const compatibility = deterministicPct(profile.userId);
-  const locationText = [profile.location, profile.country].filter(Boolean).join(", ");
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-      <View style={previewStyles.container}>
-        <ScrollView bounces={false} style={previewStyles.container}>
-          <View style={previewStyles.hero}>
-            {photoUrl ? (
-              <Animated.Image source={{ uri: photoUrl }} style={previewStyles.heroImage} />
-            ) : (
-              <LinearGradient colors={["#111111", "#3a0426", "#000000"]} style={previewStyles.heroImage}>
-                <View style={previewStyles.initialsBubble}>
-                  <Text style={previewStyles.initialsText}>{getInitials(profile.displayName)}</Text>
-                </View>
-              </LinearGradient>
-            )}
-
-            <LinearGradient colors={["transparent", "rgba(0,0,0,0.18)", "#000"]} style={previewStyles.heroShade} />
-
-            {photoCount > 1 ? (
-              <View style={previewStyles.photoProgress}>
-                {profile.photos?.slice(0, 5).map((_, index) => (
-                  <View
-                    key={`${profile.id}-preview-photo-${index}`}
-                    style={[
-                      previewStyles.photoProgressDot,
-                      index === photoIndex ? previewStyles.photoProgressDotActive : null,
-                    ]}
-                  />
-                ))}
-              </View>
-            ) : null}
-
-            <View style={previewStyles.photoTapRow}>
-              <Pressable
-                onPress={() => {
-                  if (photoCount > 1) {
-                    setPhotoIndex((current) => (current === 0 ? photoCount - 1 : current - 1));
-                  }
-                }}
-                style={previewStyles.photoTapZone}
-              />
-              <Pressable
-                onPress={() => {
-                  if (photoCount > 1) {
-                    setPhotoIndex((current) => (current + 1) % photoCount);
-                  }
-                }}
-                style={previewStyles.photoTapZone}
-              />
-            </View>
-
-            <View style={previewStyles.heroTop}>
-              <Pressable onPress={onClose} style={previewStyles.roundButton}>
-                <Ionicons name="close" size={22} color="#fff" />
-              </Pressable>
-              <View style={previewStyles.matchPill}>
-                <Text style={previewStyles.matchPillText}>{compatibility}% Match</Text>
-              </View>
-            </View>
-
-            <View style={previewStyles.heroBottom}>
-              <View style={previewStyles.heroNameRow}>
-                <Text style={previewStyles.heroName}>
-                  {profile.displayName}
-                  {profile.age ? `, ${profile.age}` : ""}
-                </Text>
-                {profile.isVerified ? (
-                  <Ionicons name="checkmark-circle" size={22} color="#FF299B" />
-                ) : null}
-              </View>
-              {locationText ? (
-                <View style={previewStyles.locationRow}>
-                  <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.72)" />
-                  <Text style={previewStyles.locationText}>{locationText}</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          <View style={previewStyles.content}>
-            <View style={previewStyles.badgeRow}>
-              <View style={previewStyles.primaryBadge}>
-                <Text style={previewStyles.primaryBadgeText}>
-                  {profile.intent === "friendship"
-                    ? "Friends"
-                    : profile.intent.charAt(0).toUpperCase() + profile.intent.slice(1)}
-                </Text>
-              </View>
-              {profile.connectionSubtype ? (
-                <View style={previewStyles.secondaryBadge}>
-                  <Text style={previewStyles.secondaryBadgeText}>{profile.connectionSubtype}</Text>
-                </View>
-              ) : null}
-            </View>
-
-            {profile.bio ? (
-              <View style={previewStyles.vibeCard}>
-                <Text style={previewStyles.sectionEyebrow}>Vibe</Text>
-                <Text style={previewStyles.vibeCopy}>{profile.bio}</Text>
-              </View>
-            ) : null}
-
-            {profile.interests && profile.interests.length > 0 ? (
-              <View style={previewStyles.section}>
-                <Text style={previewStyles.sectionTitle}>Interests</Text>
-                <View style={previewStyles.interestsWrap}>
-                  {profile.interests.map((interest) => (
-                    <View key={interest} style={previewStyles.interestChip}>
-                      <Text style={previewStyles.interestChipText}>{interest}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ) : null}
-          </View>
-        </ScrollView>
-
-        <View style={previewStyles.footer}>
-          <Pressable onPress={onClose} style={previewStyles.secondaryCta}>
-            <Text style={previewStyles.secondaryCtaText}>Back</Text>
-          </Pressable>
-          <Pressable onPress={onLike} style={previewStyles.primaryCta}>
-            <Text style={previewStyles.primaryCtaText}>Like</Text>
-          </Pressable>
-        </View>
-      </View>
-    </Modal>
-  );
-}
+const networkingActions: ActionDef[] = [
+  { label: "Connect", iconLib: "material", iconName: "handshake", hot: true },
+  { label: "Save", iconLib: "ion", iconName: "bookmark" },
+  { label: "Message", iconLib: "ion", iconName: "chatbubble" },
+];
 
 export default function DiscoverScreen() {
-  const colors = useColors();
   const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
-  const { isSignedIn } = useAuth();
-  const { data: myProfile } = useGetMyProfile({ query: { enabled: !!isSignedIn } });
-  const { mode, setMode } = useDiscoveryMode();
+  const topInset = Platform.OS === "web" ? 16 : insets.top;
+  const bottomInset = Platform.OS === "web" ? 56 : 49 + insets.bottom;
 
-  const visibleModeTabs = MODE_TABS.filter((tab) => {
-    if (!myProfile?.intent) return true;
-    if (tab.value === "dating") return myProfile.intent === "dating" || myProfile.intent === "all";
-    if (tab.value === "friendship") return myProfile.intent === "friendship" || myProfile.intent === "all";
-    if (tab.value === "networking") return myProfile.intent === "networking" || myProfile.intent === "all";
-    return false;
-  });
+  const allowedTabs =
+    currentUserIntent === "all"
+      ? intentTabs
+      : intentTabs.filter((tab) => tab.id === currentUserIntent);
 
-  const [page, setPage] = useState(1);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedSubtype, setSelectedSubtype] = useState("All");
-  const [previewProfile, setPreviewProfile] = useState<Profile | null>(null);
-  const [matchAnim] = useState(new Animated.Value(0));
-  const [matchedProfile, setMatchedProfile] = useState<Profile | null>(null);
+  const [activeIntent, setActiveIntent] = useState<IntentId>(allowedTabs[0]!.id);
+  const [activeSubTab, setActiveSubTab] = useState("For You");
+  const [cardIndex, setCardIndex] = useState(0);
 
-  useEffect(() => {
-    if (!myProfile?.intent) return;
-    const valid = visibleModeTabs.some((tab) => tab.value === mode);
-    if (!valid && visibleModeTabs.length > 0) {
-      setMode(visibleModeTabs[0]!.value);
-    }
-  }, [mode, myProfile?.intent, setMode, visibleModeTabs]);
+  const activeTheme = intentTabs.find((tab) => tab.id === activeIntent)!;
 
-  const { data, isLoading, refetch } = useGetDiscoveryFeed(
-    {
-      page,
-      limit: 10,
-      intent: mode as ConnectionIntent,
-      ...(selectedSubtype !== "All" ? { subtype: selectedSubtype } : {}),
-    },
-    { query: { enabled: !!isSignedIn } }
-  );
+  const filteredProfiles = useMemo(() => {
+    return profiles.filter((profile) => {
+      const userCanSee =
+        currentUserIntent === "all" ||
+        profile.intent === currentUserIntent ||
+        (profile.intent as string) === "all";
+      const matchesMainTab =
+        profile.intent === activeIntent || (profile.intent as string) === "all";
+      const matchesSubTab =
+        activeSubTab === "For You" || profile.subGenre === activeSubTab;
+      return userCanSee && matchesMainTab && matchesSubTab;
+    });
+  }, [activeIntent, activeSubTab]);
 
-  const actionMutation = usePerformDiscoveryAction();
+  const currentProfile =
+    filteredProfiles.length > 0
+      ? filteredProfiles[cardIndex % filteredProfiles.length]
+      : null;
 
-  useEffect(() => {
-    setProfiles([]);
-    setCurrentIndex(0);
-    setPage(1);
-  }, [mode, selectedSubtype]);
+  const changeIntent = (intent: IntentId) => {
+    setActiveIntent(intent);
+    setActiveSubTab("For You");
+    setCardIndex(0);
+  };
 
-  useEffect(() => {
-    if (data?.profiles) {
-      setProfiles((prev) => {
-        const existingIds = new Set(prev.map((profile) => profile.id));
-        const newProfiles = data.profiles.filter((profile: Profile) => !existingIds.has(profile.id));
-        return page === 1 ? newProfiles : [...prev, ...newProfiles];
+  const nextCard = () => {
+    setCardIndex((prev) => prev + 1);
+  };
+
+  const dragY = useRef(new Animated.Value(0)).current;
+  const cardOpacity = useRef(new Animated.Value(1)).current;
+  const cardScale = useRef(new Animated.Value(1)).current;
+  const isAnimating = useRef(false);
+
+  const animateExitAndAdvance = (direction: 1 | -1 = -1) => {
+    if (isAnimating.current) return;
+    isAnimating.current = true;
+    Animated.parallel([
+      Animated.timing(dragY, {
+        toValue: direction * 400,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardOpacity, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardScale, {
+        toValue: 0.94,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Reset for the incoming card and swap content
+      dragY.setValue(80);
+      cardOpacity.setValue(0);
+      cardScale.setValue(0.96);
+      nextCard();
+      Animated.parallel([
+        Animated.spring(dragY, {
+          toValue: 0,
+          stiffness: 220,
+          damping: 26,
+          useNativeDriver: true,
+        }),
+        Animated.spring(cardOpacity, {
+          toValue: 1,
+          stiffness: 220,
+          damping: 26,
+          useNativeDriver: true,
+        }),
+        Animated.spring(cardScale, {
+          toValue: 1,
+          stiffness: 220,
+          damping: 26,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        isAnimating.current = false;
       });
-    }
-  }, [data?.profiles, page]);
+    });
+  };
 
-  const filteredProfiles = useMemo(
+  const panResponder = useMemo(
     () =>
-      profiles.filter((profile) =>
-        selectedSubtype === "All"
-          ? true
-          : normalizeSubtype(profile.connectionSubtype) === normalizeSubtype(selectedSubtype)
-      ),
-    [profiles, selectedSubtype]
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onPanResponderMove: Animated.event([null, { dy: dragY }], {
+          useNativeDriver: false,
+        }),
+        onPanResponderRelease: (_, gesture) => {
+          if (Math.abs(gesture.dy) > 90) {
+            animateExitAndAdvance(gesture.dy < 0 ? -1 : 1);
+          } else {
+            Animated.spring(dragY, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start();
+          }
+        },
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dragY, cardOpacity, cardScale]
   );
 
-  const mockProfiles = useMemo(
-    () =>
-      MOCK_DISCOVERY_PROFILES[mode].filter((profile) =>
-        selectedSubtype === "All"
-          ? true
-          : normalizeSubtype(profile.connectionSubtype) === normalizeSubtype(selectedSubtype)
-      ),
-    [mode, selectedSubtype]
-  );
-
-  const activeProfiles = filteredProfiles.length > 0 ? filteredProfiles : mockProfiles;
-
-  const visibleProfiles = activeProfiles.slice(currentIndex, currentIndex + 3);
-  const topProfile = visibleProfiles[0] ?? null;
-  const activeTabConfig = visibleModeTabs.find((tab) => tab.value === mode) ?? visibleModeTabs[0] ?? MODE_TABS[0]!;
-  const chips = SUBTYPE_CHIPS[mode];
-
-  async function switchMode(newMode: DiscoveryMode) {
-    if (newMode === mode) return;
-    await Haptics.selectionAsync();
-    setMode(newMode);
-    setSelectedSubtype("All");
-  }
-
-  async function handleSubtypePress(chip: string) {
-    await Haptics.selectionAsync();
-    setSelectedSubtype(chip);
-  }
-
-  async function handleAction(action: "like" | "superlike" | "pass", profile: Profile) {
-    await Haptics.impactAsync(
-      action === "like" || action === "superlike"
-        ? Haptics.ImpactFeedbackStyle.Medium
-        : Haptics.ImpactFeedbackStyle.Light
-    );
-
-    setCurrentIndex((index) => index + 1);
-
-    if (filteredProfiles.length > 0 && filteredProfiles.length - currentIndex < 4 && data?.hasMore) {
-      setPage((currentPage) => currentPage + 1);
-    }
-
-    if (profile.userId.startsWith("mock-")) {
-      if (action !== "pass" && deterministicPct(profile.userId) >= 90) {
-        setMatchedProfile(profile);
-        Animated.sequence([
-          Animated.timing(matchAnim, { toValue: 1, duration: 280, useNativeDriver: false }),
-          Animated.delay(1800),
-          Animated.timing(matchAnim, { toValue: 0, duration: 280, useNativeDriver: false }),
-        ]).start(() => setMatchedProfile(null));
-      }
-      return;
-    }
-
-    try {
-      const result = await actionMutation.mutateAsync({
-        data: { targetUserId: profile.userId, action },
-      });
-
-      if (result.matched && result.match) {
-        setMatchedProfile(profile);
-        Animated.sequence([
-          Animated.timing(matchAnim, { toValue: 1, duration: 280, useNativeDriver: false }),
-          Animated.delay(1800),
-          Animated.timing(matchAnim, { toValue: 0, duration: 280, useNativeDriver: false }),
-        ]).start(() => setMatchedProfile(null));
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    } catch {
-      setCurrentIndex((index) => Math.max(0, index - 1));
-    }
-  }
-
-  const showEmpty = !isLoading && !isSignedIn;
-  const showNoMore = !isLoading && isSignedIn && activeProfiles.length > 0 && currentIndex >= activeProfiles.length;
-  const showCards = isSignedIn && visibleProfiles.length > 0;
+  const actionsForIntent =
+    activeIntent === "dating"
+      ? datingActions
+      : activeIntent === "friends"
+      ? friendsActions
+      : networkingActions;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient colors={["#050505", "#090909", "#14050e"]} style={StyleSheet.absoluteFill} />
+    <View style={[styles.root, { paddingBottom: bottomInset }]}>
+      <View style={[styles.glow1]} />
+      <View style={[styles.glow2]} />
 
-      <View style={[styles.header, { paddingTop: topInset + 8 }]}>
-        <View>
-          <Text style={styles.title}>Discover</Text>
-          <View style={styles.subtitleRow}>
-            <Ionicons name="flame" size={13} color="#FF299B" />
-            <Text style={styles.subtitle}>
-              {showCards ? `${Math.max(activeProfiles.length - currentIndex, 0)} people waiting` : "Active now"}
-            </Text>
-            <View style={styles.subtitleDot} />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: topInset + 4 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>Discover</Text>
+            <View style={styles.subtitleRow}>
+              <Ionicons name="flame" size={14} color="#EC4899" />
+              <Text style={styles.subtitleText}>9 people waiting</Text>
+              <View style={styles.greenDot} />
+            </View>
+          </View>
+
+          <Pressable style={styles.filterButton}>
+            <Ionicons name="options-outline" size={20} color="#E4E4E7" />
+          </Pressable>
+        </View>
+
+        {/* Intent tabs */}
+        <View style={styles.intentTabsWrap}>
+          <View style={styles.intentTabsRow}>
+            {intentTabs.map((tab) => {
+              const isAllowed = allowedTabs.some((allowed) => allowed.id === tab.id);
+              const isActive = activeIntent === tab.id;
+              return (
+                <Pressable
+                  key={tab.id}
+                  disabled={!isAllowed}
+                  onPress={() => isAllowed && changeIntent(tab.id)}
+                  style={styles.intentTabPressable}
+                >
+                  {isActive ? (
+                    <LinearGradient
+                      colors={tab.accent}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  ) : null}
+                  <View style={styles.intentTabInner}>
+                    <Ionicons
+                      name={tab.icon}
+                      size={14}
+                      color={
+                        isActive ? "#FFFFFF" : isAllowed ? "#A1A1AA" : "#3F3F46"
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.intentTabLabel,
+                        {
+                          color: isActive
+                            ? "#FFFFFF"
+                            : isAllowed
+                            ? "#A1A1AA"
+                            : "#3F3F46",
+                          opacity: !isAllowed ? 0.4 : 1,
+                        },
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
-        <Pressable onPress={() => router.push("/settings" as any)} style={styles.headerButton}>
-          <Ionicons name="options-outline" size={20} color="#F4F4F5" />
-        </Pressable>
-      </View>
 
-      {isSignedIn && visibleModeTabs.length > 1 ? (
-        <View style={styles.modeSwitcher}>
-          {visibleModeTabs.map((tab) => {
-            const isActive = mode === tab.value;
-            return (
-              <Pressable
-                key={tab.value}
-                onPress={() => {
-                  void switchMode(tab.value);
-                }}
-                style={[styles.modeTab, isActive && { backgroundColor: tab.color }]}
-              >
-                <Ionicons
-                  name={tab.icon}
-                  size={14}
-                  color={isActive ? "#fff" : "#A1A1AA"}
-                />
-                <Text style={[styles.modeTabText, { color: isActive ? "#fff" : "#A1A1AA" }]}>
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
-
-      {isSignedIn ? (
+        {/* Sub tabs */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsRow}
-          style={styles.chipsScroller}
+          contentContainerStyle={styles.subTabsRow}
+          style={styles.subTabsScroll}
         >
-          {chips.map((chip) => {
-            const isActive = selectedSubtype === chip;
+          {subTabs[activeIntent].map((tab) => {
+            const active = activeSubTab === tab;
             return (
               <Pressable
-                key={chip}
+                key={tab}
                 onPress={() => {
-                  void handleSubtypePress(chip);
+                  setActiveSubTab(tab);
+                  setCardIndex(0);
                 }}
-                style={[styles.chip, isActive ? styles.chipActive : null]}
+                style={styles.subTabPressable}
               >
-                <Text style={[styles.chipText, isActive ? styles.chipTextActive : null]}>{chip}</Text>
+                {active ? (
+                  <LinearGradient
+                    colors={activeTheme.accent}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+                  />
+                ) : (
+                  <View style={[StyleSheet.absoluteFill, styles.subTabInactiveBg]} />
+                )}
+                <Text
+                  style={[
+                    styles.subTabLabel,
+                    { color: active ? "#FFFFFF" : "#A1A1AA" },
+                  ]}
+                >
+                  {tab}
+                </Text>
               </Pressable>
             );
           })}
         </ScrollView>
-      ) : null}
 
-      {isSignedIn && filteredProfiles.length === 0 ? (
-        <View style={styles.demoBanner}>
-          <Ionicons name="sparkles" size={14} color="#FFB6DF" />
-          <Text style={styles.demoBannerText}>Showing mock profiles while your real feed is empty.</Text>
+        {/* Mock notice */}
+        <View style={styles.mockNotice}>
+          <Text style={styles.mockNoticeText}>
+            ✨ Showing mock profiles while your real feed is empty.
+          </Text>
         </View>
-      ) : null}
 
-      <View style={[styles.cardArea, { height: CARD_HEIGHT }]}>
-        {isLoading && profiles.length === 0 ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : null}
-
-        {showEmpty ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="lock-closed-outline" size={56} color={colors.mutedForeground} />
-            <Text style={styles.emptyTitle}>Discover</Text>
-            <Pressable onPress={() => router.push("/(auth)/welcome" as any)}>
-              <Text style={[styles.emptyLink, { color: colors.primary }]}>Sign up to start swiping</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {showNoMore ? (
-          <View style={styles.emptyState}>
-            <View style={[styles.emptyModeIcon, { backgroundColor: activeTabConfig.color + "18" }]}>
-              <Ionicons name={activeTabConfig.icon} size={30} color={activeTabConfig.color} />
-            </View>
-            <Text style={styles.emptyTitle}>You're all caught up</Text>
-            <Text style={styles.emptySubtitle}>Try another vibe or reset the stack for more people nearby.</Text>
-            <Pressable
-              onPress={() => {
-                setProfiles([]);
-                setCurrentIndex(0);
-                setPage(1);
-                void refetch();
-              }}
-              style={styles.refreshBtn}
-            >
-              <Ionicons name="refresh" size={18} color="#fff" />
-              <Text style={styles.refreshText}>Reset Discover</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {showCards ? (
-          <>
-            {visibleProfiles
-              .slice()
-              .reverse()
-              .map((profile, reverseIndex) => {
-                const index = visibleProfiles.length - 1 - reverseIndex;
-                const isTop = index === 0;
-                const scale = 1 - index * 0.04;
-                const translateY = index * 12;
-
-                return (
-                  <View
-                    key={profile.id}
-                    style={[
-                      styles.cardWrapper,
-                      !isTop ? { transform: [{ scale }, { translateY }] } : null,
-                    ]}
-                  >
-                    <SwipeCard
-                      profile={profile}
-                      isTop={isTop}
-                      onOpenProfile={() => setPreviewProfile(profile)}
-                      onSwipeRight={() => {
-                        if (topProfile) {
-                          void handleAction("like", topProfile);
-                        }
-                      }}
-                      onSwipeLeft={() => {
-                        if (topProfile) {
-                          void handleAction("pass", topProfile);
-                        }
-                      }}
-                      onSwipeUp={() => {
-                        if (topProfile) {
-                          void handleAction("superlike", topProfile);
-                        }
-                      }}
-                    />
-                  </View>
-                );
-              })}
-          </>
-        ) : null}
-      </View>
-
-      {showCards ? (
-        <View style={[styles.actions, { paddingBottom: bottomInset + 18 }]}>
-          <ActionButton type="pass" size="lg" onPress={() => topProfile && void handleAction("pass", topProfile)} />
-          <ActionButton type="superlike" size="md" onPress={() => topProfile && void handleAction("superlike", topProfile)} />
-          <ActionButton type="like" size="lg" onPress={() => topProfile && void handleAction("like", topProfile)} />
-        </View>
-      ) : null}
-
-      {matchedProfile ? (
-        <Animated.View
-          style={[
-            styles.matchOverlay,
-            {
-              opacity: matchAnim,
-              transform: [
+        {/* Card area */}
+        <View style={styles.cardArea}>
+          {currentProfile ? (
+            <Animated.View
+              key={`${currentProfile.id}-${cardIndex}-${activeIntent}-${activeSubTab}`}
+              {...panResponder.panHandlers}
+              style={[
+                styles.card,
                 {
-                  scale: matchAnim.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }),
+                  opacity: cardOpacity,
+                  transform: [{ translateY: dragY }, { scale: cardScale }],
                 },
-              ],
-            },
-          ]}
-        >
-          <LinearGradient colors={["rgba(255,41,155,0.96)", "rgba(168,85,247,0.96)"]} style={styles.matchCard}>
-            <Text style={styles.matchEmoji}>#</Text>
-            <Text style={styles.matchTitle}>It's a match</Text>
-            <Text style={styles.matchSubtitle}>
-              You and {matchedProfile.displayName} liked each other.
-            </Text>
-            <Pressable onPress={() => setMatchedProfile(null)} style={styles.matchBtn}>
-              <Text style={styles.matchBtnText}>Keep discovering</Text>
-            </Pressable>
-          </LinearGradient>
-        </Animated.View>
-      ) : null}
+              ]}
+            >
+              <Image
+                source={{ uri: currentProfile.image }}
+                style={styles.cardImage}
+                resizeMode="cover"
+              />
 
-      <PreviewModal
-        visible={Boolean(previewProfile)}
-        profile={previewProfile}
-        onClose={() => setPreviewProfile(null)}
-        onLike={() => {
-          const selectedProfile = previewProfile;
-          setPreviewProfile(null);
-          if (selectedProfile) {
-            void handleAction("like", selectedProfile);
-          }
-        }}
-      />
+              <LinearGradient
+                colors={["rgba(0,0,0,0.1)", "rgba(0,0,0,0.25)", "#000000"]}
+                locations={[0, 0.55, 1]}
+                style={StyleSheet.absoluteFill}
+              />
+
+              {/* Top pills */}
+              <View style={styles.cardTopRow}>
+                <View style={styles.statusPill}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      {
+                        backgroundColor: currentProfile.online ? "#34D399" : "#71717A",
+                      },
+                    ]}
+                  />
+                  <Text style={styles.pillText}>
+                    {currentProfile.online ? "Online" : "Offline"}
+                  </Text>
+                </View>
+                <View style={styles.matchPill}>
+                  <Text style={styles.pillText}>{currentProfile.matchScore}% Match</Text>
+                </View>
+              </View>
+
+              {/* Bottom info */}
+              <View style={styles.cardBottom}>
+                <View style={styles.cardNameRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardName}>
+                      {currentProfile.name}, {currentProfile.age}
+                    </Text>
+                    <View style={styles.locationRow}>
+                      <Ionicons name="location-outline" size={14} color="#E4E4E7" />
+                      <Text style={styles.locationText}>{currentProfile.location}</Text>
+                    </View>
+                  </View>
+
+                  <Pressable onPress={() => animateExitAndAdvance(-1)} style={styles.checkButton}>
+                    <LinearGradient
+                      colors={activeTheme.accent}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
+                  </Pressable>
+                </View>
+
+                {/* Tag badges */}
+                <View style={styles.badgeRow}>
+                  <View style={styles.intentBadge}>
+                    <LinearGradient
+                      colors={activeTheme.accent}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+                    />
+                    <Text style={styles.intentBadgeText}>{currentProfile.intent}</Text>
+                  </View>
+                  <View style={styles.subBadge}>
+                    <Text style={styles.subBadgeText}>{currentProfile.subGenre}</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.bioText} numberOfLines={2}>
+                  {currentProfile.bio}
+                </Text>
+
+                {/* Interests chips */}
+                <View style={styles.interestsRow}>
+                  {currentProfile.interests.map((interest) => (
+                    <View key={interest} style={styles.interestChip}>
+                      <Text style={styles.interestText}>{interest}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Action buttons */}
+                <View style={styles.actionsRow}>
+                  {actionsForIntent.map((action) => (
+                    <Pressable
+                      key={action.label}
+                      onPress={() => animateExitAndAdvance(-1)}
+                      style={({ pressed }) => [
+                        styles.actionBtn,
+                        action.hot ? styles.actionBtnHot : styles.actionBtnDefault,
+                        pressed && { transform: [{ scale: 0.95 }] },
+                      ]}
+                    >
+                      {action.iconLib === "ion" ? (
+                        <Ionicons
+                          name={action.iconName as IoniconName}
+                          size={20}
+                          color="#FFFFFF"
+                        />
+                      ) : (
+                        <MaterialCommunityIcons
+                          name={action.iconName as MaterialIconName}
+                          size={20}
+                          color="#FFFFFF"
+                        />
+                      )}
+                      <Text style={styles.actionBtnLabel}>{action.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </Animated.View>
+          ) : (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No profiles here yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Try another sub-tab or intent category.
+              </Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  root: {
+    flex: 1,
+    backgroundColor: "#050505",
+  },
+  glow1: {
+    position: "absolute",
+    top: -120,
+    left: -80,
+    width: 320,
+    height: 320,
+    borderRadius: 320,
+    backgroundColor: "rgba(236,72,153,0.16)",
+    opacity: 0.9,
+  },
+  glow2: {
+    position: "absolute",
+    top: -120,
+    right: -80,
+    width: 320,
+    height: 320,
+    borderRadius: 320,
+    backgroundColor: "rgba(16,185,129,0.12)",
+    opacity: 0.9,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+  },
+
+  // Header
   header: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 8,
   },
   title: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 34,
-    fontFamily: "Inter_700Bold",
+    fontWeight: "900",
+    letterSpacing: -0.5,
   },
   subtitleRow: {
+    marginTop: 4,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    marginTop: 4,
+    gap: 8,
   },
-  subtitle: {
+  subtitleText: {
     color: "#A1A1AA",
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
+    fontSize: 13,
   },
-  subtitleDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 999,
-    backgroundColor: "#4ADE80",
-    marginLeft: 2,
+  greenDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#34D399",
+    shadowColor: "#34D399",
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
   },
-  headerButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 999,
+  filterButton: {
+    marginTop: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.05)",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
   },
-  modeSwitcher: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 10,
-    backgroundColor: "rgba(255,255,255,0.05)",
+
+  // Intent tabs
+  intentTabsWrap: {
+    marginTop: 18,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(9,9,11,0.8)",
     padding: 4,
   },
-  modeTab: {
+  intentTabsRow: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  intentTabPressable: {
     flex: 1,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  intentTabInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
     paddingVertical: 12,
-    borderRadius: 999,
+    paddingHorizontal: 8,
   },
-  modeTabText: {
-    fontSize: 13,
-    fontFamily: "Inter_700Bold",
-  },
-  chipsScroller: {
-    maxHeight: 52,
-  },
-  demoBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "center",
-    gap: 8,
-    marginTop: 6,
-    marginBottom: 2,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,41,155,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255,41,155,0.16)",
-  },
-  demoBannerText: {
-    color: "#F9A8D4",
+  intentTabLabel: {
     fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
+    fontWeight: "800",
   },
-  chipsRow: {
-    paddingHorizontal: 16,
+
+  // Sub tabs
+  subTabsScroll: {
+    marginTop: 12,
+    flexGrow: 0,
+  },
+  subTabsRow: {
     gap: 8,
+    paddingRight: 4,
     paddingBottom: 4,
   },
-  chip: {
+  subTabPressable: {
+    borderRadius: 999,
+    overflow: "hidden",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
+    justifyContent: "center",
+  },
+  subTabInactiveBg: {
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  chipActive: {
-    backgroundColor: "#FF299B",
-    borderColor: "#FF7EC8",
-  },
-  chipText: {
-    color: "#D4D4D8",
+  subTabLabel: {
     fontSize: 12,
-    fontFamily: "Inter_700Bold",
+    fontWeight: "800",
   },
-  chipTextActive: {
-    color: "#fff",
-  },
-  cardArea: {
-    alignItems: "center",
-    justifyContent: "flex-start",
-    marginHorizontal: 16,
-    marginTop: 12,
-  },
-  cardWrapper: {
-    position: "absolute",
-    width: SCREEN_WIDTH - 32,
-    top: 0,
-  },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  emptyState: { alignItems: "center", gap: 12, paddingHorizontal: 40 },
-  emptyModeIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyTitle: {
-    color: "#fff",
-    fontSize: 24,
-    fontFamily: "Inter_700Bold",
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    color: "#A1A1AA",
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-  },
-  emptyLink: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  refreshBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderRadius: 999,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginTop: 8,
-    backgroundColor: "rgba(255,41,155,0.9)",
-  },
-  refreshText: {
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
-  },
-  actions: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 24,
-    paddingTop: 18,
-  },
-  matchOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 99,
-  },
-  matchCard: {
-    borderRadius: 28,
-    padding: 34,
-    alignItems: "center",
-    gap: 12,
-    width: SCREEN_WIDTH - 52,
-  },
-  matchEmoji: {
-    color: "#fff",
-    fontSize: 44,
-    fontFamily: "Inter_700Bold",
-  },
-  matchTitle: {
-    color: "#fff",
-    fontSize: 32,
-    fontFamily: "Inter_700Bold",
-  },
-  matchSubtitle: {
-    color: "rgba(255,255,255,0.88)",
-    fontSize: 16,
-    textAlign: "center",
-    lineHeight: 22,
-    fontFamily: "Inter_400Regular",
-  },
-  matchBtn: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 999,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    marginTop: 8,
-  },
-  matchBtnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-  },
-});
 
-const previewStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000",
+  // Mock notice
+  mockNotice: {
+    marginTop: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(244,114,182,0.2)",
+    backgroundColor: "rgba(236,72,153,0.1)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  hero: {
-    height: SCREEN_HEIGHT * 0.62,
-    minHeight: 420,
+  mockNoticeText: {
+    color: "#FBCFE8",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
   },
-  heroImage: {
+
+  // Card area
+  cardArea: {
+    marginTop: 16,
+    minHeight: 590,
+    position: "relative",
+  },
+  card: {
+    minHeight: 590,
+    borderRadius: 28,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "#18181B",
+    shadowColor: "#000",
+    shadowOpacity: 0.75,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 30 },
+    elevation: 12,
+  },
+  cardImage: {
+    ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
   },
-  heroShade: {
+
+  // Top pills
+  cardTopRow: {
     position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  },
-  photoProgress: {
-    position: "absolute",
-    top: 18,
-    left: 16,
-    right: 16,
-    flexDirection: "row",
-    gap: 6,
-  },
-  photoProgressDot: {
-    flex: 1,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.28)",
-  },
-  photoProgressDotActive: {
-    backgroundColor: "#FFFFFF",
-  },
-  photoTapRow: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "74%",
-    flexDirection: "row",
-  },
-  photoTapZone: {
-    flex: 1,
-  },
-  initialsBubble: {
-    width: 136,
-    height: 136,
-    borderRadius: 68,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-  },
-  initialsText: {
-    color: "#fff",
-    fontSize: 44,
-    fontFamily: "Inter_700Bold",
-  },
-  heroTop: {
-    position: "absolute",
-    top: 58,
-    left: 16,
-    right: 16,
+    top: 16,
+    left: 20,
+    right: 20,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  heroBottom: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    bottom: 20,
-  },
-  heroNameRow: {
+  statusPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-  },
-  heroName: {
-    color: "#fff",
-    fontSize: 36,
-    fontFamily: "Inter_700Bold",
-    flex: 1,
-  },
-  roundButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.45)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   matchPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
     backgroundColor: "rgba(0,0,0,0.45)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  matchPillText: {
-    color: "#fff",
-    fontSize: 11,
-    fontFamily: "Inter_700Bold",
+  pillText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  // Bottom card area
+  cardBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 20,
+  },
+  cardNameRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 16,
+  },
+  cardName: {
+    color: "#FFFFFF",
+    fontSize: 32,
+    fontWeight: "900",
+    letterSpacing: -0.5,
   },
   locationRow: {
+    marginTop: 6,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginTop: 4,
   },
   locationText: {
-    color: "rgba(255,255,255,0.74)",
+    color: "#E4E4E7",
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
   },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 120,
-    gap: 22,
+  checkButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.55,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
   },
+
+  // Badges
   badgeRow: {
+    marginTop: 12,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
-  primaryBadge: {
+  intentBadge: {
     borderRadius: 999,
+    overflow: "hidden",
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: "rgba(255,41,155,0.22)",
+    paddingVertical: 4,
   },
-  primaryBadgeText: {
-    color: "#fff",
+  intentBadgeText: {
+    color: "#FFFFFF",
     fontSize: 12,
-    fontFamily: "Inter_700Bold",
+    fontWeight: "900",
   },
-  secondaryBadge: {
+  subBadge: {
     borderRadius: 999,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    paddingVertical: 4,
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
-  secondaryBadgeText: {
+  subBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  bioText: {
+    marginTop: 12,
     color: "#F4F4F5",
-    fontSize: 12,
-    fontFamily: "Inter_700Bold",
-  },
-  vibeCard: {
-    borderRadius: 24,
-    padding: 16,
-    backgroundColor: "rgba(255,41,155,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255,41,155,0.18)",
-  },
-  sectionEyebrow: {
-    color: "#F9A8D4",
-    fontSize: 11,
-    letterSpacing: 1.4,
-    fontFamily: "Inter_700Bold",
-    textTransform: "uppercase",
-  },
-  vibeCopy: {
-    color: "#FCE7F3",
     fontSize: 14,
-    lineHeight: 22,
-    marginTop: 8,
-    fontFamily: "Inter_500Medium",
+    fontWeight: "500",
+    lineHeight: 20,
   },
-  section: {
-    gap: 10,
-  },
-  sectionTitle: {
-    color: "#fff",
-    fontSize: 18,
-    fontFamily: "Inter_700Bold",
-  },
-  interestsWrap: {
+
+  // Interests
+  interestsRow: {
+    marginTop: 12,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
   interestChip: {
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
-  interestChipText: {
-    color: "#fff",
+  interestText: {
+    color: "#FFFFFF",
     fontSize: 12,
-    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
   },
-  footer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+
+  // Action row
+  actionsRow: {
+    marginTop: 20,
     flexDirection: "row",
     gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 28,
-    backgroundColor: "rgba(0,0,0,0.94)",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
   },
-  secondaryCta: {
+  actionBtn: {
     flex: 1,
-    borderRadius: 999,
+    borderRadius: 16,
+    paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    gap: 4,
+    borderWidth: 1,
   },
-  secondaryCtaText: {
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
+  actionBtnDefault: {
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.1)",
   },
-  primaryCta: {
-    flex: 1,
-    borderRadius: 999,
+  actionBtnHot: {
+    borderColor: "rgba(244,114,182,0.4)",
+    backgroundColor: "rgba(236,72,153,0.2)",
+  },
+  actionBtnLabel: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  // Empty
+  emptyCard: {
+    minHeight: 590,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    padding: 32,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    backgroundColor: "#FF299B",
   },
-  primaryCtaText: {
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
+  emptyTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  emptySubtitle: {
+    marginTop: 8,
+    color: "#A1A1AA",
+    fontSize: 14,
+    textAlign: "center",
   },
 });
