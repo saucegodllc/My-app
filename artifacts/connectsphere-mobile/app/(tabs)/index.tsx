@@ -71,7 +71,7 @@ const intentTabs: IntentTab[] = [
 ];
 
 const subTabs: Record<IntentId, string[]> = {
-  dating: ["For You", "Active Tonight", "Double Dates", "Serious", "Casual", "Miami Nightlife"],
+  dating: ["For You", "Active Tonight", "Double Dates", "Serious", "Casual", "Nightlife Pros"],
   friends: ["For You", "Brunch", "Gym", "Beach Day", "Events", "New to Miami"],
   networking: ["For You", "Founders", "Creators", "Real Estate", "Nightlife Pros", "Investors"],
 };
@@ -201,7 +201,7 @@ const profiles: Profile[] = [
     age: 30,
     location: "Coconut Grove",
     intent: "dating",
-    subGenre: "Miami Nightlife",
+    subGenre: "Nightlife Pros",
     bio: "Bartender by night, surfer by morning. If you can keep up with both energies we'll get along.",
     interests: ["Surf", "Mixology", "House Music", "Sunsets"],
     matchScore: 83,
