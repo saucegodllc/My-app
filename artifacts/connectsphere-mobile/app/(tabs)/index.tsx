@@ -557,16 +557,16 @@ export default function DiscoverScreen() {
       <View
         style={[
           styles.main,
-          // Web spec: `pt-[calc(env(safe-area-inset-top)+42px)]` — give the
-          // header real breathing room below the status bar / dynamic island.
-          { paddingTop: topInset + 42, paddingBottom: bottomInset },
+          // Web spec: `pt-[calc(env(safe-area-inset-top)+54px)]` — extra
+          // breathing room below the status bar / dynamic island.
+          { paddingTop: topInset + 54, paddingBottom: bottomInset },
         ]}
       >
         {/* Header — minimalist per the latest spec. Flex-row with gap-2 so
             "Discover" (Sora sans-serif) and "Miami" (serif italic) sit side
             by side on a shared baseline. No neon line, no subtitle. */}
         <View style={styles.header}>
-          <View style={styles.titleRow}>
+          <View style={styles.titleHeadlineRow}>
             <Text style={styles.titleHeadlineWord}>Discover</Text>
             <Text style={styles.titleHeadlineMiami}>Miami</Text>
           </View>
@@ -760,7 +760,9 @@ const styles = StyleSheet.create({
   },
   // Web spec: `flex items-center justify-center gap-2`. Baseline alignment
   // keeps the sans-serif and serif italic words sitting on the same line.
-  titleRow: {
+  // (Renamed from `titleRow` to avoid colliding with the legacy `titleRow`
+  // style still referenced by the unused `MiamiNeon` helper.)
+  titleHeadlineRow: {
     flexDirection: "row",
     alignItems: "baseline",
     justifyContent: "center",
