@@ -372,6 +372,42 @@ const profiles: Profile[] = [
   },
 ];
 
+// ─── Animated neon "Miami" wordmark (pulsing pink glow) ──────────────────────
+function MiamiNeon() {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1300,
+          // textShadow* properties are JS-only, can't use native driver here.
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 1300,
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  const radius = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [10, 22],
+  });
+
+  return (
+    <Animated.Text style={[styles.titleMiami, { textShadowRadius: radius }]}>
+      Miami
+    </Animated.Text>
+  );
+}
+
 // ─── Empty State ───────────────────────────────────────────────────────────────
 function EmptyState({ theme }: { theme: Theme }) {
   return (
@@ -459,16 +495,44 @@ export default function DiscoverScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
+          {/* Soft neon glow halo (CSS blur-[95px] → translucent rounded pink view) */}
+          <View pointerEvents="none" style={styles.headerGlow} />
+
+          {/* Thin neon top line */}
+          <View style={styles.headerTopLineWrap}>
+            <LinearGradient
+              colors={[
+                "rgba(244,114,182,0)",
+                "rgba(244,114,182,1)",
+                "rgba(244,114,182,0)",
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.headerTopLine}
+            />
+          </View>
+
           <View style={styles.titleRow}>
             <Text style={styles.title}>Discover</Text>
-            <Text style={styles.titleMiami}>Miami</Text>
-            <Text style={styles.titlePalm}>🌴</Text>
+            <MiamiNeon />
           </View>
+
           <View style={styles.titleUnderlineRow}>
-            <View style={styles.titleUnderline} />
-            <Text style={styles.subtitleSmall}>DISCOVER. CONNECT. VIBE.</Text>
-            <View style={styles.titleUnderline} />
+            <LinearGradient
+              colors={["rgba(236,72,153,0)", "rgba(236,72,153,0.7)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.titleUnderlineLeft}
+            />
+            <Text style={styles.subtitleSmall}>DISCOVER YOUR CITY</Text>
+            <LinearGradient
+              colors={["rgba(236,72,153,0.7)", "rgba(236,72,153,0)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.titleUnderlineRight}
+            />
           </View>
+
           <Pressable style={styles.filterBtn}>
             <Ionicons name="options-outline" size={20} color="#FFF" />
           </Pressable>
@@ -640,35 +704,95 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 18, paddingBottom: 32 },
 
-  // Header — centered with absolutely-positioned filter button (no overlap)
-  header: { position: "relative", alignItems: "center" },
-  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 },
+  // Header — centered, neon halo + thin top line + animated Miami glow
+  header: {
+    position: "relative",
+    alignItems: "center",
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  // Soft pink halo above the title (replaces CSS blur-[95px])
+  headerGlow: {
+    position: "absolute",
+    top: -96,
+    left: "50%",
+    marginLeft: -144,
+    width: 288,
+    height: 208,
+    borderRadius: 144,
+    backgroundColor: "rgba(236,72,153,0.18)",
+  },
+  // Thin neon top line above the title
+  headerTopLineWrap: {
+    width: 112,
+    height: 2,
+    marginBottom: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTopLine: {
+    width: "100%",
+    height: 2,
+    borderRadius: 1,
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.85,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: 8,
+  },
   title: {
-    color: "#FFF", fontSize: 38, fontWeight: "900", letterSpacing: -0.5, lineHeight: 40,
-    textShadowColor: "rgba(255,255,255,0.35)", textShadowRadius: 14, textShadowOffset: { width: 0, height: 2 },
+    color: "#FFF",
+    fontSize: 34,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    lineHeight: 36,
+    textShadowColor: "rgba(255,255,255,0.22)",
+    textShadowRadius: 10,
+    textShadowOffset: { width: 0, height: 0 },
   },
   titleMiami: {
-    color: "#F9A8D4", fontSize: 38, fontWeight: "300", lineHeight: 40,
+    color: "#F9A8D4",
+    fontSize: 34,
+    fontWeight: "300",
+    lineHeight: 36,
     fontStyle: "italic",
-    fontFamily: Platform.select({ ios: "Snell Roundhand", android: "cursive", default: "cursive" }),
-    textShadowColor: "rgba(236,72,153,1)", textShadowRadius: 18, textShadowOffset: { width: 0, height: 0 },
-  },
-  titlePalm: {
-    fontSize: 28, lineHeight: 40,
-    textShadowColor: "rgba(236,72,153,0.8)", textShadowRadius: 18, textShadowOffset: { width: 0, height: 0 },
+    fontFamily: Platform.select({
+      ios: "Snell Roundhand",
+      android: "cursive",
+      default: "cursive",
+    }),
+    textShadowColor: "rgba(236,72,153,1)",
+    textShadowOffset: { width: 0, height: 0 },
   },
   titleUnderlineRow: {
-    marginTop: 16, flexDirection: "row", alignItems: "center", gap: 20, justifyContent: "center",
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    justifyContent: "center",
   },
-  titleUnderline: {
-    width: 56, height: 1, backgroundColor: "rgba(236,72,153,0.6)",
+  titleUnderlineLeft: {
+    width: 40,
+    height: 1,
+  },
+  titleUnderlineRight: {
+    width: 40,
+    height: 1,
   },
   subtitleSmall: {
-    color: "#E4E4E7", fontSize: 11, fontWeight: "900", letterSpacing: 4.2,
+    color: "#D4D4D8",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 3.4,
   },
   filterBtn: {
-    position: "absolute", right: 0, top: 0,
-    width: 48, height: 48, borderRadius: 24,
+    position: "absolute", right: 0, top: 8,
+    width: 44, height: 44, borderRadius: 22,
     borderWidth: 1, borderColor: "rgba(244,114,182,0.25)",
     backgroundColor: "rgba(0,0,0,0.5)",
     alignItems: "center", justifyContent: "center",
