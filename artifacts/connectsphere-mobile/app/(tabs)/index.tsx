@@ -2,6 +2,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+
+import NetworkingTab from "@/components/NetworkingTab";
 import {
   Animated,
   Image,
@@ -624,7 +626,9 @@ export default function DiscoverScreen() {
           })}
         </View>
 
-        {/* Sub Tabs */}
+        {/* Sub Tabs — hidden for Networking, which has its own dedicated UI
+            (header + power stats + people / groups / opportunities feed). */}
+        {activeIntent !== "networking" && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -656,54 +660,63 @@ export default function DiscoverScreen() {
             );
           })}
         </ScrollView>
+        )}
 
-        {/* Card area — flex:1 so it fills the rest of the viewport. Height
-            is captured via onLayout and forwarded to SwipeDeck so the inner
-            cards/shadows stay pixel-perfect at any device size. */}
-        <View
-          style={styles.cardArea}
-          onLayout={(e) => {
-            const h = Math.round(e.nativeEvent.layout.height);
-            if (h > 0 && h !== measuredCardH) setMeasuredCardH(h);
-          }}
-        >
-          {/* Stack ghosts behind the active card for depth (mirrors web
-              `inset-x-3 bottom-[-14px]` and `inset-x-6 bottom-[-26px]`).
-              Animated so they lift slightly during a tap reaction — adds
-              the "the whole stack reacted" feel. */}
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.ghostCard,
-              styles.ghostCard1,
-              { transform: [{ translateY: ghost1Y }, { scale: ghost1Scale }] },
-            ]}
-          />
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.ghostCard,
-              styles.ghostCard2,
-              { transform: [{ translateY: ghost2Y }, { scale: ghost2Scale }] },
-            ]}
-          />
-
-          {profile ? (
-            <SwipeDeck
-              key={`deck-${activeIntent}-${activeSubTab}`}
-              profile={profile}
-              cardKey={`${profile.id}-${cardIndex}`}
-              theme={theme}
-              cardHeight={cardHeight}
-              onOpenProfile={() => setSelectedProfile(profile)}
-              onAction={advanceDeck}
-              actionState={actionState}
-              onReaction={handleReaction}
+        {/* Networking gets its own dedicated tab UI (LinkedIn × Slack ×
+            Meetup vibe). Dating + Friends use the swipe deck below. */}
+        {activeIntent === "networking" ? (
+          <View style={{ flex: 1, marginHorizontal: -16 }}>
+            <NetworkingTab />
+          </View>
+        ) : (
+          /* Card area — flex:1 so it fills the rest of the viewport. Height
+             is captured via onLayout and forwarded to SwipeDeck so the inner
+             cards/shadows stay pixel-perfect at any device size. */
+          <View
+            style={styles.cardArea}
+            onLayout={(e) => {
+              const h = Math.round(e.nativeEvent.layout.height);
+              if (h > 0 && h !== measuredCardH) setMeasuredCardH(h);
+            }}
+          >
+            {/* Stack ghosts behind the active card for depth (mirrors web
+                `inset-x-3 bottom-[-14px]` and `inset-x-6 bottom-[-26px]`).
+                Animated so they lift slightly during a tap reaction — adds
+                the "the whole stack reacted" feel. */}
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.ghostCard,
+                styles.ghostCard1,
+                { transform: [{ translateY: ghost1Y }, { scale: ghost1Scale }] },
+              ]}
             />
-          ) : (
-            <EmptyState theme={theme} />
-          )}
-        </View>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.ghostCard,
+                styles.ghostCard2,
+                { transform: [{ translateY: ghost2Y }, { scale: ghost2Scale }] },
+              ]}
+            />
+
+            {profile ? (
+              <SwipeDeck
+                key={`deck-${activeIntent}-${activeSubTab}`}
+                profile={profile}
+                cardKey={`${profile.id}-${cardIndex}`}
+                theme={theme}
+                cardHeight={cardHeight}
+                onOpenProfile={() => setSelectedProfile(profile)}
+                onAction={advanceDeck}
+                actionState={actionState}
+                onReaction={handleReaction}
+              />
+            ) : (
+              <EmptyState theme={theme} />
+            )}
+          </View>
+        )}
       </View>
 
       <Modal

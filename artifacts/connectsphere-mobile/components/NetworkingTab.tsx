@@ -1,0 +1,862 @@
+/**
+ * NetworkingTab — mobile RN translation of the web spec.
+ *
+ * Replaces the swipe deck in the Discover screen when the user picks the
+ * "Networking" intent tab. Built to feel like LinkedIn × Slack × Meetup ×
+ * college career hub but premium, viral, and Miami-flavored:
+ *   - Black background with hot-pink + emerald accents.
+ *   - Glassmorphism cards (translucent white + subtle borders).
+ *   - No hearts, no swipes, no match %, no dating language.
+ *
+ * Sections (in order):
+ *   1. Header        — title + subtitle + live "X active now" badge
+ *   2. Power Stats   — 4 quick KPI tiles (Hiring Now / Students / Founders / Events)
+ *   3. Quick Actions — 4 CTA tiles (Find People / Work Groups / Plan / Post)
+ *   4. People        — connect cards (photo / role / open-to / skills / actions)
+ *   5. Work Groups   — horizontal scroller (Miami Startup Circle, FIU, etc.)
+ *   6. Opportunities — internships / jobs / collabs / events
+ *   7. Viral         — Open Door Score / Warm Intro / Group Streak / Active Now
+ *      + Build Circle CTA
+ */
+
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image as ExpoImage } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import type { ComponentProps } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
+type IoniconName = ComponentProps<typeof Ionicons>["name"];
+type MaterialIconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
+
+// ─── Data (mirrors the web spec) ─────────────────────────────────────────────
+
+type Person = {
+  name: string;
+  role: string;
+  org: string;
+  location: string;
+  openTo: string;
+  skills: string[];
+  image: string;
+};
+
+const PEOPLE: Person[] = [
+  {
+    name: "Isabella Martinez",
+    role: "Product Designer",
+    org: "NYU \u00b7 Miami",
+    location: "Miami, FL",
+    openTo: "Open to Work",
+    skills: ["Design", "Figma", "UX/UI"],
+    image:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
+  },
+  {
+    name: "Julian Rodriguez",
+    role: "Software Engineer",
+    org: "FIU \u00b7 Miami",
+    location: "Brickell, FL",
+    openTo: "Collaboration",
+    skills: ["React", "AI", "Python"],
+    image:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
+  },
+  {
+    name: "Aaliyah Khan",
+    role: "Marketing Manager",
+    org: "University of Miami",
+    location: "Coral Gables, FL",
+    openTo: "Mentorship",
+    skills: ["Branding", "Growth", "Content"],
+    image:
+      "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=400&q=80",
+  },
+];
+
+type WorkGroup = {
+  title: string;
+  members: string;
+  online: string;
+  icon: IoniconName | "crown";
+};
+
+const WORK_GROUPS: WorkGroup[] = [
+  { title: "Miami Startup Circle", members: "1.2K", online: "84 online", icon: "sparkles" },
+  { title: "FIU Career Network", members: "3.4K", online: "216 online", icon: "school" },
+  { title: "Creators & Brand Deals", members: "928", online: "47 online", icon: "crown" },
+  { title: "Real Estate Leads", members: "2.1K", online: "93 online", icon: "business" },
+];
+
+type Opportunity = {
+  title: string;
+  company: string;
+  type: string;
+  location: string;
+};
+
+const OPPORTUNITIES: Opportunity[] = [
+  { title: "Product Design Intern", company: "Nike", type: "Internship", location: "Miami, FL" },
+  { title: "Social Media Manager", company: "Part-Time", type: "Job", location: "Miami Beach" },
+  { title: "Startup Co-Founder", company: "Early Stage", type: "Collab", location: "Brickell" },
+];
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export default function NetworkingTab() {
+  return (
+    <View style={styles.root}>
+      {/* Ambient pink + emerald blobs (mirrors the web `blur-[120px]` glows). */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <View style={styles.blobPink} />
+        <View style={styles.blobEmerald} />
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <NetworkingHeader />
+        <PowerStats />
+        <QuickActions />
+
+        <SectionHeader title="People You Should Connect With" action="See all" mt={20} />
+        <View style={{ marginTop: 12, gap: 12 }}>
+          {PEOPLE.map((p) => (
+            <PersonCard key={p.name} person={p} />
+          ))}
+        </View>
+
+        <SectionHeader title="Work Groups" action="Explore" mt={24} />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.hScrollContent}
+          style={{ marginTop: 12 }}
+        >
+          {WORK_GROUPS.map((g) => (
+            <WorkGroupCard key={g.title} group={g} />
+          ))}
+        </ScrollView>
+
+        <SectionHeader title="Opportunities" action="Post one" mt={24} />
+        <View style={{ marginTop: 12, gap: 12 }}>
+          {OPPORTUNITIES.map((o) => (
+            <OpportunityCard key={o.title} opportunity={o} />
+          ))}
+        </View>
+
+        <SectionHeader title="Viral" action="Boost" mt={24} />
+        <ViralRow />
+
+        <BuildCircleCTA />
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Header ──────────────────────────────────────────────────────────────────
+
+function NetworkingHeader() {
+  return (
+    <View style={styles.headerRow}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.headerTitle}>Networking</Text>
+        <Text style={styles.headerSubtitle}>
+          <Text style={{ color: "#F472B6" }}>Open doors.</Text>{" "}
+          <Text style={{ color: "#D4D4D8" }}>Build your circle.</Text>
+        </Text>
+
+        <View style={styles.livePill}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>128 active now</Text>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <Pressable style={styles.headerIconBtn}>
+          <Ionicons name="search" size={20} color="#FFF" />
+        </Pressable>
+        <Pressable style={styles.headerIconBtn}>
+          <Ionicons name="notifications-outline" size={20} color="#FFF" />
+          <View style={styles.headerBellDot} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ─── Power Stats ─────────────────────────────────────────────────────────────
+
+function PowerStats() {
+  const stats: { label: string; value: string; icon: IoniconName; color: string }[] = [
+    { label: "Hiring Now", value: "124", icon: "flame", color: "#F472B6" },
+    { label: "Students", value: "2.3K", icon: "school", color: "#6EE7B7" },
+    { label: "Founders", value: "842", icon: "briefcase", color: "#93C5FD" },
+    { label: "Events", value: "18", icon: "calendar", color: "#FDBA74" },
+  ];
+
+  return (
+    <View style={styles.statsRow}>
+      {stats.map((s) => (
+        <Pressable key={s.label} style={({ pressed }) => [styles.statCard, pressed && styles.pressed96]}>
+          <Ionicons name={s.icon} size={16} color={s.color} style={{ alignSelf: "center" }} />
+          <Text style={styles.statValue}>{s.value}</Text>
+          <Text style={styles.statLabel}>{s.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+// ─── Quick Actions ───────────────────────────────────────────────────────────
+
+function QuickActions() {
+  const actions: { title: string; icon: IoniconName; glow: string }[] = [
+    { title: "Find People", icon: "people", glow: "rgba(236,72,153,0.35)" },
+    { title: "Work Groups", icon: "chatbubble-ellipses", glow: "rgba(168,85,247,0.35)" },
+    { title: "Plan Meeting", icon: "calendar", glow: "rgba(59,130,246,0.35)" },
+    { title: "Post Opportunity", icon: "add", glow: "rgba(251,191,36,0.25)" },
+  ];
+
+  return (
+    <View style={{ marginTop: 20 }}>
+      <SectionHeader title="Quick Actions" action="Customize" />
+      <View style={[styles.statsRow, { marginTop: 12 }]}>
+        {actions.map((a) => (
+          <Pressable
+            key={a.title}
+            style={({ pressed }) => [
+              styles.statCard,
+              { shadowColor: a.glow.replace(/rgba\(([^,]+),([^,]+),([^,]+),.*/, "rgb($1,$2,$3)"), shadowOpacity: 0.6, shadowRadius: 16, shadowOffset: { width: 0, height: 0 } },
+              pressed && styles.pressed93,
+            ]}
+          >
+            <Ionicons name={a.icon} size={22} color="#F9A8D4" style={{ alignSelf: "center" }} />
+            <Text style={styles.actionLabel} numberOfLines={2}>
+              {a.title}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ─── Person Card ─────────────────────────────────────────────────────────────
+
+function PersonCard({ person }: { person: Person }) {
+  return (
+    <View style={styles.personCard}>
+      <View style={{ flexDirection: "row", gap: 12 }}>
+        <ExpoImage source={{ uri: person.image }} style={styles.personPhoto} contentFit="cover" />
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Text style={styles.personName} numberOfLines={1}>
+              {person.name}
+            </Text>
+            <Ionicons name="shield-checkmark" size={14} color="#34D399" />
+          </View>
+          <Text style={styles.personRole}>{person.role}</Text>
+          <Text style={styles.personOrg}>{person.org}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+            <Ionicons name="location-outline" size={11} color="#A1A1AA" />
+            <Text style={styles.personLocation}>{person.location}</Text>
+          </View>
+        </View>
+
+        <View style={{ alignItems: "flex-end" }}>
+          <View style={styles.openToPill}>
+            <Text style={styles.openToText}>{person.openTo}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.skillRow}>
+        {person.skills.map((s) => (
+          <View key={s} style={styles.skillChip}>
+            <Text style={styles.skillText}>{s}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.personActionRow}>
+        <Pressable style={({ pressed }) => [{ flex: 1 }, pressed && styles.pressed96]}>
+          <LinearGradient
+            colors={["#EC4899", "#D946EF"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.connectBtn}
+          >
+            <Text style={styles.connectBtnText}>Connect</Text>
+          </LinearGradient>
+        </Pressable>
+        <Pressable style={({ pressed }) => [styles.iconActionBtn, pressed && styles.pressed96]}>
+          <Ionicons name="chatbubble-ellipses-outline" size={16} color="#FFF" />
+        </Pressable>
+        <Pressable style={({ pressed }) => [styles.iconActionBtn, pressed && styles.pressed96]}>
+          <Ionicons name="person-add-outline" size={16} color="#FFF" />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ─── Work Group Card ─────────────────────────────────────────────────────────
+
+function WorkGroupCard({ group }: { group: WorkGroup }) {
+  return (
+    <View style={styles.workGroupCard}>
+      <LinearGradient
+        colors={["rgba(236,72,153,0.18)", "rgba(255,255,255,0.04)", "rgba(52,211,153,0.12)"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[StyleSheet.absoluteFill, { borderRadius: 24 }]}
+      />
+      <View style={styles.workGroupIconBg}>
+        {group.icon === "crown" ? (
+          <MaterialCommunityIcons name="crown" size={22} color="#F9A8D4" />
+        ) : (
+          <Ionicons name={group.icon as IoniconName} size={22} color="#F9A8D4" />
+        )}
+      </View>
+      <Text style={styles.workGroupTitle}>{group.title}</Text>
+      <Text style={styles.workGroupMembers}>{group.members} members</Text>
+      <Text style={styles.workGroupOnline}>{group.online}</Text>
+      <Pressable style={({ pressed }) => [styles.joinBtn, pressed && styles.pressed96]}>
+        <Text style={styles.joinBtnText}>Join</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ─── Opportunity Card ────────────────────────────────────────────────────────
+
+function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+  return (
+    <View style={styles.opportunityCard}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Ionicons name="briefcase" size={18} color="#F9A8D4" />
+            <Text style={styles.opportunityTitle} numberOfLines={1}>
+              {opportunity.title}
+            </Text>
+          </View>
+          <Text style={styles.opportunityCompany}>{opportunity.company}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
+            <Ionicons name="time-outline" size={12} color="#71717A" />
+            <Text style={styles.opportunityMeta}>
+              {opportunity.location} \u00b7 {opportunity.type}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.newPill}>
+          <Text style={styles.newPillText}>New</Text>
+        </View>
+      </View>
+
+      <View style={styles.opportunityActionRow}>
+        <Pressable style={({ pressed }) => [styles.applyBtn, pressed && styles.pressed96]}>
+          <Text style={styles.applyBtnText}>Apply</Text>
+        </Pressable>
+        <Pressable style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed96]}>
+          <Text style={styles.secondaryBtnText}>Save</Text>
+        </Pressable>
+        <Pressable style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed96]}>
+          <Text style={styles.secondaryBtnText}>Share</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ─── Viral row + Build Circle CTA ────────────────────────────────────────────
+
+function ViralRow() {
+  const items: { label: string; value: string; icon: IoniconName; tint: string }[] = [
+    { label: "Open Door", value: "92", icon: "key", tint: "#F472B6" },
+    { label: "Warm Intro", value: "12", icon: "flash", tint: "#FDE68A" },
+    { label: "Group Streak", value: "7d", icon: "flame", tint: "#FB923C" },
+    { label: "Active Now", value: "3", icon: "pulse", tint: "#34D399" },
+  ];
+  return (
+    <View style={[styles.statsRow, { marginTop: 12 }]}>
+      {items.map((it) => (
+        <View key={it.label} style={styles.statCard}>
+          <Ionicons name={it.icon} size={16} color={it.tint} style={{ alignSelf: "center" }} />
+          <Text style={styles.statValue}>{it.value}</Text>
+          <Text style={styles.statLabel}>{it.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function BuildCircleCTA() {
+  return (
+    <Pressable style={({ pressed }) => [{ marginTop: 20 }, pressed && styles.pressed96]}>
+      <LinearGradient
+        colors={["#EC4899", "#D946EF", "#34D399"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.ctaGradient}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ctaTitle}>Build your circle</Text>
+          <Text style={styles.ctaSubtitle}>Invite 3 friends \u2192 unlock Warm Intros</Text>
+        </View>
+        <View style={styles.ctaArrow}>
+          <Ionicons name="arrow-forward" size={18} color="#000" />
+        </View>
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
+// ─── Section header ──────────────────────────────────────────────────────────
+
+function SectionHeader({
+  title,
+  action,
+  mt = 0,
+}: {
+  title: string;
+  action?: string;
+  mt?: number;
+}) {
+  return (
+    <View style={[styles.sectionHeader, { marginTop: mt }]}>
+      <Text style={styles.sectionHeaderTitle}>{title}</Text>
+      {action ? <Text style={styles.sectionHeaderAction}>{action}</Text> : null}
+    </View>
+  );
+}
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: "#020003",
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+  blobPink: {
+    position: "absolute",
+    top: -120,
+    left: "20%",
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: "rgba(236,72,153,0.15)",
+  },
+  blobEmerald: {
+    position: "absolute",
+    top: 220,
+    right: -120,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: "rgba(52,211,153,0.10)",
+  },
+
+  // Header
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  headerTitle: {
+    color: "#FFF",
+    fontSize: 30,
+    fontFamily: "Sora_800ExtraBold",
+    fontWeight: "900",
+    letterSpacing: -1.2,
+  },
+  headerSubtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    fontWeight: "600",
+  },
+  livePill: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "rgba(52,211,153,0.30)",
+    backgroundColor: "rgba(52,211,153,0.10)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#34D399",
+    shadowColor: "#34D399",
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  liveText: {
+    color: "#6EE7B7",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  headerIconBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    position: "relative",
+  },
+  headerBellDot: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#F472B6",
+    shadowColor: "#EC4899",
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+  },
+
+  // Stats / actions row (4-up grid)
+  statsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 20,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: "center",
+  },
+  statValue: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "900",
+    marginTop: 6,
+    fontFamily: "Sora_800ExtraBold",
+  },
+  statLabel: {
+    color: "#A1A1AA",
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 2,
+    textAlign: "center",
+  },
+  actionLabel: {
+    color: "#FFF",
+    fontSize: 10,
+    fontWeight: "800",
+    marginTop: 8,
+    textAlign: "center",
+    lineHeight: 12,
+  },
+
+  // Section header
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectionHeaderTitle: {
+    color: "#FFF",
+    fontSize: 15,
+    fontWeight: "900",
+    fontFamily: "Sora_800ExtraBold",
+  },
+  sectionHeaderAction: {
+    color: "#F472B6",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  // Person card
+  personCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    padding: 12,
+  },
+  personPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    backgroundColor: "#1F1F23",
+  },
+  personName: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "900",
+    flexShrink: 1,
+  },
+  personRole: {
+    color: "#D4D4D8",
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  personOrg: {
+    color: "#71717A",
+    fontSize: 12,
+  },
+  personLocation: {
+    color: "#A1A1AA",
+    fontSize: 11,
+  },
+  openToPill: {
+    borderWidth: 1,
+    borderColor: "rgba(244,114,182,0.30)",
+    backgroundColor: "rgba(236,72,153,0.10)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  openToText: {
+    color: "#F9A8D4",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  skillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 12,
+  },
+  skillChip: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(0,0,0,0.30)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  skillText: {
+    color: "#D4D4D8",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  personActionRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 14,
+    alignItems: "center",
+  },
+  connectBtn: {
+    paddingVertical: 10,
+    borderRadius: 999,
+    alignItems: "center",
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  connectBtnText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  iconActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+
+  // Work group horizontal cards
+  hScrollContent: {
+    paddingRight: 16,
+    gap: 12,
+  },
+  workGroupCard: {
+    width: 160,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(244,114,182,0.25)",
+    padding: 14,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  workGroupIconBg: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.3,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  workGroupTitle: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 12,
+    lineHeight: 16,
+  },
+  workGroupMembers: {
+    color: "#A1A1AA",
+    fontSize: 11,
+    marginTop: 4,
+  },
+  workGroupOnline: {
+    color: "#6EE7B7",
+    fontSize: 11,
+    marginTop: 1,
+  },
+  joinBtn: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: "rgba(244,114,182,0.50)",
+    paddingVertical: 8,
+    borderRadius: 999,
+    alignItems: "center",
+  },
+  joinBtnText: {
+    color: "#F9A8D4",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  // Opportunity card
+  opportunityCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    padding: 14,
+  },
+  opportunityTitle: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "900",
+    flexShrink: 1,
+  },
+  opportunityCompany: {
+    color: "#D4D4D8",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  opportunityMeta: {
+    color: "#71717A",
+    fontSize: 11,
+  },
+  newPill: {
+    backgroundColor: "rgba(52,211,153,0.10)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    alignSelf: "flex-start",
+  },
+  newPillText: {
+    color: "#6EE7B7",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  opportunityActionRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 14,
+  },
+  applyBtn: {
+    flex: 1,
+    backgroundColor: "#34D399",
+    paddingVertical: 9,
+    borderRadius: 999,
+    alignItems: "center",
+  },
+  applyBtnText: {
+    color: "#000",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  secondaryBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    paddingVertical: 9,
+    borderRadius: 999,
+    alignItems: "center",
+  },
+  secondaryBtnText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  // CTA
+  ctaGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 24,
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  ctaTitle: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "900",
+    fontFamily: "Sora_800ExtraBold",
+  },
+  ctaSubtitle: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  ctaArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Press states
+  pressed96: { transform: [{ scale: 0.96 }] },
+  pressed93: { transform: [{ scale: 0.93 }] },
+});
