@@ -5,6 +5,10 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
+import {
+  Sora_700Bold,
+  Sora_800ExtraBold,
+} from "@expo-google-fonts/sora";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
@@ -94,6 +98,8 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    Sora_700Bold,
+    Sora_800ExtraBold,
   });
   const [i18nReady, setI18nReady] = useState(false);
 

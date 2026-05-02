@@ -495,7 +495,7 @@ export default function DiscoverScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          {/* Soft neon glow halo (CSS blur-[95px] → translucent rounded pink view) */}
+          {/* Soft neon glow halo (CSS blur-[110px] → translucent rounded pink view) */}
           <View pointerEvents="none" style={styles.headerGlow} />
 
           {/* Thin neon top line */}
@@ -512,7 +512,8 @@ export default function DiscoverScreen() {
             />
           </View>
 
-          <View style={styles.titleRow}>
+          {/* Glass pill containing the title */}
+          <View style={styles.headerPill}>
             <Text style={styles.title}>Discover</Text>
             <MiamiNeon />
           </View>
@@ -704,23 +705,24 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 18, paddingBottom: 32 },
 
-  // Header — centered, neon halo + thin top line + animated Miami glow
+  // Header — centered, neon halo + thin top line + glass pill title
   header: {
     position: "relative",
     alignItems: "center",
-    paddingTop: 12,
+    paddingTop: 16,
     paddingBottom: 12,
+    overflow: "hidden",
   },
-  // Soft pink halo above the title (replaces CSS blur-[95px])
+  // Soft pink halo above the title (replaces CSS blur-[110px])
   headerGlow: {
     position: "absolute",
-    top: -96,
+    top: -112,
     left: "50%",
-    marginLeft: -144,
-    width: 288,
-    height: 208,
-    borderRadius: 144,
-    backgroundColor: "rgba(236,72,153,0.18)",
+    marginLeft: -160,
+    width: 320,
+    height: 256,
+    borderRadius: 160,
+    backgroundColor: "rgba(236,72,153,0.20)",
   },
   // Thin neon top line above the title
   headerTopLineWrap: {
@@ -735,29 +737,40 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 1,
     shadowColor: "#EC4899",
-    shadowOpacity: 0.85,
+    shadowOpacity: 0.95,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
   },
-  titleRow: {
+  // Glass pill wrapper around the title
+  headerPill: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(244,114,182,0.20)",
+    backgroundColor: "rgba(0,0,0,0.35)",
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.25,
+    shadowRadius: 35,
+    shadowOffset: { width: 0, height: 0 },
   },
   title: {
     color: "#FFF",
     fontSize: 34,
-    fontWeight: "900",
-    letterSpacing: -0.5,
+    fontFamily: "Sora_800ExtraBold",
+    letterSpacing: -1.7,
     lineHeight: 36,
-    textShadowColor: "rgba(255,255,255,0.22)",
-    textShadowRadius: 10,
+    textShadowColor: "rgba(255,255,255,0.28)",
+    textShadowRadius: 12,
     textShadowOffset: { width: 0, height: 0 },
   },
   titleMiami: {
+    marginLeft: 12,
     color: "#F9A8D4",
-    fontSize: 34,
+    fontSize: 35,
     fontWeight: "300",
     lineHeight: 36,
     fontStyle: "italic",
