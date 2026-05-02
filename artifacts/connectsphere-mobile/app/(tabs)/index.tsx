@@ -444,7 +444,7 @@ export default function DiscoverScreen() {
   const { height: winH } = useWindowDimensions();
   const topInset = Platform.OS === "web" ? 16 : Math.max(insets.top, 12);
   const bottomInset = Platform.OS === "web" ? 96 : 82 + insets.bottom;
-  const cardHeight = Math.max(500, Math.min(660, winH - 315));
+  const cardHeight = Math.max(480, Math.min(620, winH - 230));
 
   const allowedTabs =
     currentUserIntent === "all"
@@ -490,7 +490,10 @@ export default function DiscoverScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: topInset }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: topInset, paddingBottom: bottomInset + 16 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -684,7 +687,9 @@ const styles = StyleSheet.create({
   },
 
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 18, paddingBottom: 32 },
+  // paddingBottom is applied dynamically (bottomInset) so the card area
+  // never gets covered by the fixed tab bar.
+  scrollContent: { paddingHorizontal: 18 },
 
   // Header — centered, neon halo + thin top line + glass pill title
   header: {
@@ -791,10 +796,11 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
 
-  // Intent tabs — slim glossy black glass with pink border (~58px)
+  // Intent tabs — slim glossy black glass with pink border (~50px). Tightened
+  // top margin (mt-3) and reduced inner py-2 per latest spec.
   intentRow: {
-    marginTop: 22, flexDirection: "row", alignItems: "center",
-    height: 58,
+    marginTop: 12, flexDirection: "row", alignItems: "center",
+    height: 50,
     borderRadius: 999, borderWidth: 1, borderColor: "rgba(236,72,153,0.22)",
     backgroundColor: "rgba(0,0,0,0.55)",
     padding: 5,
@@ -809,7 +815,7 @@ const styles = StyleSheet.create({
   },
   intentBtnInner: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, paddingVertical: 12, paddingHorizontal: 8,
+    gap: 8, paddingVertical: 8, paddingHorizontal: 8,
   },
   intentBtnLabel: { fontSize: 13, fontWeight: "800" },
   intentSep: { width: 1, height: 22, backgroundColor: "rgba(255,255,255,0.12)" },
@@ -845,13 +851,13 @@ const styles = StyleSheet.create({
   noticeLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   noticeText: { color: "#FCE7F3", fontSize: 12, fontWeight: "700" },
 
-  // Card area + deck. Section uses a small left pad and a 72px right gutter
-  // for the slimmer CardActionsRail (web spec `pl-2 pr-[72px]`). No negative
-  // horizontal margin — keeps the card from overflowing on narrow phones.
+  // Card area + deck. Section uses a small left pad and a 66px right gutter
+  // for the slim CardActionsRail (web spec `pl-2 pr-[70px]` with the card
+  // extending 4px into the gutter so it ends up `w-[calc(100%-74px)]`).
   cardArea: {
-    marginTop: 18,
+    marginTop: 12,
     paddingLeft: 8,
-    paddingRight: 72,
+    paddingRight: 66,
     position: "relative",
     alignItems: "stretch",
     justifyContent: "flex-start",
@@ -1500,7 +1506,7 @@ function RailButton({
           },
         ]}
       >
-        <Ionicons name={icon} size={28} color={palette.text} />
+        <Ionicons name={icon} size={24} color={palette.text} />
       </View>
       <Text style={railStyles.label}>{label}</Text>
       <Text style={railStyles.sub}>{sub}</Text>
@@ -1509,15 +1515,15 @@ function RailButton({
 }
 
 const railStyles = StyleSheet.create({
-  // Sits inside the 72px right gutter created by `cardArea.paddingRight`.
-  // 68px wide flush against deckRoot's right edge → ~4px inset from the
-  // section's outer right edge (matches web `right-1`).
+  // Sits inside the 66px right gutter created by `cardArea.paddingRight`.
+  // 56px wide button column, anchored ~4px from the section's right edge
+  // (matches web `right-1`), with ~6px gap to the card.
   rail: {
     position: "absolute",
-    right: -68,
+    right: -62,
     top: 0,
     bottom: 0,
-    width: 68,
+    width: 56,
     alignItems: "center",
     justifyContent: "center",
     gap: 20,
@@ -1526,9 +1532,9 @@ const railStyles = StyleSheet.create({
     alignItems: "center",
   },
   circle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
