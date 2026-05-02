@@ -105,7 +105,7 @@ function GlassTabBar({ state, navigation }: BottomTabBarProps) {
                 <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
                   <Ionicons
                     name={focused ? icon.active : icon.inactive}
-                    size={20}
+                    size={18}
                     color={focused ? "#F472B6" : "#A1A1AA"}
                   />
                   {focused && <View style={styles.dot} />}
