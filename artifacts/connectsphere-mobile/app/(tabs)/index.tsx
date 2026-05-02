@@ -71,7 +71,7 @@ const tabs: Theme[] = [
 
 const subTabs: Record<IntentId, string[]> = {
   dating: ["For You", "Active Tonight", "Double Dates", "Serious", "Miami Local"],
-  friends: ["For You", "Brunch", "Events", "New to Miami"],
+  friends: ["For You", "Events", "New to Miami"],
   networking: ["For You", "Founders", "Creators", "Real Estate", "Nightlife Pros", "Investors"],
 };
 
@@ -110,7 +110,7 @@ const profiles: Profile[] = [
     age: 26,
     location: "South Beach",
     intent: "friends",
-    subGenre: "Brunch",
+    subGenre: "For You",
     bio: "New friends, brunch plans, beach days, and people who actually want to go outside.",
     interests: ["Brunch", "Beach", "Events", "Coffee"],
     matchScore: 84,
@@ -124,7 +124,7 @@ const profiles: Profile[] = [
     age: 23,
     location: "Coral Gables",
     intent: "friends",
-    subGenre: "Brunch",
+    subGenre: "For You",
     bio: "Looking for workout partners, casual hangs, and girls who love trying new spots.",
     interests: ["Gym", "Pilates", "Smoothies", "Beach"],
     matchScore: 90,
@@ -292,7 +292,7 @@ const profiles: Profile[] = [
     age: 26,
     location: "Coral Gables",
     intent: "friends",
-    subGenre: "Brunch",
+    subGenre: "For You",
     bio: "Sunday brunch is sacred. Looking for a girl gang who loves long breakfasts and even longer conversations.",
     interests: ["Brunch", "Wine", "Travel", "Books"],
     matchScore: 85,
