@@ -16,14 +16,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 type MaterialIconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
-
 type IntentId = "dating" | "friends" | "networking";
 
-type IntentTab = {
+type Theme = {
   id: IntentId;
   label: string;
   icon: IoniconName;
-  accent: [string, string];
+  accent: [string, string, string];
+  glow: string;
 };
 
 type Profile = {
@@ -37,36 +37,33 @@ type Profile = {
   interests: string[];
   matchScore: number;
   online: boolean;
+  verified: boolean;
   image: string;
-};
-
-type ActionDef = {
-  label: string;
-  iconLib: "ion" | "material";
-  iconName: IoniconName | MaterialIconName;
-  hot?: boolean;
 };
 
 const currentUserIntent: IntentId | "all" = "all";
 
-const intentTabs: IntentTab[] = [
+const tabs: Theme[] = [
   {
     id: "dating",
     label: "Dating",
     icon: "flame",
-    accent: ["#EC4899", "#D946EF"],
+    accent: ["#EC4899", "#D946EF", "#F43F5E"],
+    glow: "#EC4899",
   },
   {
     id: "friends",
     label: "Friends",
     icon: "people",
-    accent: ["#8B5CF6", "#3B82F6"],
+    accent: ["#3B82F6", "#6366F1", "#8B5CF6"],
+    glow: "#3B82F6",
   },
   {
     id: "networking",
     label: "Networking",
     icon: "briefcase",
-    accent: ["#10B981", "#FACC15"],
+    accent: ["#34D399", "#2DD4BF", "#22D3EE"],
+    glow: "#2DD4BF",
   },
 ];
 
@@ -85,10 +82,11 @@ const profiles: Profile[] = [
     intent: "dating",
     subGenre: "Active Tonight",
     bio: "Looking for people to go out and have fun tonight. Love rooftop bars, dancing, and spontaneous plans.",
-    interests: ["Nightlife", "Travel", "Yoga", "Foodie"],
-    matchScore: 78,
+    interests: ["Nightlife", "Travel", "Dancing", "Yoga"],
+    matchScore: 82,
     online: true,
-    image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 2,
@@ -101,7 +99,8 @@ const profiles: Profile[] = [
     interests: ["Dancing", "Rooftops", "Fashion", "Sushi"],
     matchScore: 86,
     online: true,
-    image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 3,
@@ -114,7 +113,8 @@ const profiles: Profile[] = [
     interests: ["Brunch", "Beach", "Events", "Coffee"],
     matchScore: 84,
     online: true,
-    image: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=900&q=80",
+    verified: false,
+    image: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 4,
@@ -125,9 +125,10 @@ const profiles: Profile[] = [
     subGenre: "Gym",
     bio: "Looking for workout partners, casual hangs, and girls who love trying new spots.",
     interests: ["Gym", "Pilates", "Smoothies", "Beach"],
-    matchScore: 81,
-    online: false,
-    image: "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?auto=format&fit=crop&w=900&q=80",
+    matchScore: 90,
+    online: true,
+    verified: true,
+    image: "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 5,
@@ -138,9 +139,10 @@ const profiles: Profile[] = [
     subGenre: "Founders",
     bio: "Building startups, meeting creators, and connecting with people who move with purpose.",
     interests: ["Startups", "AI", "Real Estate", "Creators"],
-    matchScore: 91,
+    matchScore: 92,
     online: false,
-    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 6,
@@ -153,9 +155,9 @@ const profiles: Profile[] = [
     interests: ["Branding", "Events", "Content", "Fashion"],
     matchScore: 88,
     online: true,
-    image: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=1200&q=90",
   },
-  // --- Additional Dating profiles ---
   {
     id: 7,
     name: "Isabella",
@@ -167,7 +169,8 @@ const profiles: Profile[] = [
     interests: ["Pilates", "Wine", "Travel", "Reading"],
     matchScore: 92,
     online: true,
-    image: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 8,
@@ -180,7 +183,8 @@ const profiles: Profile[] = [
     interests: ["Restaurants", "Live Music", "Boxing", "Beach"],
     matchScore: 79,
     online: false,
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=80",
+    verified: false,
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 9,
@@ -193,7 +197,8 @@ const profiles: Profile[] = [
     interests: ["Nightlife", "Salsa", "Cocktails", "Art Walks"],
     matchScore: 85,
     online: true,
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 10,
@@ -206,7 +211,8 @@ const profiles: Profile[] = [
     interests: ["Surf", "Mixology", "House Music", "Sunsets"],
     matchScore: 83,
     online: true,
-    image: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=900&q=80",
+    verified: false,
+    image: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 11,
@@ -219,9 +225,9 @@ const profiles: Profile[] = [
     interests: ["Brunch", "Travel", "Tennis", "Sushi"],
     matchScore: 87,
     online: false,
-    image: "https://images.unsplash.com/photo-1521119989659-a83eee488004?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1521119989659-a83eee488004?auto=format&fit=crop&w=1200&q=90",
   },
-  // --- Additional Friends profiles ---
   {
     id: 12,
     name: "Zoe",
@@ -229,11 +235,12 @@ const profiles: Profile[] = [
     location: "South Beach",
     intent: "friends",
     subGenre: "Beach Day",
-    bio: "Beach mornings, iced matcha runs, and a friend group that actually shows up. Down for spontaneous plans.",
+    bio: "Beach mornings, iced matcha runs, and a friend group that actually shows up.",
     interests: ["Beach", "Yoga", "Matcha", "Sunsets"],
     matchScore: 82,
     online: true,
-    image: "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?auto=format&fit=crop&w=900&q=80",
+    verified: false,
+    image: "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 13,
@@ -246,7 +253,8 @@ const profiles: Profile[] = [
     interests: ["Lifting", "Running", "Recovery", "Smoothies"],
     matchScore: 76,
     online: true,
-    image: "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=900&q=80",
+    verified: false,
+    image: "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 14,
@@ -255,11 +263,12 @@ const profiles: Profile[] = [
     location: "Aventura",
     intent: "friends",
     subGenre: "New to Miami",
-    bio: "Just moved from NYC. Looking for friends to explore new neighborhoods, try restaurants, and build a Miami crew with.",
+    bio: "Just moved from NYC. Looking for friends to explore neighborhoods, try restaurants, and build a Miami crew.",
     interests: ["Foodie", "Concerts", "Shopping", "Brunch"],
     matchScore: 89,
     online: true,
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 15,
@@ -272,7 +281,8 @@ const profiles: Profile[] = [
     interests: ["Art", "Music", "Coffee", "Photography"],
     matchScore: 80,
     online: false,
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 16,
@@ -285,9 +295,9 @@ const profiles: Profile[] = [
     interests: ["Brunch", "Wine", "Travel", "Books"],
     matchScore: 85,
     online: true,
-    image: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1200&q=90",
   },
-  // --- Additional Networking profiles ---
   {
     id: 17,
     name: "Jordan",
@@ -299,7 +309,8 @@ const profiles: Profile[] = [
     interests: ["Venture", "Fintech", "AI", "Founder Dinners"],
     matchScore: 90,
     online: true,
-    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 18,
@@ -312,7 +323,8 @@ const profiles: Profile[] = [
     interests: ["Real Estate", "Architecture", "Yachts", "Capital"],
     matchScore: 86,
     online: true,
-    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 19,
@@ -321,11 +333,12 @@ const profiles: Profile[] = [
     location: "Wynwood",
     intent: "networking",
     subGenre: "Nightlife Pros",
-    bio: "Run two clubs and a hospitality group. Looking to meet promoters, DJs, brand reps, and operators who move things.",
+    bio: "Run two clubs and a hospitality group. Looking to meet promoters, DJs, brand reps, and operators.",
     interests: ["Nightlife", "Hospitality", "Brands", "Music"],
     matchScore: 84,
     online: false,
-    image: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=900&q=80&sat=-20",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 20,
@@ -334,11 +347,12 @@ const profiles: Profile[] = [
     location: "Edgewater",
     intent: "networking",
     subGenre: "Founders",
-    bio: "Building a women-led wellness startup. Looking for operators, marketers, and other founders to swap notes with.",
+    bio: "Building a women-led wellness startup. Looking for operators, marketers, and founders to swap notes with.",
     interests: ["Wellness", "Startups", "Branding", "Community"],
     matchScore: 93,
     online: true,
-    image: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=900&q=80",
+    verified: true,
+    image: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=1200&q=90",
   },
   {
     id: 21,
@@ -351,28 +365,128 @@ const profiles: Profile[] = [
     interests: ["Content", "Film", "Brands", "Events"],
     matchScore: 81,
     online: false,
-    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=80&sat=-15",
+    verified: false,
+    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=1200&q=90",
   },
 ];
 
-const datingActions: ActionDef[] = [
+// ─── Circle Action Button ──────────────────────────────────────────────────────
+type CircleActionDef = {
+  label: string;
+  iconLib: "ion" | "material";
+  iconName: IoniconName | MaterialIconName;
+  main?: boolean;
+};
+
+function CircleAction({
+  def,
+  theme,
+  onPress,
+}: {
+  def: CircleActionDef;
+  theme: Theme;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.circleWrap, pressed && { transform: [{ scale: 0.93 }] }]}
+    >
+      <View style={styles.circleBtn}>
+        {def.main ? (
+          <LinearGradient
+            colors={def.main ? theme.accent : ["transparent", "transparent"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+          />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, styles.circleBtnDefault]} />
+        )}
+        {def.iconLib === "ion" ? (
+          <Ionicons name={def.iconName as IoniconName} size={24} color="#FFFFFF" />
+        ) : (
+          <MaterialCommunityIcons name={def.iconName as MaterialIconName} size={24} color="#FFFFFF" />
+        )}
+      </View>
+      <Text style={styles.circleLabel}>{def.label}</Text>
+    </Pressable>
+  );
+}
+
+// ─── Intent Actions ────────────────────────────────────────────────────────────
+const datingActions: CircleActionDef[] = [
   { label: "Pass", iconLib: "ion", iconName: "close" },
-  { label: "Like", iconLib: "ion", iconName: "heart", hot: true },
+  { label: "Like", iconLib: "ion", iconName: "heart", main: true },
   { label: "Message", iconLib: "ion", iconName: "chatbubble" },
 ];
-
-const friendsActions: ActionDef[] = [
+const friendsActions: CircleActionDef[] = [
   { label: "Skip", iconLib: "ion", iconName: "close" },
-  { label: "Add Friend", iconLib: "ion", iconName: "person-add", hot: true },
-  { label: "Invite", iconLib: "ion", iconName: "calendar" },
+  { label: "Add Friend", iconLib: "ion", iconName: "people", main: true },
+  { label: "Invite", iconLib: "ion", iconName: "paper-plane" },
 ];
-
-const networkingActions: ActionDef[] = [
-  { label: "Connect", iconLib: "material", iconName: "handshake", hot: true },
-  { label: "Save", iconLib: "ion", iconName: "bookmark" },
+const networkingActions: CircleActionDef[] = [
+  { label: "Connect", iconLib: "material", iconName: "handshake", main: true },
+  { label: "Save Contact", iconLib: "ion", iconName: "person-add" },
   { label: "Message", iconLib: "ion", iconName: "chatbubble" },
 ];
 
+function IntentActions({
+  intent,
+  theme,
+  onAction,
+}: {
+  intent: IntentId;
+  theme: Theme;
+  onAction: () => void;
+}) {
+  const actions =
+    intent === "dating"
+      ? datingActions
+      : intent === "friends"
+      ? friendsActions
+      : networkingActions;
+
+  return (
+    <View style={styles.actionsRow}>
+      {actions.map((def) => (
+        <CircleAction key={def.label} def={def} theme={theme} onPress={onAction} />
+      ))}
+    </View>
+  );
+}
+
+// ─── Empty State ───────────────────────────────────────────────────────────────
+function EmptyState({ theme }: { theme: Theme }) {
+  return (
+    <View style={styles.emptyCard}>
+      <View style={styles.emptyIconWrap}>
+        <LinearGradient
+          colors={theme.accent}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+        />
+        <Ionicons name="sparkles" size={36} color="#FFFFFF" />
+      </View>
+      <Text style={styles.emptyTitle}>Feed warming up</Text>
+      <Text style={styles.emptySubtitle}>
+        No profiles in this sub-category yet. Try another vibe or refresh your feed.
+      </Text>
+      <Pressable style={styles.emptyBtn}>
+        <LinearGradient
+          colors={theme.accent}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+        />
+        <Text style={styles.emptyBtnText}>Refresh Feed</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
   const topInset = Platform.OS === "web" ? 16 : insets.top;
@@ -380,44 +494,37 @@ export default function DiscoverScreen() {
 
   const allowedTabs =
     currentUserIntent === "all"
-      ? intentTabs
-      : intentTabs.filter((tab) => tab.id === currentUserIntent);
+      ? tabs
+      : tabs.filter((tab) => tab.id === currentUserIntent);
 
   const [activeIntent, setActiveIntent] = useState<IntentId>(allowedTabs[0]!.id);
   const [activeSubTab, setActiveSubTab] = useState("For You");
   const [cardIndex, setCardIndex] = useState(0);
 
-  const activeTheme = intentTabs.find((tab) => tab.id === activeIntent)!;
+  const theme = tabs.find((tab) => tab.id === activeIntent)!;
 
-  const filteredProfiles = useMemo(() => {
+  const visibleProfiles = useMemo(() => {
     return profiles.filter((profile) => {
-      const userCanSee =
+      const allowed =
         currentUserIntent === "all" ||
         profile.intent === currentUserIntent ||
         (profile.intent as string) === "all";
-      const matchesMainTab =
+      const matchesIntent =
         profile.intent === activeIntent || (profile.intent as string) === "all";
-      const matchesSubTab =
+      const matchesSub =
         activeSubTab === "For You" || profile.subGenre === activeSubTab;
-      return userCanSee && matchesMainTab && matchesSubTab;
+      return allowed && matchesIntent && matchesSub;
     });
   }, [activeIntent, activeSubTab]);
 
-  const currentProfile =
-    filteredProfiles.length > 0
-      ? filteredProfiles[cardIndex % filteredProfiles.length]
+  const profile =
+    visibleProfiles.length > 0
+      ? visibleProfiles[cardIndex % visibleProfiles.length]
       : null;
 
-  const changeIntent = (intent: IntentId) => {
-    setActiveIntent(intent);
-    setActiveSubTab("For You");
-    setCardIndex(0);
-  };
+  const nextCard = () => setCardIndex((prev) => prev + 1);
 
-  const nextCard = () => {
-    setCardIndex((prev) => prev + 1);
-  };
-
+  // Animation refs
   const dragY = useRef(new Animated.Value(0)).current;
   const cardOpacity = useRef(new Animated.Value(1)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
@@ -427,86 +534,46 @@ export default function DiscoverScreen() {
     if (isAnimating.current) return;
     isAnimating.current = true;
     Animated.parallel([
-      Animated.timing(dragY, {
-        toValue: direction * 400,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardOpacity, {
-        toValue: 0,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardScale, {
-        toValue: 0.94,
-        duration: 220,
-        useNativeDriver: true,
-      }),
+      Animated.timing(dragY, { toValue: direction * 400, duration: 220, useNativeDriver: true }),
+      Animated.timing(cardOpacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(cardScale, { toValue: 0.94, duration: 220, useNativeDriver: true }),
     ]).start(() => {
-      // Reset for the incoming card and swap content
-      dragY.setValue(80);
+      dragY.setValue(90);
       cardOpacity.setValue(0);
-      cardScale.setValue(0.96);
+      cardScale.setValue(0.94);
       nextCard();
       Animated.parallel([
-        Animated.spring(dragY, {
-          toValue: 0,
-          stiffness: 220,
-          damping: 26,
-          useNativeDriver: true,
-        }),
-        Animated.spring(cardOpacity, {
-          toValue: 1,
-          stiffness: 220,
-          damping: 26,
-          useNativeDriver: true,
-        }),
-        Animated.spring(cardScale, {
-          toValue: 1,
-          stiffness: 220,
-          damping: 26,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        isAnimating.current = false;
-      });
+        Animated.spring(dragY, { toValue: 0, stiffness: 240, damping: 26, useNativeDriver: true }),
+        Animated.spring(cardOpacity, { toValue: 1, stiffness: 240, damping: 26, useNativeDriver: true }),
+        Animated.spring(cardScale, { toValue: 1, stiffness: 240, damping: 26, useNativeDriver: true }),
+      ]).start(() => { isAnimating.current = false; });
     });
   };
 
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
-        onPanResponderMove: Animated.event([null, { dy: dragY }], {
-          useNativeDriver: false,
-        }),
-        onPanResponderRelease: (_, gesture) => {
-          if (Math.abs(gesture.dy) > 90) {
-            animateExitAndAdvance(gesture.dy < 0 ? -1 : 1);
+        onMoveShouldSetPanResponder: (_, g) =>
+          Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx),
+        onPanResponderMove: Animated.event([null, { dy: dragY }], { useNativeDriver: false }),
+        onPanResponderRelease: (_, g) => {
+          if (Math.abs(g.dy) > 80) {
+            animateExitAndAdvance(g.dy < 0 ? -1 : 1);
           } else {
-            Animated.spring(dragY, {
-              toValue: 0,
-              useNativeDriver: true,
-            }).start();
+            Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
           }
         },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dragY, cardOpacity, cardScale]
+    [dragY, cardOpacity, cardScale],
   );
-
-  const actionsForIntent =
-    activeIntent === "dating"
-      ? datingActions
-      : activeIntent === "friends"
-      ? friendsActions
-      : networkingActions;
 
   return (
     <View style={[styles.root, { paddingBottom: bottomInset }]}>
-      <View style={[styles.glow1]} />
-      <View style={[styles.glow2]} />
+      {/* Background glow blobs */}
+      <View style={styles.blob1} />
+      <View style={styles.blob2} />
+      <View style={styles.blob3} />
 
       <ScrollView
         style={styles.scroll}
@@ -523,51 +590,48 @@ export default function DiscoverScreen() {
               <View style={styles.greenDot} />
             </View>
           </View>
-
-          <Pressable style={styles.filterButton}>
+          <Pressable style={styles.filterBtn}>
             <Ionicons name="options-outline" size={20} color="#E4E4E7" />
           </Pressable>
         </View>
 
-        {/* Intent tabs */}
-        <View style={styles.intentTabsWrap}>
-          <View style={styles.intentTabsRow}>
-            {intentTabs.map((tab) => {
-              const isAllowed = allowedTabs.some((allowed) => allowed.id === tab.id);
+        {/* Intent Tabs */}
+        <View style={styles.intentWrap}>
+          <View style={styles.intentRow}>
+            {tabs.map((tab) => {
               const isActive = activeIntent === tab.id;
+              const isAllowed = allowedTabs.some((a) => a.id === tab.id);
               return (
                 <Pressable
                   key={tab.id}
                   disabled={!isAllowed}
-                  onPress={() => isAllowed && changeIntent(tab.id)}
-                  style={styles.intentTabPressable}
+                  onPress={() => {
+                    setActiveIntent(tab.id);
+                    setActiveSubTab("For You");
+                    setCardIndex(0);
+                  }}
+                  style={styles.intentBtn}
                 >
                   {isActive ? (
                     <LinearGradient
                       colors={tab.accent}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
-                      style={StyleSheet.absoluteFill}
+                      style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
                     />
                   ) : null}
-                  <View style={styles.intentTabInner}>
+                  <View style={styles.intentBtnInner}>
                     <Ionicons
                       name={tab.icon}
                       size={14}
-                      color={
-                        isActive ? "#FFFFFF" : isAllowed ? "#A1A1AA" : "#3F3F46"
-                      }
+                      color={isActive ? "#FFF" : isAllowed ? "#FFF" : "#3F3F46"}
                     />
                     <Text
                       style={[
-                        styles.intentTabLabel,
+                        styles.intentBtnLabel,
                         {
-                          color: isActive
-                            ? "#FFFFFF"
-                            : isAllowed
-                            ? "#A1A1AA"
-                            : "#3F3F46",
-                          opacity: !isAllowed ? 0.4 : 1,
+                          color: isActive ? "#FFF" : isAllowed ? "#FFF" : "#3F3F46",
+                          opacity: !isAllowed ? 0.35 : 1,
                         },
                       ]}
                     >
@@ -580,11 +644,11 @@ export default function DiscoverScreen() {
           </View>
         </View>
 
-        {/* Sub tabs */}
+        {/* Sub Tabs */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.subTabsRow}
+          contentContainerStyle={styles.subTabsContent}
           style={styles.subTabsScroll}
         >
           {subTabs[activeIntent].map((tab) => {
@@ -592,28 +656,20 @@ export default function DiscoverScreen() {
             return (
               <Pressable
                 key={tab}
-                onPress={() => {
-                  setActiveSubTab(tab);
-                  setCardIndex(0);
-                }}
-                style={styles.subTabPressable}
+                onPress={() => { setActiveSubTab(tab); setCardIndex(0); }}
+                style={styles.subTabBtn}
               >
                 {active ? (
                   <LinearGradient
-                    colors={activeTheme.accent}
+                    colors={theme.accent}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
                   />
                 ) : (
-                  <View style={[StyleSheet.absoluteFill, styles.subTabInactiveBg]} />
+                  <View style={[StyleSheet.absoluteFill, styles.subTabInactive]} />
                 )}
-                <Text
-                  style={[
-                    styles.subTabLabel,
-                    { color: active ? "#FFFFFF" : "#A1A1AA" },
-                  ]}
-                >
+                <Text style={[styles.subTabLabel, { color: active ? "#FFF" : "#A1A1AA" }]}>
                   {tab}
                 </Text>
               </Pressable>
@@ -622,149 +678,99 @@ export default function DiscoverScreen() {
         </ScrollView>
 
         {/* Mock notice */}
-        <View style={styles.mockNotice}>
-          <Text style={styles.mockNoticeText}>
-            ✨ Showing mock profiles while your real feed is empty.
-          </Text>
+        <View style={styles.notice}>
+          <Text style={styles.noticeText}>✨ Showing mock profiles while your real feed is empty.</Text>
         </View>
 
-        {/* Card area */}
+        {/* Card */}
         <View style={styles.cardArea}>
-          {currentProfile ? (
+          {profile ? (
             <Animated.View
-              key={`${currentProfile.id}-${cardIndex}-${activeIntent}-${activeSubTab}`}
+              key={`${profile.id}-${cardIndex}-${activeIntent}-${activeSubTab}`}
               {...panResponder.panHandlers}
               style={[
                 styles.card,
-                {
-                  opacity: cardOpacity,
-                  transform: [{ translateY: dragY }, { scale: cardScale }],
-                },
+                { opacity: cardOpacity, transform: [{ translateY: dragY }, { scale: cardScale }] },
               ]}
             >
-              <Image
-                source={{ uri: currentProfile.image }}
-                style={styles.cardImage}
-                resizeMode="cover"
-              />
+              <Image source={{ uri: profile.image }} style={styles.cardImage} resizeMode="cover" />
 
+              {/* Dark overlay */}
               <LinearGradient
-                colors={["rgba(0,0,0,0.1)", "rgba(0,0,0,0.25)", "#000000"]}
-                locations={[0, 0.55, 1]}
+                colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.35)", "#000"]}
+                locations={[0, 0.5, 1]}
                 style={StyleSheet.absoluteFill}
               />
 
-              {/* Top pills */}
-              <View style={styles.cardTopRow}>
-                <View style={styles.statusPill}>
-                  <View
-                    style={[
-                      styles.statusDot,
-                      {
-                        backgroundColor: currentProfile.online ? "#34D399" : "#71717A",
-                      },
-                    ]}
-                  />
-                  <Text style={styles.pillText}>
-                    {currentProfile.online ? "Online" : "Offline"}
-                  </Text>
+              {/* Gradient top bar */}
+              <LinearGradient
+                colors={theme.accent}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.cardTopBar}
+              />
+
+              {/* Online + Match pills */}
+              <View style={styles.cardPillRow}>
+                <View style={styles.pill}>
+                  <View style={styles.onlineDot} />
+                  <Text style={styles.pillText}>Online</Text>
                 </View>
-                <View style={styles.matchPill}>
-                  <Text style={styles.pillText}>{currentProfile.matchScore}% Match</Text>
+                <View style={styles.pill}>
+                  <Text style={styles.pillText}>{profile.matchScore}% Match</Text>
                 </View>
               </View>
 
               {/* Bottom info */}
               <View style={styles.cardBottom}>
-                <View style={styles.cardNameRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardName}>
-                      {currentProfile.name}, {currentProfile.age}
-                    </Text>
-                    <View style={styles.locationRow}>
-                      <Ionicons name="location-outline" size={14} color="#E4E4E7" />
-                      <Text style={styles.locationText}>{currentProfile.location}</Text>
-                    </View>
-                  </View>
-
-                  <Pressable onPress={() => animateExitAndAdvance(-1)} style={styles.checkButton}>
-                    <LinearGradient
-                      colors={activeTheme.accent}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                    <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
-                  </Pressable>
+                <View style={styles.nameRow}>
+                  <Text style={styles.nameText}>
+                    {profile.name}, {profile.age}
+                  </Text>
+                  {profile.verified ? (
+                    <Ionicons name="shield-checkmark" size={22} color="#EC4899" />
+                  ) : null}
                 </View>
 
-                {/* Tag badges */}
+                <View style={styles.locationRow}>
+                  <Ionicons name="location-outline" size={14} color="#E4E4E7" />
+                  <Text style={styles.locationText}>{profile.location}</Text>
+                </View>
+
                 <View style={styles.badgeRow}>
                   <View style={styles.intentBadge}>
                     <LinearGradient
-                      colors={activeTheme.accent}
+                      colors={theme.accent}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
                     />
-                    <Text style={styles.intentBadgeText}>{currentProfile.intent}</Text>
+                    <Text style={styles.intentBadgeText}>{profile.intent}</Text>
                   </View>
                   <View style={styles.subBadge}>
-                    <Text style={styles.subBadgeText}>{currentProfile.subGenre}</Text>
+                    <Text style={styles.subBadgeText}>{profile.subGenre}</Text>
                   </View>
                 </View>
 
                 <Text style={styles.bioText} numberOfLines={2}>
-                  {currentProfile.bio}
+                  {profile.bio}
                 </Text>
 
-                {/* Interests chips */}
                 <View style={styles.interestsRow}>
-                  {currentProfile.interests.map((interest) => (
+                  {profile.interests.map((interest) => (
                     <View key={interest} style={styles.interestChip}>
                       <Text style={styles.interestText}>{interest}</Text>
                     </View>
                   ))}
                 </View>
 
-                {/* Action buttons */}
-                <View style={styles.actionsRow}>
-                  {actionsForIntent.map((action) => (
-                    <Pressable
-                      key={action.label}
-                      onPress={() => animateExitAndAdvance(-1)}
-                      style={({ pressed }) => [
-                        styles.actionBtn,
-                        action.hot ? styles.actionBtnHot : styles.actionBtnDefault,
-                        pressed && { transform: [{ scale: 0.95 }] },
-                      ]}
-                    >
-                      {action.iconLib === "ion" ? (
-                        <Ionicons
-                          name={action.iconName as IoniconName}
-                          size={20}
-                          color="#FFFFFF"
-                        />
-                      ) : (
-                        <MaterialCommunityIcons
-                          name={action.iconName as MaterialIconName}
-                          size={20}
-                          color="#FFFFFF"
-                        />
-                      )}
-                      <Text style={styles.actionBtnLabel}>{action.label}</Text>
-                    </Pressable>
-                  ))}
+                <View style={styles.actionsWrap}>
+                  <IntentActions intent={activeIntent} theme={theme} onAction={() => animateExitAndAdvance(-1)} />
                 </View>
               </View>
             </Animated.View>
           ) : (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No profiles here yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Try another sub-tab or intent category.
-              </Text>
-            </View>
+            <EmptyState theme={theme} />
           )}
         </View>
       </ScrollView>
@@ -773,369 +779,164 @@ export default function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#050505",
+  root: { flex: 1, backgroundColor: "#030303" },
+
+  // Background blobs
+  blob1: {
+    position: "absolute", top: -96, left: -80,
+    width: 288, height: 288, borderRadius: 144,
+    backgroundColor: "rgba(236,72,153,0.25)",
+    transform: [{ scaleX: 1.2 }],
   },
-  glow1: {
-    position: "absolute",
-    top: -120,
-    left: -80,
-    width: 320,
-    height: 320,
-    borderRadius: 320,
-    backgroundColor: "rgba(236,72,153,0.16)",
-    opacity: 0.9,
+  blob2: {
+    position: "absolute", top: 48, right: -100,
+    width: 320, height: 320, borderRadius: 160,
+    backgroundColor: "rgba(45,212,191,0.15)",
   },
-  glow2: {
-    position: "absolute",
-    top: -120,
-    right: -80,
-    width: 320,
-    height: 320,
-    borderRadius: 320,
-    backgroundColor: "rgba(16,185,129,0.12)",
-    opacity: 0.9,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
+  blob3: {
+    position: "absolute", bottom: 80, left: "25%",
+    width: 384, height: 384, borderRadius: 192,
+    backgroundColor: "rgba(217,70,239,0.10)",
   },
 
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 32 },
+
   // Header
-  header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-  title: {
-    color: "#FFFFFF",
-    fontSize: 34,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-  },
-  subtitleRow: {
-    marginTop: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  subtitleText: {
-    color: "#A1A1AA",
-    fontSize: 13,
-  },
+  header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
+  title: { color: "#FFF", fontSize: 34, fontWeight: "900", letterSpacing: -0.5 },
+  subtitleRow: { marginTop: 4, flexDirection: "row", alignItems: "center", gap: 8 },
+  subtitleText: { color: "#D4D4D8", fontSize: 13 },
   greenDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#34D399",
-    shadowColor: "#34D399",
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
+    width: 8, height: 8, borderRadius: 4, backgroundColor: "#34D399",
+    shadowColor: "#34D399", shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 0 },
   },
-  filterButton: {
-    marginTop: 8,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    alignItems: "center",
-    justifyContent: "center",
+  filterBtn: {
+    marginTop: 8, width: 48, height: 48, borderRadius: 24,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center", justifyContent: "center",
   },
 
   // Intent tabs
-  intentTabsWrap: {
-    marginTop: 18,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(9,9,11,0.8)",
+  intentWrap: {
+    marginTop: 20, borderRadius: 999,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(0,0,0,0.4)",
     padding: 4,
   },
-  intentTabsRow: {
-    flexDirection: "row",
-    gap: 4,
+  intentRow: { flexDirection: "row", gap: 4 },
+  intentBtn: { flex: 1, borderRadius: 999, overflow: "hidden" },
+  intentBtnInner: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 12, paddingHorizontal: 8,
   },
-  intentTabPressable: {
-    flex: 1,
-    borderRadius: 999,
-    overflow: "hidden",
-  },
-  intentTabInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-  },
-  intentTabLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-  },
+  intentBtnLabel: { fontSize: 12, fontWeight: "800" },
 
   // Sub tabs
-  subTabsScroll: {
-    marginTop: 12,
-    flexGrow: 0,
+  subTabsScroll: { marginTop: 12, flexGrow: 0 },
+  subTabsContent: { gap: 8, paddingRight: 4, paddingBottom: 4 },
+  subTabBtn: {
+    borderRadius: 999, overflow: "hidden",
+    paddingHorizontal: 16, paddingVertical: 8, justifyContent: "center",
   },
-  subTabsRow: {
-    gap: 8,
-    paddingRight: 4,
-    paddingBottom: 4,
-  },
-  subTabPressable: {
-    borderRadius: 999,
-    overflow: "hidden",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    justifyContent: "center",
-  },
-  subTabInactiveBg: {
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 999,
-    borderWidth: 1,
+  subTabInactive: {
+    borderRadius: 999, borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.07)",
   },
-  subTabLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-  },
+  subTabLabel: { fontSize: 12, fontWeight: "800" },
 
-  // Mock notice
-  mockNotice: {
-    marginTop: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(244,114,182,0.2)",
+  // Notice
+  notice: {
+    marginTop: 12, borderRadius: 999,
+    borderWidth: 1, borderColor: "rgba(244,114,182,0.2)",
     backgroundColor: "rgba(236,72,153,0.1)",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 16, paddingVertical: 8,
   },
-  mockNoticeText: {
-    color: "#FBCFE8",
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-  },
+  noticeText: { color: "#FCE7F3", fontSize: 12, fontWeight: "700", textAlign: "center" },
 
   // Card area
-  cardArea: {
-    marginTop: 16,
-    minHeight: 590,
-    position: "relative",
-  },
+  cardArea: { marginTop: 16, minHeight: 560 },
   card: {
-    minHeight: 590,
-    borderRadius: 28,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "#18181B",
-    shadowColor: "#000",
-    shadowOpacity: 0.75,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 30 },
-    elevation: 12,
+    minHeight: 560, borderRadius: 30, overflow: "hidden",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "#09090B",
+    shadowColor: "#000", shadowOpacity: 0.85, shadowRadius: 35, shadowOffset: { width: 0, height: 35 },
+    elevation: 14,
   },
-  cardImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: "100%",
-    height: "100%",
+  cardImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+  cardTopBar: { position: "absolute", top: 0, left: 0, right: 0, height: 4 },
+  cardPillRow: {
+    position: "absolute", top: 16, left: 16, right: 16,
+    flexDirection: "row", justifyContent: "space-between",
   },
+  pill: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  onlineDot: {
+    width: 8, height: 8, borderRadius: 4, backgroundColor: "#34D399",
+    shadowColor: "#34D399", shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 0 },
+  },
+  pillText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
 
-  // Top pills
-  cardTopRow: {
-    position: "absolute",
-    top: 16,
-    left: 20,
-    right: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  matchPill: {
-    backgroundColor: "rgba(0,0,0,0.45)",
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  pillText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-
-  // Bottom card area
-  cardBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 20,
-  },
-  cardNameRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: 16,
-  },
-  cardName: {
-    color: "#FFFFFF",
-    fontSize: 32,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-  },
-  locationRow: {
-    marginTop: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  locationText: {
-    color: "#E4E4E7",
-    fontSize: 13,
-  },
-  checkButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#EC4899",
-    shadowOpacity: 0.55,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
-  },
-
-  // Badges
-  badgeRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  intentBadge: {
-    borderRadius: 999,
-    overflow: "hidden",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  intentBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  subBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
-  subBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  bioText: {
-    marginTop: 12,
-    color: "#F4F4F5",
-    fontSize: 14,
-    fontWeight: "500",
-    lineHeight: 20,
-  },
-
-  // Interests
-  interestsRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+  // Card bottom
+  cardBottom: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  nameText: { color: "#FFF", fontSize: 32, fontWeight: "900", letterSpacing: -0.5 },
+  locationRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 4 },
+  locationText: { color: "#E4E4E7", fontSize: 13 },
+  badgeRow: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  intentBadge: { borderRadius: 999, overflow: "hidden", paddingHorizontal: 12, paddingVertical: 4 },
+  intentBadgeText: { color: "#FFF", fontSize: 12, fontWeight: "900", textTransform: "capitalize" },
+  subBadge: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: "rgba(255,255,255,0.15)" },
+  subBadgeText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
+  bioText: { marginTop: 12, color: "#F4F4F5", fontSize: 13, fontWeight: "500", lineHeight: 19 },
+  interestsRow: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 8 },
   interestChip: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
-  interestText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
+  interestText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
+  actionsWrap: { marginTop: 20 },
 
-  // Action row
-  actionsRow: {
-    marginTop: 20,
-    flexDirection: "row",
-    gap: 12,
+  // Circle action buttons
+  actionsRow: { flexDirection: "row", justifyContent: "space-around" },
+  circleWrap: { alignItems: "center", gap: 8 },
+  circleBtn: {
+    width: 56, height: 56, borderRadius: 28, overflow: "hidden",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
   },
-  actionBtn: {
-    flex: 1,
-    borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    borderWidth: 1,
-  },
-  actionBtnDefault: {
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.1)",
-  },
-  actionBtnHot: {
-    borderColor: "rgba(244,114,182,0.4)",
-    backgroundColor: "rgba(236,72,153,0.2)",
-  },
-  actionBtnLabel: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-
-  // Empty
-  emptyCard: {
-    minHeight: 590,
+  circleBtnDefault: {
+    backgroundColor: "rgba(0,0,0,0.35)",
     borderRadius: 28,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    padding: 32,
-    alignItems: "center",
-    justifyContent: "center",
   },
-  emptyTitle: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "900",
+  circleLabel: { color: "#E4E4E7", fontSize: 11, fontWeight: "800" },
+
+  // Empty state
+  emptyCard: {
+    minHeight: 560, borderRadius: 30,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    padding: 32, alignItems: "center", justifyContent: "center",
   },
+  emptyIconWrap: {
+    width: 80, height: 80, borderRadius: 40,
+    overflow: "hidden", alignItems: "center", justifyContent: "center",
+  },
+  emptyTitle: { marginTop: 20, color: "#FFF", fontSize: 22, fontWeight: "900" },
   emptySubtitle: {
-    marginTop: 8,
-    color: "#A1A1AA",
-    fontSize: 14,
-    textAlign: "center",
+    marginTop: 8, color: "#A1A1AA", fontSize: 13, textAlign: "center", lineHeight: 20,
   },
+  emptyBtn: {
+    marginTop: 20, borderRadius: 999, overflow: "hidden",
+    paddingHorizontal: 24, paddingVertical: 12,
+    alignItems: "center", justifyContent: "center",
+  },
+  emptyBtnText: { color: "#FFF", fontSize: 14, fontWeight: "900" },
 });
