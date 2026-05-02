@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useMemo, useRef, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
   Animated,
   Image,
@@ -441,56 +441,9 @@ export default function DiscoverScreen() {
       ? visibleProfiles[cardIndex % visibleProfiles.length]
       : null;
 
-  const nextCard = () => setCardIndex((prev) => prev + 1);
-
-  // Animation refs (horizontal Tinder-style swipe)
-  const dragX = useRef(new Animated.Value(0)).current;
-  const cardOpacity = useRef(new Animated.Value(1)).current;
-  const cardScale = useRef(new Animated.Value(1)).current;
-  const isAnimating = useRef(false);
-
-  const cardRotate = dragX.interpolate({
-    inputRange: [-300, 0, 300],
-    outputRange: ["-15deg", "0deg", "15deg"],
-    extrapolate: "clamp",
-  });
-
-  const animateExitAndAdvance = (direction: 1 | -1 = 1) => {
-    if (isAnimating.current) return;
-    isAnimating.current = true;
-    Animated.parallel([
-      Animated.timing(dragX, { toValue: direction * 600, duration: 240, useNativeDriver: true }),
-      Animated.timing(cardOpacity, { toValue: 0, duration: 240, useNativeDriver: true }),
-      Animated.timing(cardScale, { toValue: 0.94, duration: 240, useNativeDriver: true }),
-    ]).start(() => {
-      dragX.setValue(0);
-      cardOpacity.setValue(0);
-      cardScale.setValue(0.94);
-      nextCard();
-      Animated.parallel([
-        Animated.spring(cardOpacity, { toValue: 1, stiffness: 240, damping: 26, useNativeDriver: true }),
-        Animated.spring(cardScale, { toValue: 1, stiffness: 240, damping: 26, useNativeDriver: true }),
-      ]).start(() => { isAnimating.current = false; });
-    });
-  };
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, g) =>
-          Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
-        onPanResponderMove: Animated.event([null, { dx: dragX }], { useNativeDriver: false }),
-        onPanResponderRelease: (_, g) => {
-          if (Math.abs(g.dx) > 100) {
-            animateExitAndAdvance(g.dx > 0 ? 1 : -1);
-          } else {
-            Animated.spring(dragX, { toValue: 0, useNativeDriver: true }).start();
-          }
-        },
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dragX, cardOpacity, cardScale],
-  );
+  // Advance the deck. Called by SwipeDeck after a gesture-driven exit, and by
+  // ExpandedProfile when the user uses the bottom action bar.
+  const advanceDeck = () => setCardIndex((prev) => prev + 1);
 
   return (
     <View style={[styles.root, { paddingBottom: bottomInset }]}>
@@ -622,142 +575,18 @@ export default function DiscoverScreen() {
           <Ionicons name="chevron-forward" size={16} color="#A1A1AA" />
         </Pressable>
 
-        {/* Card area with stacked deck */}
+        {/* Card area — gesture-driven SwipeDeck (PASS-left, VIBE-right, SPARK-up) */}
         <View style={[styles.cardArea, { height: cardHeight }]}>
-          {/* Stacked shadow cards behind */}
-          <View style={[styles.deckCard, { height: cardHeight - 16, top: 16, left: 20, right: 20, opacity: 0.3 }]} />
-          <View style={[styles.deckCard, { height: cardHeight - 8, top: 8, left: 10, right: 10, opacity: 0.55 }]} />
-
           {profile ? (
-            <Animated.View
-              key={`${profile.id}-${cardIndex}-${activeIntent}-${activeSubTab}`}
-              {...panResponder.panHandlers}
-              style={[
-                styles.card,
-                { height: cardHeight },
-                {
-                  opacity: cardOpacity,
-                  transform: [
-                    { translateX: dragX },
-                    { rotate: cardRotate },
-                    { scale: cardScale },
-                  ],
-                },
-              ]}
-            >
-              <Pressable
-                style={StyleSheet.absoluteFill}
-                onPress={() => setSelectedProfile(profile)}
-              >
-                <Image source={{ uri: profile.image }} style={styles.cardImage} resizeMode="cover" />
-
-                {/* Dark gradient overlay */}
-                <LinearGradient
-                  colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.55)", "#000"]}
-                  locations={[0, 0.55, 1]}
-                  style={StyleSheet.absoluteFill}
-                />
-
-                {/* Online / Offline pill top-left */}
-                <View style={[styles.onlinePillTopLeft, !profile.online && styles.offlinePill]}>
-                  <View style={[styles.onlineDot, !profile.online && styles.offlineDot]} />
-                  <Text style={styles.onlinePillText}>{profile.online ? "Online" : "Offline"}</Text>
-                </View>
-
-                {/* Match badge top-right */}
-                <View style={styles.matchBadge}>
-                  <Text style={styles.matchBadgePct}>{profile.matchScore}%</Text>
-                  <Text style={styles.matchBadgeWord}>Match</Text>
-                </View>
-
-              </Pressable>
-
-              {/* Bottom info — clean preview, no bio/interests (those live in expanded profile) */}
-              <View style={styles.cardBottom}>
-                <Pressable
-                  onPress={() => setSelectedProfile(profile)}
-                  style={styles.cardBottomInfo}
-                >
-                  <View style={styles.nameRow}>
-                    <Text style={styles.nameText}>
-                      {profile.name}, {profile.age}
-                    </Text>
-                    {profile.verified ? (
-                      <MaterialCommunityIcons
-                        name="shield-check"
-                        size={24}
-                        color="#EC4899"
-                      />
-                    ) : null}
-                  </View>
-
-                  <View style={styles.locationRow}>
-                    <Ionicons name="location-outline" size={14} color="#E4E4E7" />
-                    <Text style={styles.locationText}>{profile.location}</Text>
-                    <View style={styles.greenDotSmall} />
-                    <Text style={styles.locationText}>
-                      {(((profile.id * 1.3) % 9) + 0.5).toFixed(1)} miles away
-                    </Text>
-                  </View>
-
-                  <View style={styles.badgeRow}>
-                    <View style={styles.intentBadge}>
-                      <LinearGradient
-                        colors={theme.accent}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
-                      />
-                      <Text style={styles.intentBadgeText}>{profile.intent}</Text>
-                    </View>
-                    <View style={styles.subBadge}>
-                      <Text style={styles.subBadgeText}>{profile.subGenre}</Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.tapHintText}>Tap to view full profile</Text>
-                </Pressable>
-
-                {/* Swipe actions — siblings, not children of cardBottomInfo Pressable.
-                    Each button's Pressable claims its own touch region in RN, so tapping
-                    PASS/LIKE never triggers the profile-expand Pressable above. */}
-                <View style={styles.swipeActionsRow}>
-                  <Pressable
-                    onPress={() => animateExitAndAdvance(-1)}
-                    style={({ pressed }) => [
-                      styles.swipeActionBtnWrap,
-                      pressed && { transform: [{ scale: 0.95 }] },
-                    ]}
-                  >
-                    <View style={styles.swipeActionBtnPass}>
-                      <Ionicons name="close" size={32} color="#FB7185" />
-                    </View>
-                    <Text style={styles.swipeActionLabel}>PASS</Text>
-                  </Pressable>
-
-                  <View style={styles.swipeActionsCenterText}>
-                    <Text style={styles.swipeActionsCenterLabel}>
-                      <Text style={styles.swipeArrowPink}>←</Text>
-                      {" LEFT OR RIGHT "}
-                      <Text style={styles.swipeArrowGreen}>→</Text>
-                    </Text>
-                  </View>
-
-                  <Pressable
-                    onPress={() => animateExitAndAdvance(1)}
-                    style={({ pressed }) => [
-                      styles.swipeActionBtnWrap,
-                      pressed && { transform: [{ scale: 0.95 }] },
-                    ]}
-                  >
-                    <View style={styles.swipeActionBtnLike}>
-                      <Ionicons name="heart" size={32} color="#6EE7B7" />
-                    </View>
-                    <Text style={styles.swipeActionLabel}>LIKE</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </Animated.View>
+            <SwipeDeck
+              key={`deck-${activeIntent}-${activeSubTab}`}
+              profile={profile}
+              cardKey={`${profile.id}-${cardIndex}`}
+              theme={theme}
+              cardHeight={cardHeight}
+              onOpenProfile={() => setSelectedProfile(profile)}
+              onAction={advanceDeck}
+            />
           ) : (
             <EmptyState theme={theme} />
           )}
@@ -778,7 +607,7 @@ export default function DiscoverScreen() {
             onClose={() => setSelectedProfile(null)}
             onAction={() => {
               setSelectedProfile(null);
-              animateExitAndAdvance(-1);
+              advanceDeck();
             }}
           />
         ) : null}
@@ -1354,4 +1183,800 @@ const expStyles = StyleSheet.create({
   },
   bigBtnDefault: { backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 32 },
   bigLabel: { color: "#E4E4E7", fontSize: 12, fontWeight: "700" },
+});
+
+// ─── SwipeDeck (3-direction gesture system) ───────────────────────────────────
+type SwipeAction = "pass" | "vibe" | "spark";
+
+function SwipeDeck({
+  profile,
+  cardKey,
+  theme,
+  cardHeight,
+  onOpenProfile,
+  onAction,
+}: {
+  profile: Profile;
+  cardKey: string;
+  theme: Theme;
+  cardHeight: number;
+  onOpenProfile: () => void;
+  onAction: () => void;
+}) {
+  // Drive the burst with an incrementing token so rapid sparks always retrigger
+  // a fresh explosion (boolean state would no-op while still true).
+  const [sparkToken, setSparkToken] = useState(0);
+  const sparkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (sparkTimeoutRef.current) clearTimeout(sparkTimeoutRef.current);
+    };
+  }, []);
+
+  const handleAction = (action: SwipeAction) => {
+    if (action === "spark") {
+      setSparkToken((n) => n + 1);
+      if (sparkTimeoutRef.current) clearTimeout(sparkTimeoutRef.current);
+      sparkTimeoutRef.current = setTimeout(() => {
+        setSparkToken((n) => -Math.abs(n)); // flip sign to "off"
+        sparkTimeoutRef.current = null;
+      }, 650);
+    }
+    onAction();
+  };
+
+  const sparkBurst = sparkToken > 0;
+
+  return (
+    <View style={[deckStyles.deckRoot, { height: cardHeight }]}>
+      <GestureHints />
+
+      {/* Stacked shadow cards behind the active card */}
+      <View
+        style={[
+          deckStyles.deckShadow,
+          {
+            top: 16,
+            left: 20,
+            right: 20,
+            height: cardHeight - 16,
+            opacity: 0.3,
+          },
+        ]}
+      />
+      <View
+        style={[
+          deckStyles.deckShadow,
+          {
+            top: 8,
+            left: 10,
+            right: 10,
+            height: cardHeight - 8,
+            opacity: 0.55,
+          },
+        ]}
+      />
+
+      <SwipeCard
+        key={cardKey}
+        profile={profile}
+        theme={theme}
+        cardHeight={cardHeight}
+        onOpenProfile={onOpenProfile}
+        onAction={handleAction}
+      />
+
+      {sparkBurst ? <SparkExplosion key={sparkToken} /> : null}
+    </View>
+  );
+}
+
+function SwipeCard({
+  profile,
+  theme,
+  cardHeight,
+  onOpenProfile,
+  onAction,
+}: {
+  profile: Profile;
+  theme: Theme;
+  cardHeight: number;
+  onOpenProfile: () => void;
+  onAction: (action: SwipeAction) => void;
+}) {
+  const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const isExiting = useRef(false);
+
+  const rotate = pan.x.interpolate({
+    inputRange: [-220, 0, 220],
+    outputRange: ["-12deg", "0deg", "12deg"],
+    extrapolate: "clamp",
+  });
+  const liftScale = pan.y.interpolate({
+    inputRange: [-180, 0, 100],
+    outputRange: [1.04, 1, 1],
+    extrapolate: "clamp",
+  });
+  const passOpacity = pan.x.interpolate({
+    inputRange: [-160, -60, 0],
+    outputRange: [1, 0.45, 0],
+    extrapolate: "clamp",
+  });
+  const vibeOpacity = pan.x.interpolate({
+    inputRange: [0, 60, 160],
+    outputRange: [0, 0.45, 1],
+    extrapolate: "clamp",
+  });
+  const sparkOpacity = pan.y.interpolate({
+    inputRange: [-170, -70, 0],
+    outputRange: [1, 0.5, 0],
+    extrapolate: "clamp",
+  });
+
+  const triggerExit = (action: SwipeAction) => {
+    if (isExiting.current) return;
+    isExiting.current = true;
+    const exitTo =
+      action === "pass"
+        ? { x: -520, y: 40 }
+        : action === "vibe"
+          ? { x: 520, y: 40 }
+          : { x: 0, y: -640 };
+    Animated.timing(pan, {
+      toValue: exitTo,
+      duration: 280,
+      useNativeDriver: true,
+    }).start(() => {
+      onAction(action);
+    });
+  };
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        // Don't claim on touch start — let child Pressable handle taps
+        onStartShouldSetPanResponder: () => false,
+        // Require a clear directional gesture (>= 12px) AND axis dominance
+        // before stealing the responder, so finger jitter on a tap doesn't
+        // hijack the press.
+        onMoveShouldSetPanResponder: (_, g) => {
+          const ax = Math.abs(g.dx);
+          const ay = Math.abs(g.dy);
+          if (ax < 12 && ay < 12) return false;
+          // Horizontal-dominant OR vertical-dominant by a clear margin
+          return ax > ay * 1.2 || ay > ax * 1.2;
+        },
+        onPanResponderMove: Animated.event(
+          [null, { dx: pan.x, dy: pan.y }],
+          { useNativeDriver: false },
+        ),
+        onPanResponderRelease: (_, g) => {
+          const ax = Math.abs(g.dx);
+          const ay = Math.abs(g.dy);
+          const avx = Math.abs(g.vx);
+          const avy = Math.abs(g.vy);
+
+          // SPARK — strong upward swipe, must be vertically dominant
+          if ((g.dy < -120 || g.vy < -1.5) && (ay > ax || avy > avx)) {
+            triggerExit("spark");
+            return;
+          }
+          // VIBE — right swipe, must be horizontally dominant
+          if ((g.dx > 130 || g.vx > 1.5) && (ax > ay || avx > avy)) {
+            triggerExit("vibe");
+            return;
+          }
+          // PASS — left swipe, must be horizontally dominant
+          if ((g.dx < -130 || g.vx < -1.5) && (ax > ay || avx > avy)) {
+            triggerExit("pass");
+            return;
+          }
+          // Not enough — spring back
+          Animated.spring(pan, {
+            toValue: { x: 0, y: 0 },
+            friction: 6,
+            tension: 80,
+            useNativeDriver: true,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(pan, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: true,
+          }).start();
+        },
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pan],
+  );
+
+  return (
+    <Animated.View
+      {...panResponder.panHandlers}
+      style={[
+        deckStyles.card,
+        { height: cardHeight },
+        {
+          transform: [
+            { translateX: pan.x },
+            { translateY: pan.y },
+            { rotate },
+            { scale: liftScale },
+          ],
+        },
+      ]}
+    >
+      {/* Tap surface for the image area — tap-to-expand. PanResponder will
+          take over once the user moves, leaving taps to fall through. */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={onOpenProfile}>
+        <Image
+          source={{ uri: profile.image }}
+          style={deckStyles.cardImage}
+          resizeMode="cover"
+        />
+
+        {/* Cinematic dark gradient */}
+        <LinearGradient
+          colors={["rgba(0,0,0,0.10)", "rgba(0,0,0,0.55)", "#000"]}
+          locations={[0, 0.55, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {/* Online / Offline pill — top left */}
+        <View
+          style={[
+            deckStyles.onlinePill,
+            !profile.online && deckStyles.offlinePill,
+          ]}
+        >
+          <View
+            style={[
+              deckStyles.onlineDot,
+              !profile.online && deckStyles.offlineDot,
+            ]}
+          />
+          <Text style={deckStyles.onlinePillText}>
+            {profile.online ? "Online" : "Offline"}
+          </Text>
+        </View>
+
+        {/* Match badge — top right */}
+        <View style={deckStyles.matchBadge}>
+          <Text style={deckStyles.matchBadgePct}>{profile.matchScore}%</Text>
+          <Text style={deckStyles.matchBadgeWord}>Match</Text>
+        </View>
+      </Pressable>
+
+      {/* Swipe direction overlays — driven by gesture position */}
+      <Animated.View
+        pointerEvents="none"
+        style={[deckStyles.overlayPass, { opacity: passOpacity }]}
+      >
+        <Text style={deckStyles.overlayPassText}>PASS</Text>
+      </Animated.View>
+
+      <Animated.View
+        pointerEvents="none"
+        style={[deckStyles.overlayVibe, { opacity: vibeOpacity }]}
+      >
+        <Text style={deckStyles.overlayVibeText}>VIBE</Text>
+      </Animated.View>
+
+      <Animated.View
+        pointerEvents="none"
+        style={[deckStyles.overlaySpark, { opacity: sparkOpacity }]}
+      >
+        <Ionicons
+          name="arrow-up"
+          size={40}
+          color="#6EE7B7"
+          style={deckStyles.overlaySparkIcon}
+        />
+        <Text style={deckStyles.overlaySparkText}>SPARK</Text>
+        <Text style={deckStyles.overlaySparkSub}>Stronger interest</Text>
+      </Animated.View>
+
+      {/* Bottom info — also tap-to-expand */}
+      <View style={deckStyles.cardBottom}>
+        <Pressable onPress={onOpenProfile} style={deckStyles.cardBottomInfo}>
+          <View style={deckStyles.nameRow}>
+            <Text style={deckStyles.nameText}>
+              {profile.name}, {profile.age}
+            </Text>
+            {profile.verified ? (
+              <MaterialCommunityIcons
+                name="shield-check"
+                size={24}
+                color="#EC4899"
+              />
+            ) : null}
+          </View>
+
+          <View style={deckStyles.locationRow}>
+            <Ionicons name="location-outline" size={14} color="#E4E4E7" />
+            <Text style={deckStyles.locationText}>{profile.location}</Text>
+            <View style={deckStyles.locationGreenDot} />
+            <Text style={deckStyles.locationText}>
+              {(((profile.id * 1.3) % 9) + 0.5).toFixed(1)} miles away
+            </Text>
+          </View>
+
+          <View style={deckStyles.badgeRow}>
+            <View style={deckStyles.intentBadge}>
+              <LinearGradient
+                colors={theme.accent}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+              />
+              <Text style={deckStyles.intentBadgeText}>{profile.intent}</Text>
+            </View>
+            <View style={deckStyles.subBadge}>
+              <Text style={deckStyles.subBadgeText}>{profile.subGenre}</Text>
+            </View>
+          </View>
+
+          <Text style={deckStyles.tapHintText}>Tap card to view full profile</Text>
+        </Pressable>
+
+        {/* Gesture mini-guide */}
+        <View style={deckStyles.gestureGuide}>
+          <Text style={deckStyles.gestureGuideTitle}>SWIPE TO CONNECT</Text>
+          <View style={deckStyles.gestureGuideRow}>
+            <GestureMini
+              icon="arrow-back"
+              title="PASS"
+              subtitle="Left"
+              color="#FB7185"
+            />
+            <GestureMini
+              icon="arrow-up"
+              title="SPARK"
+              subtitle="Up"
+              color="#6EE7B7"
+            />
+            <GestureMini
+              icon="arrow-forward"
+              title="VIBE"
+              subtitle="Right"
+              color="#F472B6"
+            />
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
+function GestureHints() {
+  return (
+    <>
+      <View pointerEvents="none" style={deckStyles.hintLeft}>
+        <Ionicons name="arrow-back" size={28} color="#FB7185" />
+        <Text style={deckStyles.hintTitlePass}>PASS</Text>
+        <Text style={deckStyles.hintSub}>Not for me</Text>
+      </View>
+
+      <View pointerEvents="none" style={deckStyles.hintRight}>
+        <Ionicons name="arrow-forward" size={28} color="#F472B6" />
+        <Text style={deckStyles.hintTitleVibe}>VIBE</Text>
+        <Text style={deckStyles.hintSub}>Like energy</Text>
+      </View>
+
+      <View pointerEvents="none" style={deckStyles.hintTop}>
+        <Ionicons name="arrow-up" size={26} color="#6EE7B7" />
+        <Text style={deckStyles.hintTitleSpark}>SPARK</Text>
+      </View>
+    </>
+  );
+}
+
+function GestureMini({
+  icon,
+  title,
+  subtitle,
+  color,
+}: {
+  icon: IoniconName;
+  title: string;
+  subtitle: string;
+  color: string;
+}) {
+  return (
+    <View style={deckStyles.gestureMini}>
+      <Ionicons name={icon} size={22} color={color} />
+      <Text style={[deckStyles.gestureMiniTitle, { color }]}>{title}</Text>
+      <Text style={deckStyles.gestureMiniSub}>{subtitle}</Text>
+    </View>
+  );
+}
+
+// ─── SPARK particle burst ─────────────────────────────────────────────────────
+function SparkExplosion() {
+  const PARTICLE_COUNT = 22;
+  const particles = useRef(
+    Array.from({ length: PARTICLE_COUNT }, () => ({
+      anim: new Animated.Value(0),
+      angle: 0,
+      distance: 0,
+    })),
+  ).current;
+
+  const burstAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    particles.forEach((p, i) => {
+      p.angle = (i / PARTICLE_COUNT) * Math.PI * 2;
+      p.distance = 90 + Math.random() * 90;
+      Animated.timing(p.anim, {
+        toValue: 1,
+        duration: 650,
+        useNativeDriver: true,
+      }).start();
+    });
+    Animated.timing(burstAnim, {
+      toValue: 1,
+      duration: 550,
+      useNativeDriver: true,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <View pointerEvents="none" style={deckStyles.sparkBurstRoot}>
+      {particles.map((p, i) => {
+        const tx = p.anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, Math.cos(p.angle) * p.distance],
+        });
+        const ty = p.anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, Math.sin(p.angle) * p.distance],
+        });
+        const scale = p.anim.interpolate({
+          inputRange: [0, 0.4, 1],
+          outputRange: [0, 1.2, 0],
+        });
+        const opacity = p.anim.interpolate({
+          inputRange: [0, 0.7, 1],
+          outputRange: [1, 1, 0],
+        });
+        return (
+          <Animated.View
+            key={i}
+            style={[
+              deckStyles.sparkParticle,
+              {
+                opacity,
+                transform: [{ translateX: tx }, { translateY: ty }, { scale }],
+              },
+            ]}
+          />
+        );
+      })}
+
+      <Animated.View
+        style={[
+          deckStyles.sparkBurstCenter,
+          {
+            opacity: burstAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [1, 0],
+            }),
+            transform: [
+              {
+                scale: burstAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 1.6],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <Ionicons name="sparkles" size={48} color="#6EE7B7" />
+      </Animated.View>
+    </View>
+  );
+}
+
+const deckStyles = StyleSheet.create({
+  deckRoot: { position: "relative", width: "100%" },
+
+  deckShadow: {
+    position: "absolute",
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: "rgba(236,72,153,0.18)",
+    backgroundColor: "rgba(236,72,153,0.05)",
+  },
+
+  // Active card
+  card: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    borderRadius: 32,
+    overflow: "hidden",
+    borderWidth: 1.5,
+    borderColor: "rgba(236,72,153,0.65)",
+    backgroundColor: "#09090B",
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.45,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 18,
+  },
+  cardImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+
+  // Top pills
+  onlinePill: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(52,211,153,0.3)",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#34D399",
+    shadowColor: "#34D399",
+    shadowOpacity: 1,
+    shadowRadius: 6,
+  },
+  offlinePill: {
+    borderColor: "rgba(161,161,170,0.35)",
+    backgroundColor: "rgba(0,0,0,0.6)",
+  },
+  offlineDot: {
+    backgroundColor: "#A1A1AA",
+    shadowOpacity: 0,
+  },
+  onlinePillText: { color: "#FFF", fontSize: 11, fontWeight: "900" },
+
+  matchBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 1,
+    borderColor: "rgba(236,72,153,0.5)",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.55,
+    shadowRadius: 16,
+  },
+  matchBadgePct: { color: "#FBCFE8", fontSize: 18, fontWeight: "900" },
+  matchBadgeWord: {
+    color: "#E4E4E7",
+    fontSize: 10,
+    fontWeight: "800",
+    marginTop: -2,
+  },
+
+  // Direction overlays
+  overlayPass: {
+    position: "absolute",
+    top: 96,
+    left: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#FB7185",
+    backgroundColor: "rgba(244,63,94,0.10)",
+    transform: [{ rotate: "-14deg" }],
+    shadowColor: "#F43F5E",
+    shadowOpacity: 0.55,
+    shadowRadius: 24,
+  },
+  overlayPassText: { color: "#FB7185", fontSize: 36, fontWeight: "900" },
+
+  overlayVibe: {
+    position: "absolute",
+    top: 96,
+    right: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#F472B6",
+    backgroundColor: "rgba(236,72,153,0.10)",
+    transform: [{ rotate: "14deg" }],
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+  },
+  overlayVibeText: { color: "#FBCFE8", fontSize: 36, fontWeight: "900" },
+
+  overlaySpark: {
+    position: "absolute",
+    top: 60,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  overlaySparkIcon: {
+    textShadowColor: "rgba(52,211,153,1)",
+    textShadowRadius: 18,
+    textShadowOffset: { width: 0, height: 0 },
+  },
+  overlaySparkText: {
+    marginTop: 4,
+    color: "#6EE7B7",
+    fontSize: 36,
+    fontWeight: "900",
+    textShadowColor: "rgba(52,211,153,1)",
+    textShadowRadius: 18,
+    textShadowOffset: { width: 0, height: 0 },
+  },
+  overlaySparkSub: {
+    marginTop: 2,
+    color: "#A7F3D0",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  // Bottom info
+  cardBottom: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20 },
+  cardBottomInfo: { marginBottom: 14 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  nameText: {
+    color: "#FFF",
+    fontSize: 36,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    lineHeight: 38,
+  },
+  locationRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  locationText: { color: "#E4E4E7", fontSize: 13, fontWeight: "600" },
+  locationGreenDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#34D399",
+    marginLeft: 4,
+  },
+  badgeRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  intentBadge: {
+    borderRadius: 999,
+    overflow: "hidden",
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  intentBadgeText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "capitalize",
+  },
+  subBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+  subBadgeText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
+  tapHintText: {
+    marginTop: 12,
+    color: "#D4D4D8",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  // Gesture mini-guide (bottom of card)
+  gestureGuide: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  gestureGuideTitle: {
+    textAlign: "center",
+    color: "#D4D4D8",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 3.5,
+  },
+  gestureGuideRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  gestureMini: { alignItems: "center", gap: 4 },
+  gestureMiniTitle: { fontSize: 11, fontWeight: "900", marginTop: 2 },
+  gestureMiniSub: { color: "#A1A1AA", fontSize: 10, fontWeight: "600" },
+
+  // Side gesture hints (around the card)
+  hintLeft: {
+    position: "absolute",
+    left: -4,
+    top: "42%",
+    alignItems: "center",
+    zIndex: 20,
+  },
+  hintRight: {
+    position: "absolute",
+    right: -4,
+    top: "42%",
+    alignItems: "center",
+    zIndex: 20,
+  },
+  hintTop: {
+    position: "absolute",
+    top: -42,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 20,
+  },
+  hintTitlePass: { marginTop: 4, color: "#FB7185", fontSize: 11, fontWeight: "900" },
+  hintTitleVibe: { marginTop: 4, color: "#F472B6", fontSize: 11, fontWeight: "900" },
+  hintTitleSpark: { marginTop: 2, color: "#6EE7B7", fontSize: 11, fontWeight: "900" },
+  hintSub: { color: "#A1A1AA", fontSize: 9, fontWeight: "600" },
+
+  // SPARK particle burst
+  sparkBurstRoot: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 50,
+  },
+  sparkParticle: {
+    position: "absolute",
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#6EE7B7",
+    shadowColor: "#34D399",
+    shadowOpacity: 1,
+    shadowRadius: 12,
+  },
+  sparkBurstCenter: {
+    position: "absolute",
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    borderWidth: 1,
+    borderColor: "rgba(110,231,183,0.7)",
+    backgroundColor: "rgba(52,211,153,0.10)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#34D399",
+    shadowOpacity: 0.8,
+    shadowRadius: 35,
+  },
 });
