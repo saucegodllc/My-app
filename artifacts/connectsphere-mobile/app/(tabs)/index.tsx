@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -404,8 +405,10 @@ function EmptyState({ theme }: { theme: Theme }) {
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 16 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 56 : 49 + insets.bottom;
+  const { height: winH } = useWindowDimensions();
+  const topInset = Platform.OS === "web" ? 52 : Math.max(insets.top, 52);
+  const bottomInset = Platform.OS === "web" ? 96 : 82 + insets.bottom;
+  const cardHeight = Math.max(470, Math.min(620, winH - 390));
 
   const allowedTabs =
     currentUserIntent === "all"
@@ -498,23 +501,20 @@ export default function DiscoverScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: topInset + 4 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: topInset }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerSpacer} />
-          <View style={styles.headerCenter}>
-            <View style={styles.titleRow}>
-              <Text style={styles.title}>Discover </Text>
-              <Text style={styles.titleMiami}>Miami</Text>
-              <Text style={styles.titlePalm}>  🌴</Text>
-            </View>
-            <View style={styles.titleUnderlineRow}>
-              <View style={styles.titleUnderline} />
-              <Text style={styles.subtitleSmall}>DISCOVER. CONNECT. VIBE.</Text>
-              <View style={styles.titleUnderline} />
-            </View>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>Discover</Text>
+            <Text style={styles.titleMiami}>Miami</Text>
+            <Text style={styles.titlePalm}>🌴</Text>
+          </View>
+          <View style={styles.titleUnderlineRow}>
+            <View style={styles.titleUnderline} />
+            <Text style={styles.subtitleSmall}>DISCOVER. CONNECT. VIBE.</Text>
+            <View style={styles.titleUnderline} />
           </View>
           <Pressable style={styles.filterBtn}>
             <Ionicons name="options-outline" size={20} color="#FFF" />
@@ -623,10 +623,10 @@ export default function DiscoverScreen() {
         </Pressable>
 
         {/* Card area with stacked deck */}
-        <View style={styles.cardArea}>
+        <View style={[styles.cardArea, { height: cardHeight }]}>
           {/* Stacked shadow cards behind */}
-          <View style={[styles.deckCard, styles.deck3]} />
-          <View style={[styles.deckCard, styles.deck2]} />
+          <View style={[styles.deckCard, { height: cardHeight - 16, top: 16, left: 20, right: 20, opacity: 0.3 }]} />
+          <View style={[styles.deckCard, { height: cardHeight - 8, top: 8, left: 10, right: 10, opacity: 0.55 }]} />
 
           {profile ? (
             <Animated.View
@@ -634,6 +634,7 @@ export default function DiscoverScreen() {
               {...panResponder.panHandlers}
               style={[
                 styles.card,
+                { height: cardHeight },
                 {
                   opacity: cardOpacity,
                   transform: [
@@ -797,68 +798,74 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#050007" },
 
-  // Background blobs — subtle pink/purple haze (not covering header)
+  // Background blobs — subtle pink/purple haze
   blob1: {
-    position: "absolute", top: 180, left: -120,
-    width: 280, height: 280, borderRadius: 140,
-    backgroundColor: "rgba(236,72,153,0.10)",
-    opacity: 0.9,
+    position: "absolute", top: -160, left: "50%",
+    marginLeft: -144,
+    width: 288, height: 288, borderRadius: 144,
+    backgroundColor: "rgba(236,72,153,0.14)",
   },
   blob2: {
-    position: "absolute", top: 480, right: -140,
+    position: "absolute", top: 160, right: -144,
     width: 320, height: 320, borderRadius: 160,
-    backgroundColor: "rgba(168,85,247,0.10)",
+    backgroundColor: "rgba(217,70,239,0.10)",
   },
   blob3: {
-    position: "absolute", bottom: 140, left: "30%",
+    position: "absolute", bottom: 96, left: -128,
     width: 320, height: 320, borderRadius: 160,
-    backgroundColor: "rgba(217,70,239,0.08)",
+    backgroundColor: "rgba(236,72,153,0.08)",
   },
 
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 32 },
+  scrollContent: { paddingHorizontal: 18, paddingBottom: 32 },
 
-  // Header
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  headerSpacer: { width: 44, height: 44 },
-  headerCenter: { flex: 1, alignItems: "center" },
-  titleRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "center" },
-  title: { color: "#FFF", fontSize: 32, fontWeight: "900", letterSpacing: -0.5 },
+  // Header — centered with absolutely-positioned filter button (no overlap)
+  header: { position: "relative", alignItems: "center" },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 },
+  title: {
+    color: "#FFF", fontSize: 38, fontWeight: "900", letterSpacing: -0.5, lineHeight: 40,
+    textShadowColor: "rgba(255,255,255,0.35)", textShadowRadius: 14, textShadowOffset: { width: 0, height: 2 },
+  },
   titleMiami: {
-    color: "#EC4899", fontSize: 34, fontWeight: "700",
+    color: "#F9A8D4", fontSize: 38, fontWeight: "300", lineHeight: 40,
     fontStyle: "italic",
     fontFamily: Platform.select({ ios: "Snell Roundhand", android: "cursive", default: "cursive" }),
-    textShadowColor: "rgba(236,72,153,0.9)", textShadowRadius: 12, textShadowOffset: { width: 0, height: 0 },
+    textShadowColor: "rgba(236,72,153,1)", textShadowRadius: 18, textShadowOffset: { width: 0, height: 0 },
   },
-  titlePalm: { fontSize: 28 },
+  titlePalm: {
+    fontSize: 28, lineHeight: 40,
+    textShadowColor: "rgba(236,72,153,0.8)", textShadowRadius: 18, textShadowOffset: { width: 0, height: 0 },
+  },
   titleUnderlineRow: {
-    marginTop: 6, flexDirection: "row", alignItems: "center", gap: 10, justifyContent: "center",
+    marginTop: 16, flexDirection: "row", alignItems: "center", gap: 20, justifyContent: "center",
   },
   titleUnderline: {
-    width: 36, height: 1, backgroundColor: "rgba(236,72,153,0.7)",
+    width: 56, height: 1, backgroundColor: "rgba(236,72,153,0.6)",
   },
   subtitleSmall: {
-    color: "#FFF", fontSize: 11, fontWeight: "800", letterSpacing: 3,
+    color: "#E4E4E7", fontSize: 11, fontWeight: "900", letterSpacing: 4.2,
   },
   filterBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    borderWidth: 1, borderColor: "rgba(236,72,153,0.6)",
-    backgroundColor: "rgba(236,72,153,0.18)",
+    position: "absolute", right: 0, top: 0,
+    width: 48, height: 48, borderRadius: 24,
+    borderWidth: 1, borderColor: "rgba(244,114,182,0.25)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#EC4899", shadowOpacity: 0.7, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
+    shadowColor: "#EC4899", shadowOpacity: 0.5, shadowRadius: 25, shadowOffset: { width: 0, height: 0 },
     elevation: 10,
   },
 
-  // Intent tabs — black glass with pink glow on active
+  // Intent tabs — slim glossy black glass with pink border (~58px)
   intentRow: {
     marginTop: 22, flexDirection: "row", alignItems: "center",
+    height: 58,
     borderRadius: 999, borderWidth: 1, borderColor: "rgba(236,72,153,0.22)",
     backgroundColor: "rgba(0,0,0,0.55)",
     padding: 5,
     shadowColor: "#EC4899", shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 0 },
   },
   intentSlot: { flex: 1, flexDirection: "row", alignItems: "center" },
-  intentBtn: { flex: 1, borderRadius: 999, overflow: "hidden", minHeight: 46, justifyContent: "center" },
+  intentBtn: { flex: 1, borderRadius: 999, overflow: "hidden", height: "100%", justifyContent: "center" },
   intentBtnActiveBg: {
     borderRadius: 999,
     shadowColor: "#EC4899", shadowOpacity: 0.95, shadowRadius: 24, shadowOffset: { width: 0, height: 0 },
@@ -871,9 +878,9 @@ const styles = StyleSheet.create({
   intentBtnLabel: { fontSize: 13, fontWeight: "800" },
   intentSep: { width: 1, height: 22, backgroundColor: "rgba(255,255,255,0.12)" },
 
-  // Sub tabs
-  subTabsScroll: { marginTop: 14, flexGrow: 0 },
-  subTabsContent: { gap: 8, paddingRight: 4, paddingBottom: 4 },
+  // Sub tabs — more spacing per spec
+  subTabsScroll: { marginTop: 18, flexGrow: 0 },
+  subTabsContent: { gap: 12, paddingRight: 4, paddingBottom: 4 },
   subTabBtn: {
     borderRadius: 999, overflow: "hidden",
     paddingHorizontal: 16, paddingVertical: 9, justifyContent: "center",
@@ -890,35 +897,33 @@ const styles = StyleSheet.create({
   },
   subTabLabel: { fontSize: 12, fontWeight: "800" },
 
-  // Notice — black glass with pink border
+  // Notice — clean black glass pill with pink border
   notice: {
-    marginTop: 14, borderRadius: 999,
+    marginTop: 18, borderRadius: 999,
     borderWidth: 1, borderColor: "rgba(236,72,153,0.4)",
     backgroundColor: "rgba(0,0,0,0.55)",
-    paddingHorizontal: 16, paddingVertical: 11,
+    paddingHorizontal: 18, paddingVertical: 13,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     shadowColor: "#EC4899", shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
   },
   noticeLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   noticeText: { color: "#FCE7F3", fontSize: 12, fontWeight: "700" },
 
-  // Card area + deck
-  cardArea: { marginTop: 18, minHeight: 760, alignItems: "stretch", justifyContent: "flex-start" },
+  // Card area + deck — calc(100vh - 390px), min 470, max 620 (responsive via useWindowDimensions)
+  cardArea: { marginTop: 18, alignItems: "stretch", justifyContent: "flex-start" },
   deckCard: {
-    position: "absolute", left: 0, right: 0, top: 0,
-    height: 760, borderRadius: 32,
+    position: "absolute",
+    borderRadius: 32,
     borderWidth: 1, borderColor: "rgba(236,72,153,0.18)",
     backgroundColor: "rgba(0,0,0,0.55)",
   },
-  deck2: { left: 10, right: 10, top: 8, height: 752, opacity: 0.55 },
-  deck3: { left: 20, right: 20, top: 16, height: 744, opacity: 0.3 },
 
   card: {
-    minHeight: 760, borderRadius: 32, overflow: "hidden",
-    borderWidth: 1.5, borderColor: "rgba(236,72,153,0.85)",
+    borderRadius: 32, overflow: "hidden",
+    borderWidth: 1.5, borderColor: "rgba(236,72,153,0.7)",
     backgroundColor: "#09090B",
-    shadowColor: "#EC4899", shadowOpacity: 0.85, shadowRadius: 40, shadowOffset: { width: 0, height: 0 },
-    elevation: 24,
+    shadowColor: "#EC4899", shadowOpacity: 0.45, shadowRadius: 30, shadowOffset: { width: 0, height: 0 },
+    elevation: 18,
   },
   cardImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
 
