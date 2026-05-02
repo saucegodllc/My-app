@@ -444,7 +444,11 @@ export default function DiscoverScreen() {
   const { height: winH } = useWindowDimensions();
   const topInset = Platform.OS === "web" ? 16 : Math.max(insets.top, 12);
   const bottomInset = Platform.OS === "web" ? 96 : 82 + insets.bottom;
-  const cardHeight = Math.max(480, Math.min(620, winH - 230));
+  // Measured cardArea height (set by onLayout). Falls back to a windowH-based
+  // estimate so the very first frame still renders correctly.
+  const [measuredCardH, setMeasuredCardH] = useState(0);
+  const cardHeight =
+    measuredCardH > 0 ? measuredCardH : Math.max(420, winH - 320);
 
   const allowedTabs =
     currentUserIntent === "all"
@@ -488,20 +492,19 @@ export default function DiscoverScreen() {
       <View style={styles.blob2} />
       <View style={styles.blob3} />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: topInset, paddingBottom: bottomInset + 16 },
+      {/* Single-screen flex column — no scrolling. Mirrors the web spec
+          `<main className="flex h-full flex-col px-4 pt-[safe-top+18] pb-[safe-bottom+86]">`.
+          The card section is `flex: 1` and fills whatever space remains
+          between the header/tabs above and the fixed glass tab bar below. */}
+      <View
+        style={[
+          styles.main,
+          { paddingTop: topInset + 18, paddingBottom: bottomInset + 16 },
         ]}
-        showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Header — compact, no pill. Just the thin neon top line, the
+            Discover · Miami title row, and the spaced uppercase subtitle. */}
         <View style={styles.header}>
-          {/* Soft neon glow halo (CSS blur-[110px] → translucent rounded pink view) */}
-          <View pointerEvents="none" style={styles.headerGlow} />
-
-          {/* Thin neon top line */}
           <View style={styles.headerTopLineWrap}>
             <LinearGradient
               colors={[
@@ -515,31 +518,12 @@ export default function DiscoverScreen() {
             />
           </View>
 
-          {/* Glass pill containing the title */}
-          <View style={styles.headerPill}>
+          <View style={styles.titleRow}>
             <Text style={styles.title}>Discover</Text>
             <MiamiNeon />
           </View>
 
-          <View style={styles.titleUnderlineRow}>
-            <LinearGradient
-              colors={["rgba(236,72,153,0)", "rgba(236,72,153,0.7)"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.titleUnderlineLeft}
-            />
-            <Text style={styles.subtitleSmall}>DISCOVER YOUR CITY</Text>
-            <LinearGradient
-              colors={["rgba(236,72,153,0.7)", "rgba(236,72,153,0)"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.titleUnderlineRight}
-            />
-          </View>
-
-          <Pressable style={styles.filterBtn}>
-            <Ionicons name="options-outline" size={20} color="#FFF" />
-          </Pressable>
+          <Text style={styles.subtitleSmall}>DISCOVER YOUR CITY</Text>
         </View>
 
         {/* Intent Tabs */}
@@ -624,8 +608,16 @@ export default function DiscoverScreen() {
           })}
         </ScrollView>
 
-        {/* Card area — gesture-driven SwipeDeck (PASS-left, VIBE-right, SPARK-up) */}
-        <View style={[styles.cardArea, { height: cardHeight }]}>
+        {/* Card area — flex:1 so it fills the rest of the viewport. Height
+            is captured via onLayout and forwarded to SwipeDeck so the inner
+            cards/shadows stay pixel-perfect at any device size. */}
+        <View
+          style={styles.cardArea}
+          onLayout={(e) => {
+            const h = Math.round(e.nativeEvent.layout.height);
+            if (h > 0 && h !== measuredCardH) setMeasuredCardH(h);
+          }}
+        >
           {profile ? (
             <SwipeDeck
               key={`deck-${activeIntent}-${activeSubTab}`}
@@ -640,7 +632,7 @@ export default function DiscoverScreen() {
             <EmptyState theme={theme} />
           )}
         </View>
-      </ScrollView>
+      </View>
 
       <Modal
         visible={selectedProfile !== null}
@@ -686,35 +678,20 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(236,72,153,0.08)",
   },
 
-  scroll: { flex: 1 },
-  // paddingBottom is applied dynamically (bottomInset) so the card area
-  // never gets covered by the fixed tab bar.
-  scrollContent: { paddingHorizontal: 18 },
+  // Top-level main column. Replaces the old ScrollView so the screen fits
+  // exactly one viewport (h-screen overflow-hidden in the web spec).
+  main: { flex: 1, paddingHorizontal: 16 },
 
-  // Header — centered, neon halo + thin top line + glass pill title
+  // Header — compact, centered. Top neon line + title row + tracked subtitle.
   header: {
-    position: "relative",
     alignItems: "center",
-    paddingTop: 4,
     paddingBottom: 12,
-    overflow: "hidden",
   },
-  // Soft pink halo above the title (replaces CSS blur-[110px])
-  headerGlow: {
-    position: "absolute",
-    top: -112,
-    left: "50%",
-    marginLeft: -160,
-    width: 320,
-    height: 256,
-    borderRadius: 160,
-    backgroundColor: "rgba(236,72,153,0.20)",
-  },
-  // Thin neon top line above the title
+  // Thin neon top line above the title (web `w-24 h-[2px]`).
   headerTopLineWrap: {
-    width: 112,
+    width: 96,
     height: 2,
-    marginBottom: 16,
+    marginBottom: 12,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -723,49 +700,38 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 1,
     shadowColor: "#EC4899",
-    shadowOpacity: 0.95,
+    shadowOpacity: 0.9,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
   },
-  // Glass pill wrapper around the title (transparent — only the pink border shows)
-  headerPill: {
+  // Title row — Discover · Miami inline, no pill (matches the new minimalist spec).
+  titleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(244,114,182,0.20)",
-    backgroundColor: "transparent",
-    shadowColor: "#EC4899",
-    shadowOpacity: 0.25,
-    shadowRadius: 35,
-    shadowOffset: { width: 0, height: 0 },
   },
   title: {
     color: "#FFF",
-    fontSize: 40,
+    fontSize: 32,
     fontFamily: "Sora_800ExtraBold",
-    letterSpacing: -2,
-    lineHeight: 42,
-    textShadowColor: "rgba(255,255,255,0.28)",
-    textShadowRadius: 12,
+    letterSpacing: -1.6,
+    lineHeight: 34,
+    textShadowColor: "rgba(255,255,255,0.22)",
+    textShadowRadius: 10,
     textShadowOffset: { width: 0, height: 0 },
   },
   titleMiami: {
-    marginLeft: 12,
+    marginLeft: 8,
     color: "#F9A8D4",
-    // Yellowtail is a retro brush script — bolder and sexier than Great Vibes.
-    // Brush fonts read closer to their nominal size, so 44 visually matches
-    // the 40pt sans-serif "Discover" beside it.
-    fontSize: 44,
-    lineHeight: 46,
+    // Yellowtail script — visually scaled to match the 32pt sans-serif beside it.
+    fontSize: 36,
+    lineHeight: 38,
     fontFamily: "Yellowtail_400Regular",
     textShadowColor: "rgba(236,72,153,1)",
     textShadowOffset: { width: 0, height: 0 },
   },
-  titleUnderlineRow: {
+  // Legacy/unused — header no longer renders the gradient underlines or pill.
+  _legacyTitleUnderlineRow: {
     marginTop: 16,
     flexDirection: "row",
     alignItems: "center",
@@ -781,10 +747,11 @@ const styles = StyleSheet.create({
     height: 1,
   },
   subtitleSmall: {
+    marginTop: 8,
     color: "#D4D4D8",
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: "900",
-    letterSpacing: 3.6,
+    letterSpacing: 3,
   },
   filterBtn: {
     position: "absolute", right: 0, top: 8,
@@ -820,8 +787,8 @@ const styles = StyleSheet.create({
   intentBtnLabel: { fontSize: 13, fontWeight: "800" },
   intentSep: { width: 1, height: 22, backgroundColor: "rgba(255,255,255,0.12)" },
 
-  // Sub tabs — more spacing per spec
-  subTabsScroll: { marginTop: 18, flexGrow: 0 },
+  // Sub tabs — tightened to fit single-screen layout
+  subTabsScroll: { marginTop: 12, flexGrow: 0 },
   subTabsContent: { gap: 12, paddingRight: 4, paddingBottom: 4 },
   subTabBtn: {
     borderRadius: 999, overflow: "hidden",
@@ -851,13 +818,14 @@ const styles = StyleSheet.create({
   noticeLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   noticeText: { color: "#FCE7F3", fontSize: 12, fontWeight: "700" },
 
-  // Card area + deck. Card shifted hard-left (paddingLeft 0) and the right
-  // gutter shrunk to 60px so the card is wider on both sides; the 56px rail
-  // still fits comfortably in the 60px gutter.
+  // Card area + deck. flex:1 so it fills the rest of the viewport in the
+  // no-scroll layout. Web spec: `mt-3 flex-1 pl-1 pr-[68px]`.
   cardArea: {
+    flex: 1,
+    minHeight: 0,
     marginTop: 12,
-    paddingLeft: 0,
-    paddingRight: 60,
+    paddingLeft: 4,
+    paddingRight: 68,
     position: "relative",
     alignItems: "stretch",
     justifyContent: "flex-start",
@@ -870,11 +838,12 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    borderRadius: 32, overflow: "hidden",
-    borderWidth: 1.5, borderColor: "rgba(236,72,153,0.7)",
-    backgroundColor: "#09090B",
-    shadowColor: "#EC4899", shadowOpacity: 0.45, shadowRadius: 30, shadowOffset: { width: 0, height: 0 },
-    elevation: 18,
+    borderRadius: 30, overflow: "hidden",
+    // Web spec: `border border-pink-400/40 shadow-[0_0_45px_rgba(236,72,153,0.25)]`
+    borderWidth: 1, borderColor: "rgba(244,114,182,0.40)",
+    backgroundColor: "#000",
+    shadowColor: "#EC4899", shadowOpacity: 0.25, shadowRadius: 22, shadowOffset: { width: 0, height: 0 },
+    elevation: 16,
   },
   cardImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
 
@@ -1430,14 +1399,14 @@ function CardActionsRail({
       <RailButton
         icon="sparkles"
         label="SPARK"
-        sub="Stand out"
+        sub="Boost"
         color="purple"
         onPress={onSpark}
       />
       <RailButton
         icon="close"
         label="PASS"
-        sub="Nope"
+        sub="Skip"
         color="rose"
         onPress={onPass}
       />
@@ -1515,26 +1484,25 @@ function RailButton({
 }
 
 const railStyles = StyleSheet.create({
-  // Sits inside the 60px right gutter created by `cardArea.paddingRight`.
-  // 56px wide button column, with ~4px gap from the card and flush against
-  // the section's outer right edge.
+  // Sits in the 68px right gutter created by `cardArea.paddingRight`. Web
+  // spec: `right-0` flush + 52×52 buttons with `gap-4` between them.
   rail: {
     position: "absolute",
-    right: -60,
+    right: -68,
     top: 0,
     bottom: 0,
-    width: 56,
+    width: 52,
     alignItems: "center",
     justifyContent: "center",
-    gap: 20,
+    gap: 16,
   },
   button: {
     alignItems: "center",
   },
   circle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -1544,19 +1512,19 @@ const railStyles = StyleSheet.create({
     elevation: 6,
   },
   label: {
-    marginTop: 8,
-    fontSize: 10,
+    marginTop: 6,
+    fontSize: 9,
     fontWeight: "900",
-    letterSpacing: 1.8,
+    letterSpacing: 1.4,
     color: "#FFF",
   },
   sub: {
-    marginTop: 2,
+    marginTop: 1,
     textAlign: "center",
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "600",
     color: "#71717A",
-    lineHeight: 11,
+    lineHeight: 10,
   },
 });
 
