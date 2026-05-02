@@ -1230,8 +1230,6 @@ function SwipeDeck({
 
   return (
     <View style={[deckStyles.deckRoot, { height: cardHeight }]}>
-      <GestureHints />
-
       {/* Stacked shadow cards behind the active card */}
       <View
         style={[
@@ -1463,19 +1461,13 @@ function SwipeCard({
         <Text style={deckStyles.overlayVibeText}>VIBE</Text>
       </Animated.View>
 
-      <Animated.View
-        pointerEvents="none"
-        style={[deckStyles.overlaySpark, { opacity: sparkOpacity }]}
-      >
-        <Ionicons
-          name="arrow-up"
-          size={40}
-          color="#6EE7B7"
-          style={deckStyles.overlaySparkIcon}
-        />
-        <Text style={deckStyles.overlaySparkText}>SPARK</Text>
-        <Text style={deckStyles.overlaySparkSub}>Stronger interest</Text>
-      </Animated.View>
+      <View pointerEvents="none" style={deckStyles.overlaySparkWrap}>
+        <Animated.View
+          style={[deckStyles.overlaySpark, { opacity: sparkOpacity }]}
+        >
+          <Text style={deckStyles.overlaySparkText}>SPARK</Text>
+        </Animated.View>
+      </View>
 
       {/* Bottom info — also tap-to-expand */}
       <View style={deckStyles.cardBottom}>
@@ -1517,78 +1509,10 @@ function SwipeCard({
             </View>
           </View>
 
-          <Text style={deckStyles.tapHintText}>Tap card to view full profile</Text>
+          <Text style={deckStyles.tapHintText}>Tap to view full profile</Text>
         </Pressable>
-
-        {/* Gesture mini-guide */}
-        <View style={deckStyles.gestureGuide}>
-          <Text style={deckStyles.gestureGuideTitle}>SWIPE TO CONNECT</Text>
-          <View style={deckStyles.gestureGuideRow}>
-            <GestureMini
-              icon="arrow-back"
-              title="PASS"
-              subtitle="Left"
-              color="#FB7185"
-            />
-            <GestureMini
-              icon="arrow-up"
-              title="SPARK"
-              subtitle="Up"
-              color="#6EE7B7"
-            />
-            <GestureMini
-              icon="arrow-forward"
-              title="VIBE"
-              subtitle="Right"
-              color="#F472B6"
-            />
-          </View>
-        </View>
       </View>
     </Animated.View>
-  );
-}
-
-function GestureHints() {
-  return (
-    <>
-      <View pointerEvents="none" style={deckStyles.hintLeft}>
-        <Ionicons name="arrow-back" size={28} color="#FB7185" />
-        <Text style={deckStyles.hintTitlePass}>PASS</Text>
-        <Text style={deckStyles.hintSub}>Not for me</Text>
-      </View>
-
-      <View pointerEvents="none" style={deckStyles.hintRight}>
-        <Ionicons name="arrow-forward" size={28} color="#F472B6" />
-        <Text style={deckStyles.hintTitleVibe}>VIBE</Text>
-        <Text style={deckStyles.hintSub}>Like energy</Text>
-      </View>
-
-      <View pointerEvents="none" style={deckStyles.hintTop}>
-        <Ionicons name="arrow-up" size={26} color="#6EE7B7" />
-        <Text style={deckStyles.hintTitleSpark}>SPARK</Text>
-      </View>
-    </>
-  );
-}
-
-function GestureMini({
-  icon,
-  title,
-  subtitle,
-  color,
-}: {
-  icon: IoniconName;
-  title: string;
-  subtitle: string;
-  color: string;
-}) {
-  return (
-    <View style={deckStyles.gestureMini}>
-      <Ionicons name={icon} size={22} color={color} />
-      <Text style={[deckStyles.gestureMiniTitle, { color }]}>{title}</Text>
-      <Text style={deckStyles.gestureMiniSub}>{subtitle}</Text>
-    </View>
   );
 }
 
@@ -1774,12 +1698,12 @@ const deckStyles = StyleSheet.create({
     position: "absolute",
     top: 96,
     left: 24,
-    paddingHorizontal: 18,
-    paddingVertical: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: "#FB7185",
-    backgroundColor: "rgba(244,63,94,0.10)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     transform: [{ rotate: "-14deg" }],
     shadowColor: "#F43F5E",
     shadowOpacity: 0.55,
@@ -1791,12 +1715,12 @@ const deckStyles = StyleSheet.create({
     position: "absolute",
     top: 96,
     right: 24,
-    paddingHorizontal: 18,
-    paddingVertical: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: "#F472B6",
-    backgroundColor: "rgba(236,72,153,0.10)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     transform: [{ rotate: "14deg" }],
     shadowColor: "#EC4899",
     shadowOpacity: 0.6,
@@ -1804,32 +1728,28 @@ const deckStyles = StyleSheet.create({
   },
   overlayVibeText: { color: "#FBCFE8", fontSize: 36, fontWeight: "900" },
 
-  overlaySpark: {
+  overlaySparkWrap: {
     position: "absolute",
-    top: 60,
+    top: 80,
     left: 0,
     right: 0,
     alignItems: "center",
   },
-  overlaySparkIcon: {
-    textShadowColor: "rgba(52,211,153,1)",
-    textShadowRadius: 18,
-    textShadowOffset: { width: 0, height: 0 },
+  overlaySpark: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#6EE7B7",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    shadowColor: "#34D399",
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
   },
   overlaySparkText: {
-    marginTop: 4,
     color: "#6EE7B7",
     fontSize: 36,
     fontWeight: "900",
-    textShadowColor: "rgba(52,211,153,1)",
-    textShadowRadius: 18,
-    textShadowOffset: { width: 0, height: 0 },
-  },
-  overlaySparkSub: {
-    marginTop: 2,
-    color: "#A7F3D0",
-    fontSize: 11,
-    fontWeight: "700",
   },
 
   // Bottom info
@@ -1887,62 +1807,9 @@ const deckStyles = StyleSheet.create({
   tapHintText: {
     marginTop: 12,
     color: "#D4D4D8",
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
   },
-
-  // Gesture mini-guide (bottom of card)
-  gestureGuide: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-    backgroundColor: "rgba(0,0,0,0.45)",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  gestureGuideTitle: {
-    textAlign: "center",
-    color: "#D4D4D8",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 3.5,
-  },
-  gestureGuideRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  gestureMini: { alignItems: "center", gap: 4 },
-  gestureMiniTitle: { fontSize: 11, fontWeight: "900", marginTop: 2 },
-  gestureMiniSub: { color: "#A1A1AA", fontSize: 10, fontWeight: "600" },
-
-  // Side gesture hints (around the card)
-  hintLeft: {
-    position: "absolute",
-    left: -4,
-    top: "42%",
-    alignItems: "center",
-    zIndex: 20,
-  },
-  hintRight: {
-    position: "absolute",
-    right: -4,
-    top: "42%",
-    alignItems: "center",
-    zIndex: 20,
-  },
-  hintTop: {
-    position: "absolute",
-    top: -42,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    zIndex: 20,
-  },
-  hintTitlePass: { marginTop: 4, color: "#FB7185", fontSize: 11, fontWeight: "900" },
-  hintTitleVibe: { marginTop: 4, color: "#F472B6", fontSize: 11, fontWeight: "900" },
-  hintTitleSpark: { marginTop: 2, color: "#6EE7B7", fontSize: 11, fontWeight: "900" },
-  hintSub: { color: "#A1A1AA", fontSize: 9, fontWeight: "600" },
 
   // SPARK particle burst
   sparkBurstRoot: {
