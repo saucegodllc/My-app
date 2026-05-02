@@ -443,8 +443,10 @@ function EmptyState({ theme }: { theme: Theme }) {
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
   const { height: winH } = useWindowDimensions();
-  const topInset = Platform.OS === "web" ? 16 : Math.max(insets.top, 12);
-  const bottomInset = Platform.OS === "web" ? 96 : 82 + insets.bottom;
+  const topInset = Platform.OS === "web" ? 14 : Math.max(insets.top, 12);
+  // Web spec: `pb-[calc(env(safe-area-inset-bottom)+78px)]` — 78px clears the
+  // glass tab bar (49pt height + a hair of breathing room).
+  const bottomInset = Platform.OS === "web" ? 86 : 78 + insets.bottom;
   // Measured cardArea height (set by onLayout). Falls back to a windowH-based
   // estimate so the very first frame still renders correctly.
   const [measuredCardH, setMeasuredCardH] = useState(0);
@@ -488,13 +490,12 @@ export default function DiscoverScreen() {
 
   return (
     <View style={[styles.root, { paddingBottom: bottomInset }]}>
-      {/* Premium ambient background glow — three soft blobs (pink / fuchsia
-          / pink) bleed off the edges to fake the web spec's `blur-[130-150px]`.
-          `pointerEvents="none"` mirrors `pointer-events-none` so taps always
-          fall through to the deck and rail above. */}
+      {/* Premium ambient background glow — two soft pink blobs centered
+          top and bottom, fading off the edges to fake the web spec's
+          `blur-[130-150px]`. `pointerEvents="none"` mirrors the spec's
+          `pointer-events-none` so taps always fall through. */}
       <View pointerEvents="none" style={styles.blob1} />
       <View pointerEvents="none" style={styles.blob2} />
-      <View pointerEvents="none" style={styles.blob3} />
 
       {/* Single-screen flex column — no scrolling. Mirrors the web spec
           `<main className="flex h-full flex-col px-4 pt-[safe-top+18] pb-[safe-bottom+86]">`.
@@ -503,31 +504,17 @@ export default function DiscoverScreen() {
       <View
         style={[
           styles.main,
-          { paddingTop: topInset + 18, paddingBottom: bottomInset + 16 },
+          { paddingTop: topInset + 14, paddingBottom: bottomInset },
         ]}
       >
-        {/* Header — compact, no pill. Just the thin neon top line, the
-            Discover · Miami title row, and the spaced uppercase subtitle. */}
+        {/* Header — minimalist per the latest spec. One centered headline:
+            "Discover" in white + "Miami" in pink italic. No top neon line,
+            no MiamiNeon Yellowtail, no subtitle. */}
         <View style={styles.header}>
-          <View style={styles.headerTopLineWrap}>
-            <LinearGradient
-              colors={[
-                "rgba(244,114,182,0)",
-                "rgba(244,114,182,1)",
-                "rgba(244,114,182,0)",
-              ]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.headerTopLine}
-            />
-          </View>
-
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>Discover</Text>
-            <MiamiNeon />
-          </View>
-
-          <Text style={styles.subtitleSmall}>DISCOVER YOUR CITY</Text>
+          <Text style={styles.titleHeadline}>
+            <Text style={styles.titleHeadlineWord}>Discover </Text>
+            <Text style={styles.titleHeadlineMiami}>Miami</Text>
+          </Text>
         </View>
 
         {/* Intent Tabs */}
@@ -667,26 +654,24 @@ export default function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#050007" },
+  root: { flex: 1, backgroundColor: "#020003" },
 
   // Background blobs — subtle pink/purple haze
-  // Premium ambient glow blobs — match the web spec exactly so the screen
-  // gets the same soft Miami-nightlife wash behind every layer. RN can't
-  // blur a backgroundColor, so we lean on big radii + low alpha + the
-  // overall dark backdrop to fake a 130–150px CSS blur.
+  // Premium ambient glow blobs — match the web spec exactly. Two centered
+  // pink halos (top & bottom). RN can't blur a backgroundColor, so we
+  // lean on big radii + low alpha + the dark backdrop to fake the
+  // 130–150px CSS blur.
+  // Web: `-top-40 left-1/2 -translate-x-1/2 h-80 w-80 bg-pink-500/15`.
   blob1: {
-    position: "absolute", top: -144, left: "50%",
+    position: "absolute", top: -160, left: "50%",
     marginLeft: -160,
     width: 320, height: 320, borderRadius: 160,
-    backgroundColor: "rgba(236,72,153,0.18)",
+    backgroundColor: "rgba(236,72,153,0.15)",
   },
+  // Web: `bottom-[-120px] left-1/2 -translate-x-1/2 h-96 w-96 bg-pink-500/10`.
   blob2: {
-    position: "absolute", top: "33%", right: -160,
-    width: 384, height: 384, borderRadius: 192,
-    backgroundColor: "rgba(217,70,239,0.12)",
-  },
-  blob3: {
-    position: "absolute", bottom: 96, left: -160,
+    position: "absolute", bottom: -120, left: "50%",
+    marginLeft: -192,
     width: 384, height: 384, borderRadius: 192,
     backgroundColor: "rgba(236,72,153,0.10)",
   },
@@ -695,10 +680,32 @@ const styles = StyleSheet.create({
   // exactly one viewport (h-screen overflow-hidden in the web spec).
   main: { flex: 1, paddingHorizontal: 16 },
 
-  // Header — compact, centered. Top neon line + title row + tracked subtitle.
+  // Header — minimalist single headline (web spec: `pb-2 text-center`).
   header: {
     alignItems: "center",
-    paddingBottom: 12,
+    paddingBottom: 8,
+  },
+  // Single-line headline: "Discover " (white) + "Miami" (pink italic).
+  titleHeadline: {
+    textAlign: "center",
+    fontSize: 32,
+    lineHeight: 36,
+  },
+  titleHeadlineWord: {
+    color: "#FFF",
+    fontFamily: "Sora_800ExtraBold",
+    fontWeight: "900",
+    letterSpacing: -1.4,
+  },
+  titleHeadlineMiami: {
+    color: "#F9A8D4",
+    fontFamily: "Sora_800ExtraBold",
+    fontWeight: "900",
+    fontStyle: "italic",
+    letterSpacing: -1.4,
+    textShadowColor: "rgba(236,72,153,0.55)",
+    textShadowRadius: 12,
+    textShadowOffset: { width: 0, height: 0 },
   },
   // Thin neon top line above the title (web `w-24 h-[2px]`).
   headerTopLineWrap: {
@@ -779,7 +786,7 @@ const styles = StyleSheet.create({
   // Intent tabs — slim glossy black glass with pink border (~50px). Tightened
   // top margin (mt-3) and reduced inner py-2 per latest spec.
   intentRow: {
-    marginTop: 12, flexDirection: "row", alignItems: "center",
+    marginTop: 8, flexDirection: "row", alignItems: "center",
     height: 50,
     borderRadius: 999, borderWidth: 1, borderColor: "rgba(236,72,153,0.22)",
     backgroundColor: "rgba(0,0,0,0.55)",
@@ -835,14 +842,14 @@ const styles = StyleSheet.create({
   // no-scroll layout. Web spec: `mt-3 flex-1 pl-1 pr-[86px]` with the card
   // sitting at left-0 and width=section-88, so the inner deck spans the
   // section minus an 88px right gutter for the larger 66×66 rail.
-  // Web spec: `mt-3 flex-1 pl-0 pr-[92px]`. The 92px right gutter holds the
-  // larger 68×68 action rail with breathing room.
+  // Web spec: `mt-2 flex-1 min-h-0 pl-0 pr-[90px]`. The 90px right gutter
+  // holds the 68×68 action rail with breathing room.
   cardArea: {
     flex: 1,
     minHeight: 0,
-    marginTop: 12,
+    marginTop: 8,
     paddingLeft: 0,
-    paddingRight: 92,
+    paddingRight: 90,
     position: "relative",
     alignItems: "stretch",
     justifyContent: "flex-start",
@@ -865,7 +872,7 @@ const styles = StyleSheet.create({
   ghostCard2: {
     left: 24,
     right: 24,
-    bottom: -28,
+    bottom: -26,
     borderColor: "rgba(236,72,153,0.10)",
   },
   deckCard: {
@@ -1854,10 +1861,10 @@ function SwipeCard({
           />
         </Animated.View>
 
-        {/* Cinematic dark gradient — web spec: from-black via-black/45 to-transparent.
+        {/* Cinematic dark gradient — web spec: from-black via-black/40 to-transparent.
             Strong base for legible text, soft middle, fully clear at the top. */}
         <LinearGradient
-          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.45)", "rgba(0,0,0,1)"]}
+          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.40)", "rgba(0,0,0,1)"]}
           locations={[0, 0.55, 1]}
           style={StyleSheet.absoluteFill}
         />
@@ -1929,29 +1936,22 @@ function SwipeCard({
             {profile.verified ? (
               <MaterialCommunityIcons
                 name="shield-check"
-                size={18}
+                size={22}
                 color="#EC4899"
               />
             ) : null}
           </View>
 
-          <View style={deckStyles.locationRow}>
-            <Ionicons name="location-outline" size={14} color="#E4E4E7" />
-            <Text style={deckStyles.locationText}>{profile.location}</Text>
-            <View style={deckStyles.locationGreenDot} />
-            <Text style={deckStyles.locationText}>
-              {(((profile.id * 1.3) % 9) + 0.5).toFixed(1)} miles away
-            </Text>
-          </View>
+          {/* Web spec: `mt-1 text-sm text-zinc-300` — single tidy line
+              `{location} • {distance}`. No icon, no green dot, no duplicate row. */}
+          <Text style={deckStyles.locationText}>
+            {profile.location} • {(((profile.id * 1.3) % 9) + 0.5).toFixed(1)} mi
+          </Text>
 
           <View style={deckStyles.badgeRow}>
+            {/* Web spec: solid `bg-pink-500` pill — no gradient. Keeps the
+                intent label feeling like a single confident accent. */}
             <View style={deckStyles.intentBadge}>
-              <LinearGradient
-                colors={theme.accent}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
-              />
               <Text style={deckStyles.intentBadgeText}>{profile.intent}</Text>
             </View>
             <View style={deckStyles.subBadge}>
@@ -2066,8 +2066,8 @@ const deckStyles = StyleSheet.create({
     backgroundColor: "rgba(236,72,153,0.05)",
   },
 
-  // Active card — pink-400/45 border, big premium pink outer glow.
-  // Web spec: `rounded-[36px] border border-pink-400/45 shadow-[0_0_75px_rgba(236,72,153,0.38)]`.
+  // Active card — pink-400/45 border, premium pink outer glow.
+  // Web spec: `rounded-[36px] border border-pink-400/45 shadow-[0_0_70px_rgba(236,72,153,0.35)]`.
   card: {
     position: "absolute",
     left: 0,
@@ -2079,10 +2079,10 @@ const deckStyles = StyleSheet.create({
     borderColor: "rgba(244,114,182,0.45)",
     backgroundColor: "#000",
     shadowColor: "#EC4899",
-    shadowOpacity: 0.38,
-    shadowRadius: 38,
+    shadowOpacity: 0.35,
+    shadowRadius: 35,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 26,
+    elevation: 24,
   },
   cardImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
   // Thin neon top-edge highlight (web spec: `h-[2px] bg-gradient-to-r ...`).
@@ -2206,62 +2206,61 @@ const deckStyles = StyleSheet.create({
     shadowRadius: 36,
   },
 
-  // Bottom info — tightened so more of the portrait stays visible above.
-  cardBottom: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 16 },
-  cardBottomInfo: { marginBottom: 6 },
+  // Bottom info — web spec: `absolute inset-x-0 bottom-0 p-6`. The 24px
+  // pad gives the headline real breathing room over the dark gradient.
+  cardBottom: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 24 },
+  cardBottomInfo: { marginBottom: 0 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  // Web spec: `text-[36px] font-black`. Big, confident headline.
   nameText: {
     color: "#FFF",
-    fontSize: 26,
+    fontSize: 36,
     fontWeight: "900",
-    letterSpacing: -0.4,
-    lineHeight: 28,
+    letterSpacing: -0.6,
+    lineHeight: 38,
   },
-  locationRow: {
-    marginTop: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+  // Web spec: `mt-1 text-sm text-zinc-300`. Single tidy meta line.
+  locationText: {
+    marginTop: 4,
+    color: "#D4D4D8",
+    fontSize: 13,
+    fontWeight: "600",
   },
-  locationText: { color: "#E4E4E7", fontSize: 11, fontWeight: "600" },
-  locationGreenDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: "#34D399",
-    marginLeft: 4,
-  },
+  // Web spec: `mt-3 flex gap-2`.
   badgeRow: {
-    marginTop: 8,
+    marginTop: 12,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
+    gap: 8,
   },
+  // Web spec: `bg-pink-500 px-3 py-1 rounded-full text-xs`.
   intentBadge: {
     borderRadius: 999,
-    overflow: "hidden",
     paddingHorizontal: 12,
     paddingVertical: 4,
+    backgroundColor: "#EC4899",
   },
   intentBadgeText: {
     color: "#FFF",
-    fontSize: 10,
-    fontWeight: "900",
+    fontSize: 12,
+    fontWeight: "800",
     textTransform: "capitalize",
   },
+  // Web spec: `border border-white/20 px-3 py-1 rounded-full text-xs`.
   subBadge: {
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 4,
-    backgroundColor: "rgba(0,0,0,0.45)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: "rgba(255,255,255,0.20)",
+    backgroundColor: "transparent",
   },
-  subBadgeText: { color: "#FFF", fontSize: 10, fontWeight: "700" },
+  subBadgeText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
+  // Web spec: `mt-3 text-xs text-zinc-400`.
   tapHintText: {
-    marginTop: 8,
+    marginTop: 12,
     color: "#A1A1AA",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
 
