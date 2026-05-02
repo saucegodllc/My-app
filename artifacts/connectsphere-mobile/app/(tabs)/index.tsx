@@ -488,10 +488,13 @@ export default function DiscoverScreen() {
 
   return (
     <View style={[styles.root, { paddingBottom: bottomInset }]}>
-      {/* Background glow blobs */}
-      <View style={styles.blob1} />
-      <View style={styles.blob2} />
-      <View style={styles.blob3} />
+      {/* Premium ambient background glow — three soft blobs (pink / fuchsia
+          / pink) bleed off the edges to fake the web spec's `blur-[130-150px]`.
+          `pointerEvents="none"` mirrors `pointer-events-none` so taps always
+          fall through to the deck and rail above. */}
+      <View pointerEvents="none" style={styles.blob1} />
+      <View pointerEvents="none" style={styles.blob2} />
+      <View pointerEvents="none" style={styles.blob3} />
 
       {/* Single-screen flex column — no scrolling. Mirrors the web spec
           `<main className="flex h-full flex-col px-4 pt-[safe-top+18] pb-[safe-bottom+86]">`.
