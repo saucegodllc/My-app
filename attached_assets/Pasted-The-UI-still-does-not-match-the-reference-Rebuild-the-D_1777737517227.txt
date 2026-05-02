@@ -1,0 +1,63 @@
+The UI still does not match the reference. Rebuild the Discover screen to match it more closely.
+
+Make the screen look like the reference image:
+- Header centered at top with “Discover Miami 🌴”
+- Discover large white text
+- Miami neon pink italic/cursive-looking text with glow
+- Subtitle under it: DISCOVER. CONNECT. VIBE.
+- Thin pink divider lines on both sides of subtitle
+- Filter button top right inside glowing circular glass button
+
+Main tabs:
+- Large rounded glass container
+- Dating active pill is hot pink gradient
+- Friends and Networking dark glass
+- Icons centered with text
+- Full width with side margins
+
+Subtabs:
+- For You, Active Tonight, Double Dates, Serious, Miami Local
+- Active subtab hot pink
+- Inactive subtabs black glass with thin border
+- Larger spacing and cleaner alignment
+
+Announcement bar:
+- Black glass rounded pill
+- Thin pink border
+- Text: ⚡ Showing people near you who are actually active tonight.
+- Right chevron icon
+
+Profile card:
+- Big centered swipe deck card
+- Height should fit between announcement bar and bottom nav
+- Rounded 32px corners
+- Thin neon pink border
+- Pink glow around card
+- Add 2 stacked card layers behind it
+- Image fills card with object-cover
+- Add strong black gradient overlay from bottom to middle
+- Online badge top left
+- Match circle top right
+- Remove extra random shield floating on right unless it sits cleanly under match circle
+- Name and info placed in lower third, not at very bottom
+- Tags and bio below name
+- Interest chips below bio
+
+Swipe controls:
+- Inside bottom of card
+- Left large glowing red X button labeled PASS
+- Right large glowing emerald heart button labeled LIKE
+- Center text: ← SWIPE LEFT OR RIGHT →
+- Add tiny 3-line swipe indicator above controls
+
+Bottom nav:
+- Fixed black glass bar
+- Pink active Discover
+- White/gray inactive icons
+- No overlap with the card
+
+Important:
+- Remove the giant pink circle background that covers the header.
+- Use subtle pink/purple blur glows only behind the screen.
+- Make the entire UI black, pink, glossy, sexy, neon, expensive, Miami nightlife.
+- Do not change the filtering logic or functionality. Only rebuild the layout and visual styling.

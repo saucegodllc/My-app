@@ -512,7 +512,7 @@ export default function DiscoverScreen() {
             </View>
             <View style={styles.titleUnderlineRow}>
               <View style={styles.titleUnderline} />
-              <Text style={styles.subtitleSmall}>SWIPE. CONNECT. VIBE.</Text>
+              <Text style={styles.subtitleSmall}>DISCOVER. CONNECT. VIBE.</Text>
               <View style={styles.titleUnderline} />
             </View>
           </View>
@@ -664,12 +664,6 @@ export default function DiscoverScreen() {
                   <Text style={styles.matchBadgeWord}>Match</Text>
                 </View>
 
-                {/* Verified bubble below match */}
-                {profile.verified ? (
-                  <View style={styles.verifiedBubble}>
-                    <Ionicons name="shield-checkmark" size={14} color="#FFF" />
-                  </View>
-                ) : null}
               </Pressable>
 
               {/* Bottom info */}
@@ -721,11 +715,11 @@ export default function DiscoverScreen() {
                   ))}
                 </View>
 
-                {/* Dots indicator */}
-                <View style={styles.dotsRow}>
-                  <View style={[styles.dot, styles.dotActive]} />
-                  <View style={styles.dot} />
-                  <View style={styles.dot} />
+                {/* Tiny 3-line swipe indicator */}
+                <View style={styles.swipeIndicatorWrap}>
+                  <View style={styles.swipeIndicatorLine} />
+                  <View style={[styles.swipeIndicatorLine, styles.swipeIndicatorLineMid]} />
+                  <View style={styles.swipeIndicatorLine} />
                 </View>
 
                 {/* Tinder-style swipe controls */}
@@ -747,7 +741,7 @@ export default function DiscoverScreen() {
                     <Text style={styles.swipeText}>
                       <Text style={styles.swipeArrowPink}>← </Text>
                       SWIPE LEFT OR RIGHT
-                      <Text style={[styles.swipeArrowGreen, { color: theme.glow }]}> →</Text>
+                      <Text style={styles.swipeArrowGreen}> →</Text>
                     </Text>
                   </View>
 
@@ -758,17 +752,8 @@ export default function DiscoverScreen() {
                       pressed && { transform: [{ scale: 0.94 }] },
                     ]}
                   >
-                    <View
-                      style={[
-                        styles.tinderBtnLike,
-                        {
-                          borderColor: theme.glow + "99",
-                          backgroundColor: theme.glow + "22",
-                          shadowColor: theme.glow,
-                        },
-                      ]}
-                    >
-                      <Ionicons name="heart" size={36} color={theme.glow} />
+                    <View style={styles.tinderBtnLike}>
+                      <Ionicons name="heart" size={36} color="#10B981" />
                     </View>
                     <Text style={styles.tinderBtnLabel}>LIKE</Text>
                   </Pressable>
@@ -807,22 +792,22 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#050007" },
 
-  // Background blobs — neon Miami glow
+  // Background blobs — subtle pink/purple haze (not covering header)
   blob1: {
-    position: "absolute", top: -120, left: -100,
-    width: 360, height: 360, borderRadius: 180,
-    backgroundColor: "rgba(236,72,153,0.32)",
-    transform: [{ scaleX: 1.2 }],
+    position: "absolute", top: 180, left: -120,
+    width: 280, height: 280, borderRadius: 140,
+    backgroundColor: "rgba(236,72,153,0.10)",
+    opacity: 0.9,
   },
   blob2: {
-    position: "absolute", top: 320, right: -140,
-    width: 420, height: 420, borderRadius: 210,
-    backgroundColor: "rgba(217,70,239,0.22)",
+    position: "absolute", top: 480, right: -140,
+    width: 320, height: 320, borderRadius: 160,
+    backgroundColor: "rgba(168,85,247,0.10)",
   },
   blob3: {
-    position: "absolute", bottom: 60, left: "20%",
-    width: 460, height: 460, borderRadius: 230,
-    backgroundColor: "rgba(244,63,94,0.18)",
+    position: "absolute", bottom: 140, left: "30%",
+    width: 320, height: 320, borderRadius: 160,
+    backgroundColor: "rgba(217,70,239,0.08)",
   },
 
   scroll: { flex: 1 },
@@ -852,9 +837,11 @@ const styles = StyleSheet.create({
   },
   filterBtn: {
     width: 44, height: 44, borderRadius: 22,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1, borderColor: "rgba(236,72,153,0.55)",
+    backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center", justifyContent: "center",
+    shadowColor: "#EC4899", shadowOpacity: 0.7, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
   },
 
   // Intent tabs — black glass with pink glow on active
@@ -914,7 +901,7 @@ const styles = StyleSheet.create({
   cardArea: { marginTop: 18, minHeight: 760, alignItems: "stretch", justifyContent: "flex-start" },
   deckCard: {
     position: "absolute", left: 0, right: 0, top: 0,
-    height: 760, borderRadius: 28,
+    height: 760, borderRadius: 32,
     borderWidth: 1, borderColor: "rgba(236,72,153,0.18)",
     backgroundColor: "rgba(0,0,0,0.55)",
   },
@@ -922,7 +909,7 @@ const styles = StyleSheet.create({
   deck3: { left: 20, right: 20, top: 16, height: 744, opacity: 0.3 },
 
   card: {
-    minHeight: 760, borderRadius: 28, overflow: "hidden",
+    minHeight: 760, borderRadius: 32, overflow: "hidden",
     borderWidth: 1.5, borderColor: "rgba(236,72,153,0.85)",
     backgroundColor: "#09090B",
     shadowColor: "#EC4899", shadowOpacity: 0.85, shadowRadius: 40, shadowOffset: { width: 0, height: 0 },
@@ -955,14 +942,6 @@ const styles = StyleSheet.create({
   },
   matchBadgePct: { color: "#FFF", fontSize: 16, fontWeight: "900" },
   matchBadgeWord: { color: "#FBCFE8", fontSize: 9, fontWeight: "800", letterSpacing: 1 },
-  verifiedBubble: {
-    position: "absolute", top: 88, right: 26,
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: "#EC4899",
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#EC4899", shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
-  },
-
   // Card bottom info
   cardBottom: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -996,12 +975,17 @@ const styles = StyleSheet.create({
   },
   interestText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
 
-  // Dots indicator
-  dotsRow: {
-    marginTop: 18, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6,
+  // Tiny 3-line swipe indicator above controls
+  swipeIndicatorWrap: {
+    marginTop: 18, flexDirection: "column", alignItems: "center", gap: 3,
   },
-  dot: { width: 18, height: 3, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.18)" },
-  dotActive: { width: 26, backgroundColor: "#EC4899" },
+  swipeIndicatorLine: {
+    width: 28, height: 2, borderRadius: 1,
+    backgroundColor: "rgba(255,255,255,0.28)",
+  },
+  swipeIndicatorLineMid: {
+    width: 36, backgroundColor: "rgba(236,72,153,0.7)",
+  },
 
   // Tinder action row
   tinderRow: {
@@ -1019,9 +1003,10 @@ const styles = StyleSheet.create({
   },
   tinderBtnLike: {
     width: 80, height: 80, borderRadius: 40,
-    borderWidth: 1.5,
+    borderWidth: 1.5, borderColor: "rgba(16,185,129,0.6)",
+    backgroundColor: "rgba(16,185,129,0.14)",
     alignItems: "center", justifyContent: "center",
-    shadowOpacity: 0.95, shadowRadius: 32, shadowOffset: { width: 0, height: 0 },
+    shadowColor: "#10B981", shadowOpacity: 0.95, shadowRadius: 32, shadowOffset: { width: 0, height: 0 },
     elevation: 14,
   },
   tinderBtnLabel: {
