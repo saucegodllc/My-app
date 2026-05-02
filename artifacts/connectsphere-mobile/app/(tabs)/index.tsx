@@ -667,21 +667,25 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#050007" },
 
   // Background blobs — subtle pink/purple haze
+  // Premium ambient glow blobs — match the web spec exactly so the screen
+  // gets the same soft Miami-nightlife wash behind every layer. RN can't
+  // blur a backgroundColor, so we lean on big radii + low alpha + the
+  // overall dark backdrop to fake a 130–150px CSS blur.
   blob1: {
-    position: "absolute", top: -160, left: "50%",
-    marginLeft: -144,
-    width: 288, height: 288, borderRadius: 144,
-    backgroundColor: "rgba(236,72,153,0.14)",
+    position: "absolute", top: -144, left: "50%",
+    marginLeft: -160,
+    width: 320, height: 320, borderRadius: 160,
+    backgroundColor: "rgba(236,72,153,0.18)",
   },
   blob2: {
-    position: "absolute", top: 160, right: -144,
-    width: 320, height: 320, borderRadius: 160,
-    backgroundColor: "rgba(217,70,239,0.10)",
+    position: "absolute", top: "33%", right: -160,
+    width: 384, height: 384, borderRadius: 192,
+    backgroundColor: "rgba(217,70,239,0.12)",
   },
   blob3: {
-    position: "absolute", bottom: 96, left: -128,
-    width: 320, height: 320, borderRadius: 160,
-    backgroundColor: "rgba(236,72,153,0.08)",
+    position: "absolute", bottom: 96, left: -160,
+    width: 384, height: 384, borderRadius: 192,
+    backgroundColor: "rgba(236,72,153,0.10)",
   },
 
   // Top-level main column. Replaces the old ScrollView so the screen fits
@@ -828,12 +832,14 @@ const styles = StyleSheet.create({
   // no-scroll layout. Web spec: `mt-3 flex-1 pl-1 pr-[86px]` with the card
   // sitting at left-0 and width=section-88, so the inner deck spans the
   // section minus an 88px right gutter for the larger 66×66 rail.
+  // Web spec: `mt-3 flex-1 pl-0 pr-[92px]`. The 92px right gutter holds the
+  // larger 68×68 action rail with breathing room.
   cardArea: {
     flex: 1,
     minHeight: 0,
     marginTop: 12,
     paddingLeft: 0,
-    paddingRight: 88,
+    paddingRight: 92,
     position: "relative",
     alignItems: "stretch",
     justifyContent: "flex-start",
@@ -843,7 +849,7 @@ const styles = StyleSheet.create({
   ghostCard: {
     position: "absolute",
     height: "100%",
-    borderRadius: 34,
+    borderRadius: 36,
     borderWidth: 1,
     backgroundColor: "rgba(236,72,153,0.05)",
   },
@@ -856,7 +862,7 @@ const styles = StyleSheet.create({
   ghostCard2: {
     left: 24,
     right: 24,
-    bottom: -26,
+    bottom: -28,
     borderColor: "rgba(236,72,153,0.10)",
   },
   deckCard: {
@@ -867,12 +873,12 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    borderRadius: 34, overflow: "hidden",
-    // Web spec: `border border-pink-400/45 shadow-[0_0_65px_rgba(236,72,153,0.35)]`
+    borderRadius: 36, overflow: "hidden",
+    // Web spec: `border border-pink-400/45 shadow-[0_0_75px_rgba(236,72,153,0.38)]`
     borderWidth: 1, borderColor: "rgba(244,114,182,0.45)",
     backgroundColor: "#000",
-    shadowColor: "#EC4899", shadowOpacity: 0.35, shadowRadius: 32, shadowOffset: { width: 0, height: 0 },
-    elevation: 22,
+    shadowColor: "#EC4899", shadowOpacity: 0.38, shadowRadius: 38, shadowOffset: { width: 0, height: 0 },
+    elevation: 26,
   },
   cardImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
 
@@ -1421,7 +1427,7 @@ function CardActionsRail({
       <RailButton
         icon="heart"
         label="VIBE"
-        sub="Like"
+        sub="Energy"
         color="pink"
         onPress={onVibe}
       />
@@ -1483,29 +1489,93 @@ function RailButton({
   onPress: () => void;
 }) {
   const palette = RAIL_PALETTE[color];
+  // `pulse` drives the glow reaction. 0 = resting state, 1 = peak glow.
+  // We animate it 0 → 1 → 0 on every tap so the button visibly "pops"
+  // and the colored shadow swells. shadowOpacity needs the JS driver,
+  // so we keep the whole sequence on JS for consistency.
+  const pulse = useRef(new Animated.Value(0)).current;
+  // Resting press feedback uses the native driver so the squish is buttery.
+  const pressScale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(pressScale, {
+      toValue: 0.84,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 0,
+    }).start();
+  };
+  const handlePressOut = () => {
+    Animated.spring(pressScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 18,
+      bounciness: 12,
+    }).start();
+  };
+  const handlePress = () => {
+    pulse.setValue(0);
+    Animated.sequence([
+      Animated.timing(pulse, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: false,
+      }),
+      Animated.timing(pulse, {
+        toValue: 0,
+        duration: 520,
+        useNativeDriver: false,
+      }),
+    ]).start();
+    onPress();
+  };
+
+  // Map the pulse to a swelling outer halo + brighter shadow.
+  const haloScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] });
+  const haloOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0, 0.55] });
+  const shadowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.65, 1] });
+  const shadowRadius = pulse.interpolate({ inputRange: [0, 1], outputRange: [18, 38] });
+
   return (
     <Pressable
-      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
       hitSlop={6}
-      style={({ pressed }) => [
-        railStyles.button,
-        pressed && { transform: [{ scale: 0.95 }] },
-      ]}
+      style={railStyles.button}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <View
-        style={[
-          railStyles.circle,
-          {
-            backgroundColor: palette.bg,
-            borderColor: palette.border,
-            shadowColor: palette.shadow,
-          },
-        ]}
-      >
-        <Ionicons name={icon} size={28} color={palette.text} />
-      </View>
+      <Animated.View style={{ transform: [{ scale: pressScale }] }}>
+        {/* Outer reactive halo — invisible at rest, blooms on tap. */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            railStyles.halo,
+            {
+              backgroundColor: palette.bg,
+              borderColor: palette.border,
+              opacity: haloOpacity,
+              transform: [{ scale: haloScale }],
+            },
+          ]}
+        />
+        <Animated.View
+          style={[
+            railStyles.circle,
+            {
+              backgroundColor: palette.bg,
+              borderColor: palette.border,
+              shadowColor: palette.shadow,
+              shadowOpacity,
+              shadowRadius,
+            },
+          ]}
+        >
+          <View pointerEvents="none" style={railStyles.circleInner} />
+          <Ionicons name={icon} size={32} color={palette.text} />
+        </Animated.View>
+      </Animated.View>
       <Text style={railStyles.label}>{label}</Text>
       <Text style={railStyles.sub}>{sub}</Text>
     </Pressable>
@@ -1517,12 +1587,16 @@ const railStyles = StyleSheet.create({
   // spec: `right-2` (8px from section edge) + 66×66 buttons with `gap-6`
   // (24px) between them. Anchored via `right: -76` so the rail's right
   // edge lands ~8px inside the section's outer right edge.
+  // Sits in the 92px right gutter created by `cardArea.paddingRight`. Web
+  // spec: `right-1` (4px from section edge) + 68×68 buttons with `gap-6`
+  // (24px) between them. Anchored via `right: -88` so the rail's right
+  // edge lands ~4px inside the section's outer right edge.
   rail: {
     position: "absolute",
-    right: -76,
+    right: -88,
     top: 0,
     bottom: 0,
-    width: 66,
+    width: 68,
     alignItems: "center",
     justifyContent: "center",
     gap: 24,
@@ -1531,22 +1605,37 @@ const railStyles = StyleSheet.create({
     alignItems: "center",
   },
   circle: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    shadowOpacity: 0.6,
-    shadowRadius: 16,
+    shadowOpacity: 0.65,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
+    elevation: 10,
+  },
+  // Inner translucent ring (web spec: `absolute inset-1 rounded-full bg-white/10`)
+  // — gives each button a glassy, tactile inner highlight.
+  circleInner: {
+    position: "absolute",
+    top: 4, left: 4, right: 4, bottom: 4,
+    borderRadius: 30,
+    backgroundColor: "rgba(255,255,255,0.10)",
+  },
+  // Reactive outer halo — sits behind the circle and blooms on tap.
+  halo: {
+    position: "absolute",
+    top: 0, left: 0,
+    width: 68, height: 68, borderRadius: 34,
+    borderWidth: 1,
   },
   label: {
-    marginTop: 8,
+    marginTop: 10,
     fontSize: 10,
     fontWeight: "900",
-    letterSpacing: 1.8,
+    letterSpacing: 2,
     color: "#FFF",
   },
   sub: {
@@ -1574,6 +1663,45 @@ function SwipeCard({
 }) {
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const isExiting = useRef(false);
+
+  // Ambient parallax breathing on the portrait. A slow 1 → 1.04 → 1 loop
+  // running on the native driver so it stays free even during pan gestures.
+  const parallax = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(parallax, {
+          toValue: 1,
+          duration: 7000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(parallax, {
+          toValue: 0,
+          duration: 7000,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [parallax]);
+  const parallaxScale = parallax.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.04],
+  });
+  // Real parallax: as the deck pans, the portrait drifts slightly opposite
+  // (max ~14px) so it feels like the face is on a deeper plane than the
+  // card frame. Native-driver friendly because we only use translate.
+  const parallaxX = pan.x.interpolate({
+    inputRange: [-220, 0, 220],
+    outputRange: [14, 0, -14],
+    extrapolate: "clamp",
+  });
+  const parallaxY = pan.y.interpolate({
+    inputRange: [-200, 0, 200],
+    outputRange: [10, 0, -10],
+    extrapolate: "clamp",
+  });
 
   const rotate = pan.x.interpolate({
     inputRange: [-220, 0, 220],
@@ -1697,22 +1825,47 @@ function SwipeCard({
       {/* Tap surface for the image area — tap-to-expand. PanResponder will
           take over once the user moves, leaving taps to fall through. */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onOpenProfile}>
-        {/* expo-image's `contentPosition` mirrors CSS `object-position: center 25%`,
-            anchoring the focal point near the top so faces stay visible. */}
-        <ExpoImage
-          source={{ uri: profile.image }}
-          style={deckStyles.cardImage}
-          contentFit="cover"
-          contentPosition={{ top: "25%", left: "50%" }}
-          transition={150}
+        {/* Subtle parallax breathing — the portrait gently scales between
+            1.00 and 1.04 over 7s, mimicking the web's hover zoom but as an
+            ambient effect. Native driver keeps it free on the GPU. */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              transform: [
+                { translateX: parallaxX },
+                { translateY: parallaxY },
+                { scale: parallaxScale },
+              ],
+            },
+          ]}
+        >
+          {/* expo-image's `contentPosition` mirrors CSS `object-position: center 25%`,
+              anchoring the focal point near the top so faces stay visible. */}
+          <ExpoImage
+            source={{ uri: profile.image }}
+            style={deckStyles.cardImage}
+            contentFit="cover"
+            contentPosition={{ top: "25%", left: "50%" }}
+            transition={150}
+          />
+        </Animated.View>
+
+        {/* Cinematic dark gradient — web spec: from-black via-black/45 to-transparent.
+            Strong base for legible text, soft middle, fully clear at the top. */}
+        <LinearGradient
+          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.45)", "rgba(0,0,0,1)"]}
+          locations={[0, 0.55, 1]}
+          style={StyleSheet.absoluteFill}
         />
 
-        {/* Cinematic dark gradient — softer at the top so more of the
-            portrait reads through; still dense at the bottom for text contrast. */}
+        {/* Thin neon top edge — web spec:
+            `h-[2px] bg-gradient-to-r from-transparent via-pink-400 to-transparent`. */}
         <LinearGradient
-          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.20)", "rgba(0,0,0,0.92)"]}
-          locations={[0, 0.5, 1]}
-          style={StyleSheet.absoluteFill}
+          colors={["rgba(244,114,182,0)", "rgba(244,114,182,0.95)", "rgba(244,114,182,0)"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={deckStyles.cardTopEdge}
         />
 
         {/* Online / Offline pill — top left */}
@@ -1910,25 +2063,31 @@ const deckStyles = StyleSheet.create({
     backgroundColor: "rgba(236,72,153,0.05)",
   },
 
-  // Active card — pink-400/45 border, soft pink outer glow (web spec
-  // `border-pink-400/45 shadow-[0_0_55px_rgba(236,72,153,0.28)]`).
+  // Active card — pink-400/45 border, big premium pink outer glow.
+  // Web spec: `rounded-[36px] border border-pink-400/45 shadow-[0_0_75px_rgba(236,72,153,0.38)]`.
   card: {
     position: "absolute",
     left: 0,
     right: 0,
     top: 0,
-    borderRadius: 32,
+    borderRadius: 36,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(244,114,182,0.45)",
     backgroundColor: "#000",
     shadowColor: "#EC4899",
-    shadowOpacity: 0.28,
-    shadowRadius: 28,
+    shadowOpacity: 0.38,
+    shadowRadius: 38,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 18,
+    elevation: 26,
   },
   cardImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+  // Thin neon top-edge highlight (web spec: `h-[2px] bg-gradient-to-r ...`).
+  // Sits flush with the card's top edge so it reads as a glowing seam.
+  cardTopEdge: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, height: 2,
+  },
 
   // Top pills
   onlinePill: {
