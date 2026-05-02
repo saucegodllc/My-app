@@ -69,7 +69,7 @@ const tabs: Theme[] = [
 ];
 
 const subTabs: Record<IntentId, string[]> = {
-  dating: ["For You", "Active Tonight", "Double Dates", "Serious", "Casual", "Nightlife Pros"],
+  dating: ["For You", "Active Tonight", "Double Dates", "Serious", "Miami Local"],
   friends: ["For You", "Brunch", "Gym", "Beach Day", "Events", "New to Miami"],
   networking: ["For You", "Founders", "Creators", "Real Estate", "Nightlife Pros", "Investors"],
 };
@@ -526,26 +526,31 @@ export default function DiscoverScreen() {
 
   const nextCard = () => setCardIndex((prev) => prev + 1);
 
-  // Animation refs
-  const dragY = useRef(new Animated.Value(0)).current;
+  // Animation refs (horizontal Tinder-style swipe)
+  const dragX = useRef(new Animated.Value(0)).current;
   const cardOpacity = useRef(new Animated.Value(1)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
   const isAnimating = useRef(false);
 
-  const animateExitAndAdvance = (direction: 1 | -1 = -1) => {
+  const cardRotate = dragX.interpolate({
+    inputRange: [-300, 0, 300],
+    outputRange: ["-15deg", "0deg", "15deg"],
+    extrapolate: "clamp",
+  });
+
+  const animateExitAndAdvance = (direction: 1 | -1 = 1) => {
     if (isAnimating.current) return;
     isAnimating.current = true;
     Animated.parallel([
-      Animated.timing(dragY, { toValue: direction * 400, duration: 220, useNativeDriver: true }),
-      Animated.timing(cardOpacity, { toValue: 0, duration: 220, useNativeDriver: true }),
-      Animated.timing(cardScale, { toValue: 0.94, duration: 220, useNativeDriver: true }),
+      Animated.timing(dragX, { toValue: direction * 600, duration: 240, useNativeDriver: true }),
+      Animated.timing(cardOpacity, { toValue: 0, duration: 240, useNativeDriver: true }),
+      Animated.timing(cardScale, { toValue: 0.94, duration: 240, useNativeDriver: true }),
     ]).start(() => {
-      dragY.setValue(90);
+      dragX.setValue(0);
       cardOpacity.setValue(0);
       cardScale.setValue(0.94);
       nextCard();
       Animated.parallel([
-        Animated.spring(dragY, { toValue: 0, stiffness: 240, damping: 26, useNativeDriver: true }),
         Animated.spring(cardOpacity, { toValue: 1, stiffness: 240, damping: 26, useNativeDriver: true }),
         Animated.spring(cardScale, { toValue: 1, stiffness: 240, damping: 26, useNativeDriver: true }),
       ]).start(() => { isAnimating.current = false; });
@@ -556,18 +561,18 @@ export default function DiscoverScreen() {
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, g) =>
-          Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx),
-        onPanResponderMove: Animated.event([null, { dy: dragY }], { useNativeDriver: false }),
+          Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+        onPanResponderMove: Animated.event([null, { dx: dragX }], { useNativeDriver: false }),
         onPanResponderRelease: (_, g) => {
-          if (Math.abs(g.dy) > 80) {
-            animateExitAndAdvance(g.dy < 0 ? -1 : 1);
+          if (Math.abs(g.dx) > 100) {
+            animateExitAndAdvance(g.dx > 0 ? 1 : -1);
           } else {
-            Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
+            Animated.spring(dragX, { toValue: 0, useNativeDriver: true }).start();
           }
         },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dragY, cardOpacity, cardScale],
+    [dragX, cardOpacity, cardScale],
   );
 
   return (
