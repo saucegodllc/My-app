@@ -845,14 +845,13 @@ const styles = StyleSheet.create({
   noticeLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   noticeText: { color: "#FCE7F3", fontSize: 12, fontWeight: "700" },
 
-  // Card area + deck — calc(100vh - 315px), min 500, max 660. Section gets a
-  // 92px right gutter to host the CardActionsRail, plus a small negative
-  // horizontal margin so the visible section is wider than the rest of the
-  // scroll content (matches web `pr-[92px]` + slightly wider card column).
+  // Card area + deck. Section uses a small left pad and a 72px right gutter
+  // for the slimmer CardActionsRail (web spec `pl-2 pr-[72px]`). No negative
+  // horizontal margin — keeps the card from overflowing on narrow phones.
   cardArea: {
     marginTop: 18,
-    marginHorizontal: -6,
-    paddingRight: 92,
+    paddingLeft: 8,
+    paddingRight: 72,
     position: "relative",
     alignItems: "stretch",
     justifyContent: "flex-start",
@@ -1418,7 +1417,7 @@ function CardActionsRail({
       <RailButton
         icon="heart"
         label="VIBE"
-        sub="Like energy"
+        sub="Like"
         color="pink"
         onPress={onVibe}
       />
@@ -1432,7 +1431,7 @@ function CardActionsRail({
       <RailButton
         icon="close"
         label="PASS"
-        sub="Not for me"
+        sub="Nope"
         color="rose"
         onPress={onPass}
       />
@@ -1501,54 +1500,57 @@ function RailButton({
           },
         ]}
       >
-        <Ionicons name={icon} size={32} color={palette.text} />
+        <Ionicons name={icon} size={28} color={palette.text} />
       </View>
-      <Text style={[railStyles.label, { color: palette.text }]}>{label}</Text>
+      <Text style={railStyles.label}>{label}</Text>
       <Text style={railStyles.sub}>{sub}</Text>
     </Pressable>
   );
 }
 
 const railStyles = StyleSheet.create({
+  // Sits inside the 72px right gutter created by `cardArea.paddingRight`.
+  // 68px wide flush against deckRoot's right edge → ~4px inset from the
+  // section's outer right edge (matches web `right-1`).
   rail: {
     position: "absolute",
-    right: -92,
+    right: -68,
     top: 0,
     bottom: 0,
-    width: 92,
+    width: 68,
     alignItems: "center",
     justifyContent: "center",
-    gap: 24,
+    gap: 20,
   },
   button: {
     alignItems: "center",
   },
   circle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    shadowOpacity: 0.65,
-    shadowRadius: 16,
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
+    elevation: 6,
   },
   label: {
     marginTop: 8,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "900",
-    letterSpacing: 1.3,
+    letterSpacing: 1.8,
+    color: "#FFF",
   },
   sub: {
     marginTop: 2,
-    width: 80,
     textAlign: "center",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "600",
-    color: "#A1A1AA",
-    lineHeight: 12,
+    color: "#71717A",
+    lineHeight: 11,
   },
 });
 
