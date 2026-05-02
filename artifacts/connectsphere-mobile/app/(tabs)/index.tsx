@@ -488,6 +488,59 @@ export default function DiscoverScreen() {
   // ExpandedProfile when the user uses the bottom action bar.
   const advanceDeck = () => setCardIndex((prev) => prev + 1);
 
+  // ─── Premium tap-reaction system ──────────────────────────────────────
+  // Tapping a rail button (VIBE / SPARK / PASS) doesn't just advance — it
+  // fires a Raya/Hinge-style reaction: the active card scales/tilts/glows,
+  // the ghost stack lifts, particles burst on SPARK, then the deck moves
+  // forward. Mirrors the web spec's `actionState` pattern.
+  const [actionState, setActionState] = useState<SwipeAction | null>(null);
+  const reactionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (reactionTimeoutRef.current) clearTimeout(reactionTimeoutRef.current);
+    };
+  }, []);
+  const handleReaction = (action: SwipeAction) => {
+    // If a reaction is already in flight, ignore — prevents the deck from
+    // skipping two profiles on a rapid double-tap.
+    if (actionState !== null) return;
+    setActionState(action);
+    if (reactionTimeoutRef.current) clearTimeout(reactionTimeoutRef.current);
+    // Two-phase timing so the card actually plays both halves of its spring:
+    //   Phase 1 (`holdDuration`): card holds the action pose (forward spring).
+    //   Phase 2 (`SPRING_BACK_MS`): clear actionState → SAME card springs
+    //     back to neutral. Then advance the deck so the next profile mounts
+    //     at rest. If we cleared and advanced in the same tick, the SwipeCard
+    //     would unmount before the spring-back ever rendered (its key
+    //     includes cardIndex), and the user would see a hard snap.
+    const holdDuration = action === "spark" ? 650 : 420;
+    const SPRING_BACK_MS = 280;
+    reactionTimeoutRef.current = setTimeout(() => {
+      setActionState(null);
+      reactionTimeoutRef.current = setTimeout(() => {
+        advanceDeck();
+        reactionTimeoutRef.current = null;
+      }, SPRING_BACK_MS);
+    }, holdDuration);
+  };
+
+  // Drives the ghost-stack lift behind the card. Springs to 1 the instant a
+  // reaction starts and back to 0 when it clears.
+  const ghostLift = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(ghostLift, {
+      toValue: actionState ? 1 : 0,
+      stiffness: 260,
+      damping: 20,
+      mass: 1,
+      useNativeDriver: true,
+    }).start();
+  }, [actionState, ghostLift]);
+  const ghost1Y = ghostLift.interpolate({ inputRange: [0, 1], outputRange: [0, -6] });
+  const ghost1Scale = ghostLift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.01] });
+  const ghost2Y = ghostLift.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
+  const ghost2Scale = ghostLift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] });
+
   return (
     <View style={[styles.root, { paddingBottom: bottomInset }]}>
       {/* Premium ambient background glow — two soft pink blobs centered
@@ -610,9 +663,25 @@ export default function DiscoverScreen() {
           }}
         >
           {/* Stack ghosts behind the active card for depth (mirrors web
-              `inset-x-3 bottom-[-14px]` and `inset-x-6 bottom-[-26px]`). */}
-          <View pointerEvents="none" style={[styles.ghostCard, styles.ghostCard1]} />
-          <View pointerEvents="none" style={[styles.ghostCard, styles.ghostCard2]} />
+              `inset-x-3 bottom-[-14px]` and `inset-x-6 bottom-[-26px]`).
+              Animated so they lift slightly during a tap reaction — adds
+              the "the whole stack reacted" feel. */}
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.ghostCard,
+              styles.ghostCard1,
+              { transform: [{ translateY: ghost1Y }, { scale: ghost1Scale }] },
+            ]}
+          />
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.ghostCard,
+              styles.ghostCard2,
+              { transform: [{ translateY: ghost2Y }, { scale: ghost2Scale }] },
+            ]}
+          />
 
           {profile ? (
             <SwipeDeck
@@ -623,6 +692,8 @@ export default function DiscoverScreen() {
               cardHeight={cardHeight}
               onOpenProfile={() => setSelectedProfile(profile)}
               onAction={advanceDeck}
+              actionState={actionState}
+              onReaction={handleReaction}
             />
           ) : (
             <EmptyState theme={theme} />
@@ -1339,6 +1410,8 @@ function SwipeDeck({
   cardHeight,
   onOpenProfile,
   onAction,
+  actionState,
+  onReaction,
 }: {
   profile: Profile;
   cardKey: string;
@@ -1346,9 +1419,14 @@ function SwipeDeck({
   cardHeight: number;
   onOpenProfile: () => void;
   onAction: () => void;
+  // Tap-reaction state owned by DiscoverScreen. Drives the card-level
+  // scale/tilt/glow on tap and the spark-burst overlay.
+  actionState: SwipeAction | null;
+  onReaction: (action: SwipeAction) => void;
 }) {
-  // Drive the burst with an incrementing token so rapid sparks always retrigger
-  // a fresh explosion (boolean state would no-op while still true).
+  // Gesture-driven spark burst still uses an incrementing token so rapid
+  // upward swipes always retrigger a fresh explosion. Tap-driven sparks
+  // come in via `actionState === "spark"` and render a separate burst.
   const [sparkToken, setSparkToken] = useState(0);
   const sparkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1358,19 +1436,23 @@ function SwipeDeck({
     };
   }, []);
 
-  const handleAction = (action: SwipeAction) => {
+  // Gesture path — SwipeCard.triggerExit calls back here after the card has
+  // animated off-screen. We just fire the spark burst (if applicable) and
+  // advance the deck. Tap path bypasses this entirely via `onReaction`.
+  const handleGestureAction = (action: SwipeAction) => {
     if (action === "spark") {
       setSparkToken((n) => n + 1);
       if (sparkTimeoutRef.current) clearTimeout(sparkTimeoutRef.current);
       sparkTimeoutRef.current = setTimeout(() => {
-        setSparkToken((n) => -Math.abs(n)); // flip sign to "off"
+        setSparkToken((n) => -Math.abs(n));
         sparkTimeoutRef.current = null;
       }, 650);
     }
     onAction();
   };
 
-  const sparkBurst = sparkToken > 0;
+  const gestureSparkBurst = sparkToken > 0;
+  const tapSparkBurst = actionState === "spark";
 
   return (
     <View style={[deckStyles.deckRoot, { height: cardHeight }]}>
@@ -1406,17 +1488,23 @@ function SwipeDeck({
         theme={theme}
         cardHeight={cardHeight}
         onOpenProfile={onOpenProfile}
-        onAction={handleAction}
+        onAction={handleGestureAction}
+        actionState={actionState}
       />
 
-      {sparkBurst ? <SparkExplosion key={sparkToken} /> : null}
+      {/* Two SparkExplosion paths — one per trigger source. They never run
+          simultaneously in practice (gesture vs tap are mutually exclusive
+          in time). The `key` ensures each burst gets a fresh particle field. */}
+      {gestureSparkBurst ? <SparkExplosion key={`g-${sparkToken}`} /> : null}
+      {tapSparkBurst ? <SparkExplosion key="tap-spark" /> : null}
 
-      {/* Side rail of tap-to-act buttons (VIBE / SPARK / PASS).
-          Lives in the 92px gutter created by `cardArea.paddingRight`. */}
+      {/* Side rail of tap-to-act buttons (VIBE / SPARK / PASS). Routes
+          through `onReaction` (DiscoverScreen) so taps trigger the full
+          premium reaction sequence instead of an instant advance. */}
       <CardActionsRail
-        onVibe={() => handleAction("vibe")}
-        onSpark={() => handleAction("spark")}
-        onPass={() => handleAction("pass")}
+        onVibe={() => onReaction("vibe")}
+        onSpark={() => onReaction("spark")}
+        onPass={() => onReaction("pass")}
       />
     </View>
   );
@@ -1664,15 +1752,113 @@ function SwipeCard({
   cardHeight,
   onOpenProfile,
   onAction,
+  actionState,
 }: {
   profile: Profile;
   theme: Theme;
   cardHeight: number;
   onOpenProfile: () => void;
   onAction: (action: SwipeAction) => void;
+  // When non-null, the card runs its premium tap-reaction (scale / tilt /
+  // translate / glow swap) before the deck advances. Owned by DiscoverScreen.
+  actionState: SwipeAction | null;
 }) {
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const isExiting = useRef(false);
+
+  // Mirror `actionState` into a ref so the panResponder closure (built once
+  // via useMemo) can read the live value and refuse to claim the gesture
+  // while a tap reaction is mid-flight. Without this, a tap+swipe could
+  // double-advance the deck.
+  const actionStateRef = useRef<SwipeAction | null>(null);
+  useEffect(() => {
+    actionStateRef.current = actionState;
+  }, [actionState]);
+
+  // ─── Tap-reaction animation ───────────────────────────────────────────
+  // A single 0→1 spring drives scale / rotate / translateX. The "track"
+  // remembers which action launched the spring so the interpolator knows
+  // which output to drive towards even after `actionState` is cleared
+  // (the spring back to 0 happens via the same interpolator).
+  const reaction = useRef(new Animated.Value(0)).current;
+  const reactionTrack = useRef<SwipeAction | null>(null);
+  const [reactionTrackState, setReactionTrackState] =
+    useState<SwipeAction | null>(null);
+  useEffect(() => {
+    if (actionState) {
+      reactionTrack.current = actionState;
+      setReactionTrackState(actionState);
+      Animated.spring(reaction, {
+        toValue: 1,
+        stiffness: 260,
+        damping: 20,
+        mass: 1,
+        useNativeDriver: true,
+      }).start();
+    } else if (reactionTrack.current) {
+      Animated.spring(reaction, {
+        toValue: 0,
+        stiffness: 260,
+        damping: 20,
+        mass: 1,
+        useNativeDriver: true,
+      }).start(() => {
+        reactionTrack.current = null;
+        setReactionTrackState(null);
+      });
+    }
+  }, [actionState, reaction]);
+  // Resolve targets from whichever action is currently in flight (live state
+  // first, falls back to the most recent track during the spring-back).
+  const activeAction = actionState ?? reactionTrackState;
+  const reactionScaleTarget =
+    activeAction === "spark"
+      ? 1.035
+      : activeAction === "vibe"
+        ? 1.015
+        : activeAction === "pass"
+          ? 0.985
+          : 1;
+  const reactionRotateTarget =
+    activeAction === "vibe" ? "3deg" : activeAction === "pass" ? "-3deg" : "0deg";
+  const reactionTxTarget =
+    activeAction === "vibe" ? 18 : activeAction === "pass" ? -18 : 0;
+  const reactionScale = reaction.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, reactionScaleTarget],
+  });
+  const reactionRotate = reaction.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", reactionRotateTarget],
+  });
+  const reactionTx = reaction.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, reactionTxTarget],
+  });
+
+  // Dynamic shadow per action — the boxShadow swap from the web spec.
+  // shadowColor isn't reliably animatable so we hard-swap the style block;
+  // the spring on transforms carries the visual energy.
+  const reactionShadow =
+    activeAction === "spark"
+      ? {
+          shadowColor: "#A855F7",
+          shadowOpacity: 0.75,
+          shadowRadius: 45,
+        }
+      : activeAction === "vibe"
+        ? {
+            shadowColor: "#EC4899",
+            shadowOpacity: 0.65,
+            shadowRadius: 40,
+          }
+        : activeAction === "pass"
+          ? {
+              shadowColor: "#F43F5E",
+              shadowOpacity: 0.55,
+              shadowRadius: 35,
+            }
+          : null;
 
   // Ambient parallax breathing on the portrait. A slow 1 → 1.04 → 1 loop
   // running on the native driver so it stays free even during pan gestures.
@@ -1764,8 +1950,11 @@ function SwipeCard({
         onStartShouldSetPanResponder: () => false,
         // Require a clear directional gesture (>= 12px) AND axis dominance
         // before stealing the responder, so finger jitter on a tap doesn't
-        // hijack the press.
+        // hijack the press. Also refuse while a tap reaction is in flight
+        // so the user can't tap a rail button and then swipe to advance the
+        // same card twice.
         onMoveShouldSetPanResponder: (_, g) => {
+          if (actionStateRef.current !== null) return false;
           const ax = Math.abs(g.dx);
           const ay = Math.abs(g.dy);
           if (ax < 12 && ay < 12) return false;
@@ -1822,12 +2011,18 @@ function SwipeCard({
       style={[
         deckStyles.card,
         { height: cardHeight },
+        reactionShadow,
         {
           transform: [
-            { translateX: pan.x },
+            // Pan + tap-reaction translate combine on the same axis.
+            { translateX: Animated.add(pan.x, reactionTx) },
             { translateY: pan.y },
+            // RN composes multiple rotate transforms in order — pan rotation
+            // and tap-reaction tilt stack cleanly.
             { rotate },
-            { scale: liftScale },
+            { rotate: reactionRotate },
+            // Pan-driven lift × tap-reaction scale.
+            { scale: Animated.multiply(liftScale, reactionScale) },
           ],
         },
       ]}
