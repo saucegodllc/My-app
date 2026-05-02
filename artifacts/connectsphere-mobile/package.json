@@ -59,6 +59,7 @@
     "@clerk/clerk-expo": "^2.19.31",
     "@expo-google-fonts/great-vibes": "^0.4.1",
     "@expo-google-fonts/sora": "^0.4.2",
+    "@expo-google-fonts/yellowtail": "^0.4.1",
     "@tensorflow-models/face-detection": "^1.0.3",
     "@tensorflow-models/face-landmarks-detection": "^1.0.6",
     "@tensorflow/tfjs": "^4.22.0",

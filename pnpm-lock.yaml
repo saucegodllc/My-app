@@ -465,6 +465,9 @@ importers:
       '@expo-google-fonts/sora':
         specifier: ^0.4.2
         version: 0.4.2
+      '@expo-google-fonts/yellowtail':
+        specifier: ^0.4.1
+        version: 0.4.1
       '@tensorflow-models/face-detection':
         specifier: ^1.0.3
         version: 1.0.3(@tensorflow/tfjs-backend-webgl@4.22.0(@tensorflow/tfjs-core@4.22.0))(@tensorflow/tfjs-converter@4.22.0(@tensorflow/tfjs-core@4.22.0))(@tensorflow/tfjs-core@4.22.0)
@@ -1640,6 +1643,9 @@ packages:
 
   '@expo-google-fonts/sora@0.4.2':
     resolution: {integrity: sha512-X86Kl1cfObcSUzTLIbtmrPCLRlIbCNh0uBOo8bjmXb8gWgVVhnI8CZJEK2btsdq85JPn5k4P6sbV9JLbAm7dqQ==}
+
+  '@expo-google-fonts/yellowtail@0.4.1':
+    resolution: {integrity: sha512-cXL2fpScrGkqNoRdBxSlNFrDMUpgJQXaIjeOdBvP7n2OEz4zz+ulPeZhsP50zPujkeXYuK2LTgM7/gKSkrmPrA==}
 
   '@expo/cli@54.0.23':
     resolution: {integrity: sha512-km0h72SFfQCmVycH/JtPFTVy69w6Lx1cHNDmfLfQqgKFYeeHTjx7LVDP4POHCtNxFP2UeRazrygJhlh4zz498g==}
@@ -8546,6 +8552,8 @@ snapshots:
   '@expo-google-fonts/inter@0.4.2': {}
 
   '@expo-google-fonts/sora@0.4.2': {}
+
+  '@expo-google-fonts/yellowtail@0.4.1': {}
 
   '@expo/cli@54.0.23(expo-router@6.0.23)(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(typescript@5.9.3)':
     dependencies:

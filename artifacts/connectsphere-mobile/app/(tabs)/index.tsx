@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
   },
-  // Glass pill wrapper around the title
+  // Glass pill wrapper around the title (transparent — only the pink border shows)
   headerPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -751,7 +751,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "rgba(244,114,182,0.20)",
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: "transparent",
     shadowColor: "#EC4899",
     shadowOpacity: 0.25,
     shadowRadius: 35,
@@ -768,13 +768,14 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
   },
   titleMiami: {
-    marginLeft: 14,
+    marginLeft: 12,
     color: "#F9A8D4",
-    // Great Vibes is a romantic script font; renders visually smaller than
-    // sans-serif at the same point size, so bump it up to match "Discover".
-    fontSize: 54,
-    lineHeight: 50,
-    fontFamily: "GreatVibes_400Regular",
+    // Yellowtail is a retro brush script — bolder and sexier than Great Vibes.
+    // Brush fonts read closer to their nominal size, so 44 visually matches
+    // the 40pt sans-serif "Discover" beside it.
+    fontSize: 44,
+    lineHeight: 46,
+    fontFamily: "Yellowtail_400Regular",
     textShadowColor: "rgba(236,72,153,1)",
     textShadowOffset: { width: 0, height: 0 },
   },
@@ -795,9 +796,9 @@ const styles = StyleSheet.create({
   },
   subtitleSmall: {
     color: "#D4D4D8",
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "900",
-    letterSpacing: 3.4,
+    letterSpacing: 3.6,
   },
   filterBtn: {
     position: "absolute", right: 0, top: 8,
