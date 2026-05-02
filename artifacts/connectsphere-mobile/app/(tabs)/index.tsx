@@ -851,13 +851,13 @@ const styles = StyleSheet.create({
   noticeLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   noticeText: { color: "#FCE7F3", fontSize: 12, fontWeight: "700" },
 
-  // Card area + deck. Section uses a small left pad and a 66px right gutter
-  // for the slim CardActionsRail (web spec `pl-2 pr-[70px]` with the card
-  // extending 4px into the gutter so it ends up `w-[calc(100%-74px)]`).
+  // Card area + deck. Card shifted hard-left (paddingLeft 0) and the right
+  // gutter shrunk to 60px so the card is wider on both sides; the 56px rail
+  // still fits comfortably in the 60px gutter.
   cardArea: {
     marginTop: 12,
-    paddingLeft: 8,
-    paddingRight: 66,
+    paddingLeft: 0,
+    paddingRight: 60,
     position: "relative",
     alignItems: "stretch",
     justifyContent: "flex-start",
@@ -1515,12 +1515,12 @@ function RailButton({
 }
 
 const railStyles = StyleSheet.create({
-  // Sits inside the 66px right gutter created by `cardArea.paddingRight`.
-  // 56px wide button column, anchored ~4px from the section's right edge
-  // (matches web `right-1`), with ~6px gap to the card.
+  // Sits inside the 60px right gutter created by `cardArea.paddingRight`.
+  // 56px wide button column, with ~4px gap from the card and flush against
+  // the section's outer right edge.
   rail: {
     position: "absolute",
-    right: -62,
+    right: -60,
     top: 0,
     bottom: 0,
     width: 56,
