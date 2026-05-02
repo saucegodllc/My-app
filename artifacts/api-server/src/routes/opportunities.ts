@@ -120,38 +120,41 @@ function normalizeOpportunity(
 // through normalizeOpportunity. Replace the literal arrays with HTTP calls.
 
 async function fetchNativePosts(): Promise<Opportunity[]> {
+  // Native posts surface curated opportunities. All applyUrls MUST be real
+  // external destinations — never the parked connectsphere.app domain
+  // (ad networks redirect those to junk like SearchHounds).
   const raw: RawOpportunity[] = [
     {
-      id: "native-1",
-      title: "Social Media Manager",
-      company: "Miami Startup",
+      id: "native-nike-design-intern",
+      title: "Product Design Intern",
+      company: "Nike",
       location: "Miami, FL",
-      type: "Part-time",
-      tags: ["Marketing", "Content", "Miami"],
-      applyUrl: "https://connectsphere.app/posts/native-1",
-      groupChatId: "group-miami-startups",
+      type: "Internship",
+      tags: ["Design", "Figma", "Brand"],
+      applyUrl: "https://www.nike.com/careers",
+      groupChatId: "group-miami-design",
       postedAt: new Date(Date.now() - 1000 * 60 * 4).toISOString(),
     },
     {
-      id: "native-2",
-      title: "Co-Founder (Technical)",
-      company: "Stealth Mode",
-      location: "Brickell, FL",
+      id: "native-yc-cofounder",
+      title: "Co-Founder Match (Technical)",
+      company: "Y Combinator",
+      location: "Remote",
       type: "Collab",
       tags: ["Startup", "Equity", "AI"],
-      applyUrl: "https://connectsphere.app/posts/native-2",
+      applyUrl: "https://www.ycombinator.com/cofounder-matching",
       groupChatId: "group-founders-mia",
       postedAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
     },
     {
-      id: "native-3",
-      title: "Rooftop Networking Mixer",
-      company: "ConnectSphere x 1 Hotel",
-      location: "South Beach, FL",
+      id: "native-eventbrite-miami",
+      title: "Miami Tech Networking Events",
+      company: "Eventbrite",
+      location: "Miami, FL",
       type: "Event",
-      tags: ["Networking", "Miami", "Rooftop"],
-      applyUrl: "https://connectsphere.app/events/native-3",
-      groupChatId: "group-rooftop-mixer",
+      tags: ["Networking", "Miami", "Tech"],
+      applyUrl: "https://www.eventbrite.com/d/fl--miami/tech/",
+      groupChatId: "group-miami-events",
       postedAt: new Date(Date.now() - 1000 * 60 * 31).toISOString(),
     },
   ];

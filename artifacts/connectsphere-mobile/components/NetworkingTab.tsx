@@ -462,20 +462,31 @@ function OpportunitiesSection() {
   }, []);
 
   const onApply = useCallback(async (o: Opportunity) => {
-    if (!o.applyUrl || o.applyUrl === "#") {
-      Alert.alert("Apply", `Application flow for ${o.title} coming soon.`);
+    // Reject missing / placeholder URLs and the parked connectsphere.app
+    // domain (ad networks redirect parked domains to junk like SearchHounds).
+    const url = o.applyUrl?.trim();
+    const isParked =
+      !!url && /^https?:\/\/(www\.)?connectsphere\.app\//i.test(url);
+    if (!url || url === "#" || isParked) {
+      Alert.alert(
+        "Apply",
+        "Apply link coming soon. This opportunity is not connected yet.",
+      );
       return;
     }
     // Only open https links — provider-supplied URLs could otherwise trigger
     // unsafe deep-link schemes (tel:, mailto:, intent://, etc.).
-    if (!/^https:\/\//i.test(o.applyUrl)) {
-      Alert.alert("Blocked", "This opportunity has an unsupported link.");
+    if (!/^https:\/\//i.test(url)) {
+      Alert.alert(
+        "Apply",
+        "Apply link coming soon. This opportunity is not connected yet.",
+      );
       return;
     }
     try {
-      await Linking.openURL(o.applyUrl);
+      await Linking.openURL(url);
     } catch {
-      Alert.alert("Couldn't open link", o.applyUrl);
+      Alert.alert("Couldn't open link", url);
     }
   }, []);
 
