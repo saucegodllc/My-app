@@ -672,96 +672,88 @@ export default function DiscoverScreen() {
 
               </Pressable>
 
-              {/* Bottom info */}
+              {/* Bottom info — clean preview, no bio/interests (those live in expanded profile) */}
               <View style={styles.cardBottom}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.nameText}>
-                    {profile.name}, {profile.age}
-                  </Text>
-                  {profile.verified ? (
-                    <View style={styles.miniShield}>
-                      <Ionicons name="shield-checkmark" size={14} color="#FFF" />
-                    </View>
-                  ) : null}
-                </View>
-
-                <View style={styles.locationRow}>
-                  <Ionicons name="location-outline" size={14} color="#E4E4E7" />
-                  <Text style={styles.locationText}>{profile.location}</Text>
-                  <View style={styles.greenDotSmall} />
-                  <Text style={styles.locationText}>
-                    {(((profile.id * 1.3) % 9) + 0.5).toFixed(1)} miles away
-                  </Text>
-                </View>
-
-                <View style={styles.badgeRow}>
-                  <View style={styles.intentBadge}>
-                    <LinearGradient
-                      colors={theme.accent}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
-                    />
-                    <Text style={styles.intentBadgeText}>{profile.intent}</Text>
+                <Pressable
+                  onPress={() => setSelectedProfile(profile)}
+                  style={styles.cardBottomInfo}
+                >
+                  <View style={styles.nameRow}>
+                    <Text style={styles.nameText}>
+                      {profile.name}, {profile.age}
+                    </Text>
+                    {profile.verified ? (
+                      <MaterialCommunityIcons
+                        name="shield-check"
+                        size={24}
+                        color="#EC4899"
+                      />
+                    ) : null}
                   </View>
-                  <View style={styles.subBadge}>
-                    <Text style={styles.subBadgeText}>{profile.subGenre}</Text>
+
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-outline" size={14} color="#E4E4E7" />
+                    <Text style={styles.locationText}>{profile.location}</Text>
+                    <View style={styles.greenDotSmall} />
+                    <Text style={styles.locationText}>
+                      {(((profile.id * 1.3) % 9) + 0.5).toFixed(1)} miles away
+                    </Text>
                   </View>
-                </View>
 
-                <Text style={styles.bioText} numberOfLines={2}>
-                  {profile.bio}
-                </Text>
-
-                <View style={styles.interestsRow}>
-                  {profile.interests.slice(0, 4).map((interest) => (
-                    <View key={interest} style={styles.interestChip}>
-                      <Text style={styles.interestText}>{interest}</Text>
+                  <View style={styles.badgeRow}>
+                    <View style={styles.intentBadge}>
+                      <LinearGradient
+                        colors={theme.accent}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+                      />
+                      <Text style={styles.intentBadgeText}>{profile.intent}</Text>
                     </View>
-                  ))}
-                </View>
+                    <View style={styles.subBadge}>
+                      <Text style={styles.subBadgeText}>{profile.subGenre}</Text>
+                    </View>
+                  </View>
 
-                {/* Tiny 3-line swipe indicator */}
-                <View style={styles.swipeIndicatorWrap}>
-                  <View style={styles.swipeIndicatorLine} />
-                  <View style={[styles.swipeIndicatorLine, styles.swipeIndicatorLineMid]} />
-                  <View style={styles.swipeIndicatorLine} />
-                </View>
+                  <Text style={styles.tapHintText}>Tap to view full profile</Text>
+                </Pressable>
 
-                {/* Tinder-style swipe controls */}
-                <View style={styles.tinderRow}>
+                {/* Swipe actions — siblings, not children of cardBottomInfo Pressable.
+                    Each button's Pressable claims its own touch region in RN, so tapping
+                    PASS/LIKE never triggers the profile-expand Pressable above. */}
+                <View style={styles.swipeActionsRow}>
                   <Pressable
                     onPress={() => animateExitAndAdvance(-1)}
                     style={({ pressed }) => [
-                      styles.tinderBtnWrap,
-                      pressed && { transform: [{ scale: 0.94 }] },
+                      styles.swipeActionBtnWrap,
+                      pressed && { transform: [{ scale: 0.95 }] },
                     ]}
                   >
-                    <View style={styles.tinderBtnPass}>
-                      <Ionicons name="close" size={36} color="#FB7185" />
+                    <View style={styles.swipeActionBtnPass}>
+                      <Ionicons name="close" size={32} color="#FB7185" />
                     </View>
-                    <Text style={styles.tinderBtnLabel}>PASS</Text>
+                    <Text style={styles.swipeActionLabel}>PASS</Text>
                   </Pressable>
 
-                  <View style={styles.swipeTextWrap}>
-                    <Text style={styles.swipeText}>
-                      <Text style={styles.swipeArrowPink}>← </Text>
-                      SWIPE LEFT OR RIGHT
-                      <Text style={styles.swipeArrowGreen}> →</Text>
+                  <View style={styles.swipeActionsCenterText}>
+                    <Text style={styles.swipeActionsCenterLabel}>
+                      <Text style={styles.swipeArrowPink}>←</Text>
+                      {" LEFT OR RIGHT "}
+                      <Text style={styles.swipeArrowGreen}>→</Text>
                     </Text>
                   </View>
 
                   <Pressable
                     onPress={() => animateExitAndAdvance(1)}
                     style={({ pressed }) => [
-                      styles.tinderBtnWrap,
-                      pressed && { transform: [{ scale: 0.94 }] },
+                      styles.swipeActionBtnWrap,
+                      pressed && { transform: [{ scale: 0.95 }] },
                     ]}
                   >
-                    <View style={styles.tinderBtnLike}>
-                      <Ionicons name="heart" size={36} color="#10B981" />
+                    <View style={styles.swipeActionBtnLike}>
+                      <Ionicons name="heart" size={32} color="#6EE7B7" />
                     </View>
-                    <Text style={styles.tinderBtnLabel}>LIKE</Text>
+                    <Text style={styles.swipeActionLabel}>LIKE</Text>
                   </Pressable>
                 </View>
               </View>
@@ -952,79 +944,58 @@ const styles = StyleSheet.create({
   },
   matchBadgePct: { color: "#FFF", fontSize: 16, fontWeight: "900" },
   matchBadgeWord: { color: "#FBCFE8", fontSize: 9, fontWeight: "800", letterSpacing: 1 },
-  // Card bottom info
+  // Card bottom info — preview only (bio/interests live in expanded profile)
   cardBottom: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20 },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  nameText: { color: "#FFF", fontSize: 30, fontWeight: "900", letterSpacing: -0.5 },
-  miniShield: {
-    width: 22, height: 22, borderRadius: 11,
-    backgroundColor: "#EC4899",
-    alignItems: "center", justifyContent: "center",
-  },
+  cardBottomInfo: { marginBottom: 20 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  nameText: { color: "#FFF", fontSize: 36, fontWeight: "900", letterSpacing: -0.5, lineHeight: 38 },
   locationRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 6 },
-  locationText: { color: "#E4E4E7", fontSize: 13, fontWeight: "600" },
+  locationText: { color: "#E4E4E7", fontSize: 14, fontWeight: "600" },
   greenDotSmall: {
     width: 7, height: 7, borderRadius: 4, backgroundColor: "#34D399",
     marginLeft: 4,
   },
   badgeRow: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  intentBadge: { borderRadius: 999, overflow: "hidden", paddingHorizontal: 14, paddingVertical: 5 },
+  intentBadge: { borderRadius: 999, overflow: "hidden", paddingHorizontal: 16, paddingVertical: 6 },
   intentBadgeText: { color: "#FFF", fontSize: 12, fontWeight: "900", textTransform: "capitalize" },
   subBadge: {
-    borderRadius: 999, paddingHorizontal: 14, paddingVertical: 5,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 999, paddingHorizontal: 16, paddingVertical: 6,
+    backgroundColor: "rgba(0,0,0,0.45)",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
   },
   subBadgeText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
-  bioText: { marginTop: 12, color: "#F4F4F5", fontSize: 13, fontWeight: "500", lineHeight: 19 },
-  interestsRow: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  interestChip: {
-    borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
-  interestText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
-
-  // Tiny 3-line swipe indicator above controls
-  swipeIndicatorWrap: {
-    marginTop: 18, flexDirection: "column", alignItems: "center", gap: 3,
-  },
-  swipeIndicatorLine: {
-    width: 28, height: 2, borderRadius: 1,
-    backgroundColor: "rgba(255,255,255,0.28)",
-  },
-  swipeIndicatorLineMid: {
-    width: 36, backgroundColor: "rgba(236,72,153,0.7)",
+  tapHintText: {
+    marginTop: 12, color: "#D4D4D8", fontSize: 12, fontWeight: "600",
   },
 
-  // Tinder action row
-  tinderRow: {
-    marginTop: 18, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between",
-    paddingHorizontal: 8,
+  // Swipe action row — refined per spec
+  swipeActionsRow: {
+    flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between",
+    paddingHorizontal: 28,
   },
-  tinderBtnWrap: { alignItems: "center", gap: 8 },
-  tinderBtnPass: {
-    width: 80, height: 80, borderRadius: 40,
-    borderWidth: 1.5, borderColor: "rgba(244,63,94,0.55)",
-    backgroundColor: "rgba(244,63,94,0.14)",
+  swipeActionBtnWrap: { alignItems: "center", gap: 8 },
+  swipeActionBtnPass: {
+    width: 64, height: 64, borderRadius: 32,
+    borderWidth: 1, borderColor: "rgba(251,113,133,0.3)",
+    backgroundColor: "rgba(244,63,94,0.10)",
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#F43F5E", shadowOpacity: 0.95, shadowRadius: 32, shadowOffset: { width: 0, height: 0 },
-    elevation: 14,
+    shadowColor: "#F43F5E", shadowOpacity: 0.45, shadowRadius: 35, shadowOffset: { width: 0, height: 0 },
+    elevation: 12,
   },
-  tinderBtnLike: {
-    width: 80, height: 80, borderRadius: 40,
-    borderWidth: 1.5, borderColor: "rgba(16,185,129,0.6)",
-    backgroundColor: "rgba(16,185,129,0.14)",
+  swipeActionBtnLike: {
+    width: 64, height: 64, borderRadius: 32,
+    borderWidth: 1, borderColor: "rgba(110,231,183,0.3)",
+    backgroundColor: "rgba(52,211,153,0.10)",
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#10B981", shadowOpacity: 0.95, shadowRadius: 32, shadowOffset: { width: 0, height: 0 },
-    elevation: 14,
+    shadowColor: "#34D399", shadowOpacity: 0.45, shadowRadius: 35, shadowOffset: { width: 0, height: 0 },
+    elevation: 12,
   },
-  tinderBtnLabel: {
-    color: "#FFF", fontSize: 11, fontWeight: "900", letterSpacing: 3,
+  swipeActionLabel: {
+    color: "#FFF", fontSize: 12, fontWeight: "900", letterSpacing: 2.4,
   },
-  swipeTextWrap: { paddingBottom: 28, flex: 1, alignItems: "center" },
-  swipeText: {
-    color: "#D4D4D8", fontSize: 11, fontWeight: "900", letterSpacing: 2, textAlign: "center",
+  swipeActionsCenterText: { paddingBottom: 28, alignItems: "center", justifyContent: "flex-end" },
+  swipeActionsCenterLabel: {
+    color: "#D4D4D8", fontSize: 10, fontWeight: "900", letterSpacing: 2, textAlign: "center",
   },
   swipeArrowPink: { color: "#F472B6" },
   swipeArrowGreen: { color: "#6EE7B7" },
