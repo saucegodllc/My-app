@@ -14,6 +14,7 @@ import bioRouter from "./bio";
 import eventsRouter from "./events";
 import venuesRouter from "./venues";
 import networkRouter from "./network";
+import opportunitiesRouter from "./opportunities";
 
 const router: IRouter = Router();
 
@@ -37,5 +38,6 @@ router.use(bioRouter);
 router.use(eventsRouter);
 router.use(venuesRouter);
 router.use(networkRouter);
+router.use(opportunitiesRouter);
 
 export default router;

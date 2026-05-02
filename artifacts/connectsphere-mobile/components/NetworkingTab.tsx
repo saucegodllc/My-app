@@ -2,39 +2,69 @@
  * NetworkingTab — mobile RN translation of the web spec.
  *
  * Replaces the swipe deck in the Discover screen when the user picks the
- * "Networking" intent tab. Built to feel like LinkedIn × Slack × Meetup ×
- * college career hub but premium, viral, and Miami-flavored:
- *   - Black background with hot-pink + emerald accents.
- *   - Glassmorphism cards (translucent white + subtle borders).
- *   - No hearts, no swipes, no match %, no dating language.
+ * "Networking" intent tab. Premium black + pink + emerald aesthetic.
  *
- * Sections (in order):
+ * Sections:
  *   1. Header        — title + subtitle + live "X active now" badge
- *   2. Power Stats   — 4 quick KPI tiles (Hiring Now / Students / Founders / Events)
- *   3. Quick Actions — 4 CTA tiles (Find People / Work Groups / Plan / Post)
- *   4. People        — connect cards (photo / role / open-to / skills / actions)
- *   5. Work Groups   — horizontal scroller (Miami Startup Circle, FIU, etc.)
- *   6. Opportunities — internships / jobs / collabs / events
- *   7. Viral         — Open Door Score / Warm Intro / Group Streak / Active Now
+ *   2. Power Stats   — 4 quick KPI tiles
+ *   3. Quick Actions — 4 CTA tiles
+ *   4. People        — connect cards
+ *   5. Work Groups   — horizontal scroller
+ *   6. Opportunities — LIVE feed from /api/opportunities w/ filter chips,
+ *                       auto-refresh every 10 min, "Updated just now" pill,
+ *                       Apply / Save / Share / Join Group Chat actions
+ *   7. Viral         — Open Door / Warm Intro / Group Streak / Active Now
  *      + Build Circle CTA
  */
 
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import type { ComponentProps } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
-type MaterialIconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 
-// ─── Data (mirrors the web spec) ─────────────────────────────────────────────
+// ─── Live Opportunities types ────────────────────────────────────────────────
+
+type Opportunity = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  type: string;
+  source: "ConnectSphere" | "Adzuna" | "USAJOBS" | "Greenhouse" | "Lever";
+  applyUrl: string;
+  tags: string[];
+  postedAt: string;
+  isRemote: boolean;
+  groupChatId: string | null;
+};
+
+type OpportunitiesResponse = {
+  updatedAt: string;
+  count: number;
+  opportunities: Opportunity[];
+};
+
+const OPPORTUNITY_FILTERS = ["For You", "Jobs", "Internships", "Collabs", "Events"] as const;
+type OpportunityFilter = (typeof OPPORTUNITY_FILTERS)[number];
+
+const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
+// ─── Static data (mirrors the web spec) ──────────────────────────────────────
 
 type Person = {
   name: string;
@@ -93,18 +123,30 @@ const WORK_GROUPS: WorkGroup[] = [
   { title: "Real Estate Leads", members: "2.1K", online: "93 online", icon: "business" },
 ];
 
-type Opportunity = {
-  title: string;
-  company: string;
-  type: string;
-  location: string;
-};
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const OPPORTUNITIES: Opportunity[] = [
-  { title: "Product Design Intern", company: "Nike", type: "Internship", location: "Miami, FL" },
-  { title: "Social Media Manager", company: "Part-Time", type: "Job", location: "Miami Beach" },
-  { title: "Startup Co-Founder", company: "Early Stage", type: "Collab", location: "Brickell" },
-];
+/** Map an opportunity onto one of the user-facing filter chips. */
+function matchesFilter(o: Opportunity, filter: OpportunityFilter): boolean {
+  if (filter === "For You") return true;
+  const t = o.type.toLowerCase();
+  if (filter === "Jobs") return t === "job" || t.includes("part-time") || t.includes("full-time");
+  if (filter === "Internships") return t.includes("intern");
+  if (filter === "Collabs") return t.includes("collab") || t.includes("co-found") || t.includes("founding");
+  if (filter === "Events") return t.includes("event");
+  return true;
+}
+
+/** "Updated just now" / "3m ago" / "2h ago" — for the freshness pill. */
+function formatRelative(iso: string | null): string {
+  if (!iso) return "—";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60 * 1000) return "Updated just now";
+  const mins = Math.floor(ms / (60 * 1000));
+  if (mins < 60) return `Updated ${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `Updated ${hrs}h ago`;
+  return `Updated ${Math.floor(hrs / 24)}d ago`;
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -144,12 +186,7 @@ export default function NetworkingTab() {
           ))}
         </ScrollView>
 
-        <SectionHeader title="Opportunities" action="Post one" mt={24} />
-        <View style={{ marginTop: 12, gap: 12 }}>
-          {OPPORTUNITIES.map((o) => (
-            <OpportunityCard key={o.title} opportunity={o} />
-          ))}
-        </View>
+        <OpportunitiesSection />
 
         <SectionHeader title="Viral" action="Boost" mt={24} />
         <ViralRow />
@@ -218,10 +255,10 @@ function PowerStats() {
 
 function QuickActions() {
   const actions: { title: string; icon: IoniconName; glow: string }[] = [
-    { title: "Find People", icon: "people", glow: "rgba(236,72,153,0.35)" },
-    { title: "Work Groups", icon: "chatbubble-ellipses", glow: "rgba(168,85,247,0.35)" },
-    { title: "Plan Meeting", icon: "calendar", glow: "rgba(59,130,246,0.35)" },
-    { title: "Post Opportunity", icon: "add", glow: "rgba(251,191,36,0.25)" },
+    { title: "Find People", icon: "people", glow: "rgb(236,72,153)" },
+    { title: "Work Groups", icon: "chatbubble-ellipses", glow: "rgb(168,85,247)" },
+    { title: "Plan Meeting", icon: "calendar", glow: "rgb(59,130,246)" },
+    { title: "Post Opportunity", icon: "add", glow: "rgb(251,191,36)" },
   ];
 
   return (
@@ -233,7 +270,7 @@ function QuickActions() {
             key={a.title}
             style={({ pressed }) => [
               styles.statCard,
-              { shadowColor: a.glow.replace(/rgba\(([^,]+),([^,]+),([^,]+),.*/, "rgb($1,$2,$3)"), shadowOpacity: 0.6, shadowRadius: 16, shadowOffset: { width: 0, height: 0 } },
+              { shadowColor: a.glow, shadowOpacity: 0.6, shadowRadius: 16, shadowOffset: { width: 0, height: 0 } },
               pressed && styles.pressed93,
             ]}
           >
@@ -336,9 +373,234 @@ function WorkGroupCard({ group }: { group: WorkGroup }) {
   );
 }
 
+// ─── Opportunities Section (LIVE) ────────────────────────────────────────────
+
+function OpportunitiesSection() {
+  const router = useRouter();
+  const [filter, setFilter] = useState<OpportunityFilter>("For You");
+  const [items, setItems] = useState<Opportunity[]>([]);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  // Re-render every 30s so the relative "Updated Xm ago" stays accurate
+  // even when no fetch has fired.
+  const [, setTick] = useState(0);
+
+  const apiBase = useMemo(() => {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    return domain ? `https://${domain}` : "";
+  }, []);
+
+  /** Fetcher accepts an AbortSignal so stale responses (from a prior
+   *  in-flight call or after unmount) are ignored. Errors no longer wipe
+   *  out previously-loaded opportunities — we keep the last good snapshot
+   *  visible and only surface the error if we have nothing to show. */
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!apiBase) {
+        setError("API not configured");
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${apiBase}/api/opportunities`, { signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data: OpportunitiesResponse = await res.json();
+        if (signal?.aborted) return;
+        setItems(data.opportunities);
+        setUpdatedAt(data.updatedAt);
+        setError(null);
+      } catch (e) {
+        if ((e as { name?: string })?.name === "AbortError") return;
+        setError(e instanceof Error ? e.message : "Failed to load");
+      } finally {
+        if (!signal?.aborted) setLoading(false);
+      }
+    },
+    [apiBase],
+  );
+
+  // Initial load + 10-min refresh loop. Each load uses its own AbortController
+  // so a slow request gets cancelled if a newer one (or unmount) arrives.
+  useEffect(() => {
+    let currentCtrl: AbortController | null = null;
+
+    const run = () => {
+      currentCtrl?.abort();
+      currentCtrl = new AbortController();
+      void load(currentCtrl.signal);
+    };
+
+    run();
+    const id = setInterval(run, REFRESH_INTERVAL_MS);
+
+    return () => {
+      clearInterval(id);
+      currentCtrl?.abort();
+    };
+  }, [load]);
+
+  // Keep the "Updated Xm ago" label fresh.
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const filtered = useMemo(
+    () => items.filter((o) => matchesFilter(o, filter)),
+    [items, filter],
+  );
+
+  const toggleSave = useCallback((id: string) => {
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const onApply = useCallback(async (o: Opportunity) => {
+    if (!o.applyUrl || o.applyUrl === "#") {
+      Alert.alert("Apply", `Application flow for ${o.title} coming soon.`);
+      return;
+    }
+    // Only open https links — provider-supplied URLs could otherwise trigger
+    // unsafe deep-link schemes (tel:, mailto:, intent://, etc.).
+    if (!/^https:\/\//i.test(o.applyUrl)) {
+      Alert.alert("Blocked", "This opportunity has an unsupported link.");
+      return;
+    }
+    try {
+      await Linking.openURL(o.applyUrl);
+    } catch {
+      Alert.alert("Couldn't open link", o.applyUrl);
+    }
+  }, []);
+
+  const onShare = useCallback(async (o: Opportunity) => {
+    try {
+      await Share.share({
+        message: `${o.title} @ ${o.company} (${o.location})\n${o.applyUrl}`,
+      });
+    } catch {
+      /* user cancelled */
+    }
+  }, []);
+
+  const onJoinGroup = useCallback(
+    (o: Opportunity) => {
+      if (!o.groupChatId) return;
+      // Reuse the existing chat route — group chats use the same screen with
+      // a `group-` prefix so the chat screen can recognize them.
+      router.push(`/chat/${o.groupChatId}` as never);
+    },
+    [router],
+  );
+
+  return (
+    <>
+      <View style={[styles.sectionHeader, { marginTop: 24 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+          <Text style={styles.sectionHeaderTitle}>Opportunities</Text>
+          <View style={styles.updatedPill}>
+            <View style={styles.updatedDot} />
+            <Text style={styles.updatedText}>{formatRelative(updatedAt)}</Text>
+          </View>
+        </View>
+        <Text style={styles.sectionHeaderAction}>Post one</Text>
+      </View>
+
+      {/* Filter chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, paddingRight: 16 }}
+        style={{ marginTop: 12 }}
+      >
+        {OPPORTUNITY_FILTERS.map((f) => {
+          const active = f === filter;
+          return (
+            <Pressable
+              key={f}
+              onPress={() => setFilter(f)}
+              style={({ pressed }) => [
+                styles.filterChip,
+                active && styles.filterChipActive,
+                pressed && styles.pressed96,
+              ]}
+            >
+              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                {f}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* Body */}
+      <View style={{ marginTop: 12, gap: 12 }}>
+        {loading ? (
+          <View style={styles.opportunityEmpty}>
+            <ActivityIndicator color="#F472B6" />
+            <Text style={styles.opportunityEmptyText}>Loading opportunities…</Text>
+          </View>
+        ) : error && items.length === 0 ? (
+          <View style={styles.opportunityEmpty}>
+            <Ionicons name="cloud-offline-outline" size={20} color="#A1A1AA" />
+            <Text style={styles.opportunityEmptyText}>Couldn't load: {error}</Text>
+            <Pressable
+              onPress={() => {
+                setLoading(true);
+                void load();
+              }}
+              style={({ pressed }) => [styles.retryBtn, pressed && styles.pressed96]}
+            >
+              <Text style={styles.retryBtnText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : filtered.length === 0 ? (
+          <View style={styles.opportunityEmpty}>
+            <Text style={styles.opportunityEmptyText}>
+              No opportunities in “{filter}” yet.
+            </Text>
+          </View>
+        ) : (
+          filtered.map((o) => (
+            <OpportunityCard
+              key={o.id}
+              opportunity={o}
+              saved={savedIds.has(o.id)}
+              onApply={() => onApply(o)}
+              onSave={() => toggleSave(o.id)}
+              onShare={() => onShare(o)}
+              onJoinGroup={() => onJoinGroup(o)}
+            />
+          ))
+        )}
+      </View>
+    </>
+  );
+}
+
 // ─── Opportunity Card ────────────────────────────────────────────────────────
 
-function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+function OpportunityCard({
+  opportunity,
+  saved,
+  onApply,
+  onSave,
+  onShare,
+  onJoinGroup,
+}: {
+  opportunity: Opportunity;
+  saved: boolean;
+  onApply: () => void;
+  onSave: () => void;
+  onShare: () => void;
+  onJoinGroup: () => void;
+}) {
   return (
     <View style={styles.opportunityCard}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
@@ -354,7 +616,20 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
             <Ionicons name="time-outline" size={12} color="#71717A" />
             <Text style={styles.opportunityMeta}>
               {opportunity.location} \u00b7 {opportunity.type}
+              {opportunity.isRemote ? " \u00b7 Remote" : ""}
             </Text>
+          </View>
+
+          {/* Source chip + tag chips */}
+          <View style={[styles.skillRow, { marginTop: 8 }]}>
+            <View style={[styles.skillChip, styles.sourceChip]}>
+              <Text style={[styles.skillText, { color: "#F9A8D4" }]}>{opportunity.source}</Text>
+            </View>
+            {opportunity.tags.slice(0, 3).map((t) => (
+              <View key={t} style={styles.skillChip}>
+                <Text style={styles.skillText}>{t}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -364,15 +639,40 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
       </View>
 
       <View style={styles.opportunityActionRow}>
-        <Pressable style={({ pressed }) => [styles.applyBtn, pressed && styles.pressed96]}>
+        <Pressable
+          onPress={onApply}
+          style={({ pressed }) => [styles.applyBtn, pressed && styles.pressed96]}
+        >
           <Text style={styles.applyBtnText}>Apply</Text>
         </Pressable>
-        <Pressable style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed96]}>
-          <Text style={styles.secondaryBtnText}>Save</Text>
+        <Pressable
+          onPress={onSave}
+          style={({ pressed }) => [
+            styles.iconActionBtn,
+            saved && { borderColor: "rgba(244,114,182,0.5)", backgroundColor: "rgba(236,72,153,0.12)" },
+            pressed && styles.pressed96,
+          ]}
+        >
+          <Ionicons
+            name={saved ? "bookmark" : "bookmark-outline"}
+            size={16}
+            color={saved ? "#F9A8D4" : "#FFF"}
+          />
         </Pressable>
-        <Pressable style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed96]}>
-          <Text style={styles.secondaryBtnText}>Share</Text>
+        <Pressable
+          onPress={onShare}
+          style={({ pressed }) => [styles.iconActionBtn, pressed && styles.pressed96]}
+        >
+          <Ionicons name="share-outline" size={16} color="#FFF" />
         </Pressable>
+        {opportunity.groupChatId ? (
+          <Pressable
+            onPress={onJoinGroup}
+            style={({ pressed }) => [styles.iconActionBtn, pressed && styles.pressed96]}
+          >
+            <Ionicons name="chatbubble-ellipses" size={16} color="#6EE7B7" />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -601,6 +901,56 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
+  // "Updated just now" pill
+  updatedPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(52,211,153,0.30)",
+    backgroundColor: "rgba(52,211,153,0.08)",
+  },
+  updatedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#34D399",
+  },
+  updatedText: {
+    color: "#6EE7B7",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+
+  // Opportunity filter chips
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  filterChipActive: {
+    borderColor: "rgba(244,114,182,0.55)",
+    backgroundColor: "rgba(236,72,153,0.18)",
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  filterChipText: {
+    color: "#D4D4D8",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  filterChipTextActive: {
+    color: "#FFF",
+  },
+
   // Person card
   personCard: {
     borderRadius: 24,
@@ -661,6 +1011,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
+  },
+  sourceChip: {
+    borderColor: "rgba(244,114,182,0.35)",
+    backgroundColor: "rgba(236,72,153,0.10)",
   },
   skillText: {
     color: "#D4D4D8",
@@ -795,6 +1149,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginTop: 14,
+    alignItems: "center",
   },
   applyBtn: {
     flex: 1,
@@ -808,19 +1163,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
   },
-  secondaryBtn: {
-    flex: 1,
+  opportunityEmpty: {
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    paddingVertical: 9,
-    borderRadius: 999,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    padding: 24,
     alignItems: "center",
+    gap: 10,
   },
-  secondaryBtnText: {
-    color: "#FFF",
+  opportunityEmptyText: {
+    color: "#A1A1AA",
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  retryBtn: {
+    marginTop: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(244,114,182,0.5)",
+    backgroundColor: "rgba(236,72,153,0.12)",
+  },
+  retryBtnText: {
+    color: "#F9A8D4",
+    fontSize: 11,
+    fontWeight: "900",
   },
 
   // CTA

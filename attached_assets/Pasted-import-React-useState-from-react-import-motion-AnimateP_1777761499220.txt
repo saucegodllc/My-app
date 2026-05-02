@@ -1,0 +1,296 @@
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Heart, X, Sparkles, Users, MessageCircle, Check } from "lucide-react";
+
+const duoProfiles = [
+  {
+    id: 1,
+    people: [
+      { name: "Sofia", age: 23, photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600" },
+      { name: "Mia", age: 24, photo: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600" },
+    ],
+    location: "Brickell, Miami",
+    distance: "2.1 mi away",
+    vibe: ["Miami nightlife", "Double date", "Tonight"],
+    bio: "Best friends looking for a fun duo to grab drinks and see where the night goes.",
+    compatibility: 94,
+  },
+  {
+    id: 2,
+    people: [
+      { name: "Daniel", age: 25, photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600" },
+      { name: "Chris", age: 26, photo: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600" },
+    ],
+    location: "Wynwood, Miami",
+    distance: "3.4 mi away",
+    vibe: ["Art walk", "Cocktails", "Weekend"],
+    bio: "Two friends trying to meet another duo for a chill night out in Wynwood.",
+    compatibility: 89,
+  },
+];
+
+export default function DoubleDateFeature() {
+  const [tab, setTab] = useState("discover");
+  const [index, setIndex] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+
+  const profile = duoProfiles[index % duoProfiles.length];
+
+  const nextCard = () => setIndex((prev) => prev + 1);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#120816] via-[#1d0d26] to-black text-white px-4 pt-12 pb-6 overflow-hidden">
+      <div className="max-w-md mx-auto">
+        <div className="mb-5">
+          <div className="flex items-center gap-2">
+            <div className="h-10 w-10 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center">
+              <Users size={21} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black tracking-tight">Double Date</h1>
+              <p className="text-white/60 text-sm">Match as a duo on ConnectSphere.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 bg-white/8 p-1 rounded-2xl mb-5 backdrop-blur">
+          {[
+            ["discover", "Discover"],
+            ["myduo", "My Duo"],
+            ["requests", "Requests"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`py-3 rounded-xl text-sm font-bold transition ${
+                tab === key
+                  ? "bg-white text-black shadow-lg"
+                  : "text-white/60"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "discover" && (
+          <DuoProfileCard
+            profile={profile}
+            onPass={nextCard}
+            onSpark={() => setShowModal(true)}
+            onInvite={() => setShowModal(true)}
+          />
+        )}
+
+        {tab === "myduo" && <MyDuoSetup />}
+
+        {tab === "requests" && <DuoRequests />}
+
+        <AnimatePresence>
+          {showModal && <MatchModal onClose={() => setShowModal(false)} />}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function DuoProfileCard({ profile, onPass, onSpark, onInvite }) {
+  return (
+    <motion.div
+      key={profile.id}
+      initial={{ opacity: 0, scale: 0.96, y: 30 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ type: "spring", stiffness: 120, damping: 16 }}
+      className="relative h-[690px] rounded-[2rem] overflow-hidden shadow-2xl bg-white/10 border border-white/10"
+    >
+      <div className="grid grid-cols-2 h-full">
+        {profile.people.map((person) => (
+          <div key={person.name} className="relative overflow-hidden">
+            <img
+              src={person.photo}
+              alt={person.name}
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+          </div>
+        ))}
+      </div>
+
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
+        <div className="px-4 py-2 rounded-full bg-black/35 backdrop-blur-xl text-sm font-bold">
+          {profile.distance}
+        </div>
+        <div className="px-4 py-2 rounded-full bg-white text-black text-sm font-black">
+          {profile.compatibility}% Match
+        </div>
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black via-black/85 to-transparent">
+        <h2 className="text-3xl font-black">
+          {profile.people[0].name} & {profile.people[1].name}
+        </h2>
+
+        <p className="text-white/70 text-sm mt-1">
+          {profile.people[0].age} & {profile.people[1].age} · {profile.location}
+        </p>
+
+        <div className="flex flex-wrap gap-2 mt-3">
+          {profile.vibe.map((tag) => (
+            <span
+              key={tag}
+              className="px-3 py-2 rounded-full bg-white/15 backdrop-blur text-xs font-bold"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+
+        <p className="text-white/85 text-sm mt-4 leading-relaxed">
+          {profile.bio}
+        </p>
+
+        <div className="grid grid-cols-3 gap-3 mt-5">
+          <ActionButton icon={<X />} label="Pass" onClick={onPass} />
+          <ActionButton icon={<Sparkles />} label="Spark" onClick={onSpark} special />
+          <ActionButton icon={<Heart />} label="Invite" onClick={onInvite} />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function ActionButton({ icon, label, onClick, special }) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.88, rotate: special ? 4 : 0 }}
+      whileHover={{ scale: 1.04 }}
+      onClick={onClick}
+      className={`h-16 rounded-2xl flex flex-col items-center justify-center gap-1 font-black shadow-xl ${
+        special
+          ? "bg-gradient-to-br from-purple-400 to-pink-500 text-white"
+          : "bg-white text-black"
+      }`}
+    >
+      <div className="scale-110">{icon}</div>
+      <span className="text-xs">{label}</span>
+    </motion.button>
+  );
+}
+
+function MyDuoSetup() {
+  return (
+    <div className="rounded-[2rem] bg-white/10 border border-white/10 p-5 backdrop-blur-xl shadow-2xl">
+      <h2 className="text-2xl font-black mb-1">Create Your Duo</h2>
+      <p className="text-white/60 text-sm mb-5">
+        Pick a friend and activate duo mode.
+      </p>
+
+      <div className="space-y-4">
+        <select className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 outline-none">
+          <option>Pick your duo partner</option>
+          <option>Alex</option>
+          <option>Jordan</option>
+          <option>Sam</option>
+        </select>
+
+        <select className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 outline-none">
+          <option>Double date</option>
+          <option>Friends night out</option>
+          <option>Networking duo</option>
+        </select>
+
+        <select className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 outline-none">
+          <option>Tonight</option>
+          <option>This weekend</option>
+          <option>Anytime</option>
+        </select>
+
+        <textarea
+          className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 outline-none h-28 resize-none"
+          placeholder="Write your duo bio..."
+        />
+
+        <motion.button
+          whileTap={{ scale: 0.96 }}
+          className="w-full h-14 rounded-2xl bg-white text-black font-black shadow-xl"
+        >
+          Activate Duo Mode
+        </motion.button>
+      </div>
+    </div>
+  );
+}
+
+function DuoRequests() {
+  return (
+    <div className="space-y-4">
+      {[1, 2].map((item) => (
+        <div
+          key={item}
+          className="rounded-3xl bg-white/10 border border-white/10 p-4 backdrop-blur-xl"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex -space-x-4">
+              <img
+                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300"
+                className="h-14 w-14 rounded-2xl object-cover border-2 border-black"
+              />
+              <img
+                src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=300"
+                className="h-14 w-14 rounded-2xl object-cover border-2 border-black"
+              />
+            </div>
+
+            <div className="flex-1">
+              <h3 className="font-black">Sofia & Mia</h3>
+              <p className="text-white/60 text-sm">Want to double date tonight.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <button className="h-12 rounded-2xl bg-white/10 font-bold">Decline</button>
+            <button className="h-12 rounded-2xl bg-white text-black font-black">
+              Accept
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MatchModal({ onClose }) {
+  return (
+    <motion.div
+      className="fixed inset-0 bg-black/80 backdrop-blur-xl flex items-center justify-center px-6 z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.75, opacity: 0, y: 30 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.8, opacity: 0 }}
+        className="w-full max-w-sm rounded-[2rem] bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 p-6 text-center shadow-2xl"
+      >
+        <div className="mx-auto h-16 w-16 rounded-full bg-white text-black flex items-center justify-center mb-4">
+          <Check size={32} />
+        </div>
+
+        <h2 className="text-3xl font-black">Duo Invite Sent</h2>
+        <p className="text-white/90 mt-2">
+          Your pair request was sent. If they accept, ConnectSphere opens the group chat.
+        </p>
+
+        <button
+          onClick={onClose}
+          className="mt-6 h-13 w-full rounded-2xl bg-white text-black font-black py-4"
+        >
+          Keep Discovering
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
