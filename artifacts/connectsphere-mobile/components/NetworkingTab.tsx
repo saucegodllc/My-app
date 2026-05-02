@@ -27,6 +27,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -34,6 +35,49 @@ import {
   Text,
   View,
 } from "react-native";
+
+/**
+ * Open an external URL in a way that works on iOS, Android, AND inside
+ * the Replit canvas iframe.
+ *
+ * Why this is non-trivial on web: `Linking.openURL` on React Native Web
+ * delegates to `window.open(url, '_self')` by default, which inside a
+ * sandboxed iframe either does nothing or navigates the iframe itself
+ * (so the user sees no change). We explicitly:
+ *   1. Try `window.open(url, '_blank', ...)` to pop a new tab.
+ *   2. If the popup is blocked (returns null), navigate the top frame.
+ *   3. As a last resort, synthesize an <a target="_blank"> click.
+ */
+async function openExternal(url: string): Promise<void> {
+  if (Platform.OS !== "web") {
+    await Linking.openURL(url);
+    return;
+  }
+  // Web (incl. iframe-embedded preview):
+  const win = (globalThis as { window?: Window }).window;
+  if (!win) return;
+  const popup = win.open(url, "_blank", "noopener,noreferrer");
+  if (popup) return;
+  // Popup blocked — try escaping the iframe.
+  try {
+    const top = win.top ?? win;
+    top.location.href = url;
+    return;
+  } catch {
+    /* cross-origin frame — fall through */
+  }
+  // Last resort: anchor click trick (some browsers allow this even when
+  // window.open is blocked because it's a user-gesture navigation).
+  const doc = (globalThis as { document?: Document }).document;
+  if (!doc) return;
+  const a = doc.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  doc.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -484,7 +528,7 @@ function OpportunitiesSection() {
       return;
     }
     try {
-      await Linking.openURL(url);
+      await openExternal(url);
     } catch {
       Alert.alert("Couldn't open link", url);
     }
