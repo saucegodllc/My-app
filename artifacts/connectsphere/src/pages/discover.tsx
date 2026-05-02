@@ -37,7 +37,7 @@ import {
 
 const INTENTS: Record<string, string[]> = {
   Dating: ["All", "Serious", "Casual", "Double Dates", "Active Tonight", "New in Town"],
-  Friends: ["All", "Going Out", "Gym", "Study", "Travel", "Foodies", "Nightlife"],
+  Friends: ["All", "Going Out", "Study", "Travel", "Foodies", "Nightlife"],
   Networking: ["All", "Entrepreneurs", "Creators", "Students", "Investors", "Jobs", "Mentors"],
 };
 
