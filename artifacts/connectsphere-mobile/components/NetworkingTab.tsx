@@ -500,7 +500,10 @@ function NetworkingSearchOverlay({
     });
   }, [query, filter, opps]);
 
-  const showResults = query.trim().length > 0 || filter !== "All";
+  // Only show results once the user starts typing (per spec). The filter
+  // chips still narrow the results, but a chip alone does not trigger the
+  // results list.
+  const showResults = query.trim().length > 0;
 
   return (
     <Modal
