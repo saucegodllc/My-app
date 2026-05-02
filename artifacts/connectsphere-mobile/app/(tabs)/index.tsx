@@ -938,11 +938,10 @@ const styles = StyleSheet.create({
     // Extra breathing room below the intent tabs ("For you · Active tonight
     // · Double dates") so the card doesn't crowd the tab pills above it.
     marginTop: 24,
-    // Dedicated breathing room below the card so it sits visually centered
-    // between the intent tabs above and the glass tab bar below — without
-    // this the flex-1 deck hugged the tab bar after we removed the double
-    // bottom-inset padding on the root.
-    marginBottom: 32,
+    // Small breathing room below the card before the glass tab bar starts.
+    // Dialed down from 32 → 12 so the card extends further toward the bottom
+    // of the viewport per the latest spec.
+    marginBottom: 12,
     paddingLeft: 0,
     paddingRight: 90,
     position: "relative",
