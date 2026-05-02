@@ -444,7 +444,7 @@ export default function DiscoverScreen() {
   const { height: winH } = useWindowDimensions();
   const topInset = Platform.OS === "web" ? 16 : Math.max(insets.top, 12);
   const bottomInset = Platform.OS === "web" ? 96 : 82 + insets.bottom;
-  const cardHeight = Math.max(470, Math.min(620, winH - 390));
+  const cardHeight = Math.max(500, Math.min(660, winH - 315));
 
   const allowedTabs =
     currentUserIntent === "all"
@@ -620,25 +620,6 @@ export default function DiscoverScreen() {
             );
           })}
         </ScrollView>
-
-        {/* Premium notice */}
-        <Pressable
-          style={({ pressed }) => [styles.notice, pressed && { opacity: 0.7 }]}
-          onPress={() => {
-            if (subTabs[activeIntent].includes("Active Tonight")) {
-              setActiveSubTab("Active Tonight");
-              setCardIndex(0);
-            }
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Show people active tonight"
-        >
-          <View style={styles.noticeLeft}>
-            <Ionicons name="flash" size={14} color="#FBBF24" />
-            <Text style={styles.noticeText}>Showing people near you who are actually active tonight.</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color="#A1A1AA" />
-        </Pressable>
 
         {/* Card area — gesture-driven SwipeDeck (PASS-left, VIBE-right, SPARK-up) */}
         <View style={[styles.cardArea, { height: cardHeight }]}>
@@ -864,8 +845,18 @@ const styles = StyleSheet.create({
   noticeLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   noticeText: { color: "#FCE7F3", fontSize: 12, fontWeight: "700" },
 
-  // Card area + deck — calc(100vh - 390px), min 470, max 620 (responsive via useWindowDimensions)
-  cardArea: { marginTop: 18, alignItems: "stretch", justifyContent: "flex-start" },
+  // Card area + deck — calc(100vh - 315px), min 500, max 660. Section gets a
+  // 92px right gutter to host the CardActionsRail, plus a small negative
+  // horizontal margin so the visible section is wider than the rest of the
+  // scroll content (matches web `pr-[92px]` + slightly wider card column).
+  cardArea: {
+    marginTop: 18,
+    marginHorizontal: -6,
+    paddingRight: 92,
+    position: "relative",
+    alignItems: "stretch",
+    justifyContent: "flex-start",
+  },
   deckCard: {
     position: "absolute",
     borderRadius: 32,
@@ -1400,9 +1391,166 @@ function SwipeDeck({
       />
 
       {sparkBurst ? <SparkExplosion key={sparkToken} /> : null}
+
+      {/* Side rail of tap-to-act buttons (VIBE / SPARK / PASS).
+          Lives in the 92px gutter created by `cardArea.paddingRight`. */}
+      <CardActionsRail
+        onVibe={() => handleAction("vibe")}
+        onSpark={() => handleAction("spark")}
+        onPass={() => handleAction("pass")}
+      />
     </View>
   );
 }
+
+// ─── Card actions rail (VIBE / SPARK / PASS tap buttons) ─────────────────────
+function CardActionsRail({
+  onVibe,
+  onSpark,
+  onPass,
+}: {
+  onVibe: () => void;
+  onSpark: () => void;
+  onPass: () => void;
+}) {
+  return (
+    <View style={railStyles.rail} pointerEvents="box-none">
+      <RailButton
+        icon="heart"
+        label="VIBE"
+        sub="Like energy"
+        color="pink"
+        onPress={onVibe}
+      />
+      <RailButton
+        icon="sparkles"
+        label="SPARK"
+        sub="Stand out"
+        color="purple"
+        onPress={onSpark}
+      />
+      <RailButton
+        icon="close"
+        label="PASS"
+        sub="Not for me"
+        color="rose"
+        onPress={onPass}
+      />
+    </View>
+  );
+}
+
+type RailColor = "pink" | "purple" | "rose";
+
+const RAIL_PALETTE: Record<
+  RailColor,
+  { bg: string; border: string; text: string; shadow: string }
+> = {
+  pink: {
+    bg: "rgba(236,72,153,0.15)",
+    border: "rgba(244,114,182,0.5)",
+    text: "#F9A8D4",
+    shadow: "#EC4899",
+  },
+  purple: {
+    bg: "rgba(168,85,247,0.15)",
+    border: "rgba(192,132,252,0.5)",
+    text: "#D8B4FE",
+    shadow: "#A855F7",
+  },
+  rose: {
+    bg: "rgba(244,63,94,0.15)",
+    border: "rgba(251,113,133,0.5)",
+    text: "#FDA4AF",
+    shadow: "#F43F5E",
+  },
+};
+
+function RailButton({
+  icon,
+  label,
+  sub,
+  color,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  sub: string;
+  color: RailColor;
+  onPress: () => void;
+}) {
+  const palette = RAIL_PALETTE[color];
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => [
+        railStyles.button,
+        pressed && { transform: [{ scale: 0.95 }] },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View
+        style={[
+          railStyles.circle,
+          {
+            backgroundColor: palette.bg,
+            borderColor: palette.border,
+            shadowColor: palette.shadow,
+          },
+        ]}
+      >
+        <Ionicons name={icon} size={32} color={palette.text} />
+      </View>
+      <Text style={[railStyles.label, { color: palette.text }]}>{label}</Text>
+      <Text style={railStyles.sub}>{sub}</Text>
+    </Pressable>
+  );
+}
+
+const railStyles = StyleSheet.create({
+  rail: {
+    position: "absolute",
+    right: -92,
+    top: 0,
+    bottom: 0,
+    width: 92,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 24,
+  },
+  button: {
+    alignItems: "center",
+  },
+  circle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOpacity: 0.65,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+  },
+  label: {
+    marginTop: 8,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.3,
+  },
+  sub: {
+    marginTop: 2,
+    width: 80,
+    textAlign: "center",
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#A1A1AA",
+    lineHeight: 12,
+  },
+});
 
 function SwipeCard({
   profile,
@@ -1750,7 +1898,8 @@ const deckStyles = StyleSheet.create({
     backgroundColor: "rgba(236,72,153,0.05)",
   },
 
-  // Active card
+  // Active card — pink-400/45 border, soft pink outer glow (web spec
+  // `border-pink-400/45 shadow-[0_0_55px_rgba(236,72,153,0.28)]`).
   card: {
     position: "absolute",
     left: 0,
@@ -1758,12 +1907,12 @@ const deckStyles = StyleSheet.create({
     top: 0,
     borderRadius: 32,
     overflow: "hidden",
-    borderWidth: 1.5,
-    borderColor: "rgba(236,72,153,0.65)",
-    backgroundColor: "#09090B",
+    borderWidth: 1,
+    borderColor: "rgba(244,114,182,0.45)",
+    backgroundColor: "#000",
     shadowColor: "#EC4899",
-    shadowOpacity: 0.45,
-    shadowRadius: 30,
+    shadowOpacity: 0.28,
+    shadowRadius: 28,
     shadowOffset: { width: 0, height: 0 },
     elevation: 18,
   },
