@@ -1707,10 +1707,11 @@ function SwipeCard({
           transition={150}
         />
 
-        {/* Cinematic dark gradient */}
+        {/* Cinematic dark gradient — softer at the top so more of the
+            portrait reads through; still dense at the bottom for text contrast. */}
         <LinearGradient
-          colors={["rgba(0,0,0,0.10)", "rgba(0,0,0,0.55)", "#000"]}
-          locations={[0, 0.55, 1]}
+          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.20)", "rgba(0,0,0,0.92)"]}
+          locations={[0, 0.5, 1]}
           style={StyleSheet.absoluteFill}
         />
 
@@ -1772,7 +1773,7 @@ function SwipeCard({
             {profile.verified ? (
               <MaterialCommunityIcons
                 name="shield-check"
-                size={24}
+                size={18}
                 color="#EC4899"
               />
             ) : null}
@@ -2043,62 +2044,62 @@ const deckStyles = StyleSheet.create({
     shadowRadius: 36,
   },
 
-  // Bottom info
-  cardBottom: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20 },
-  cardBottomInfo: { marginBottom: 14 },
+  // Bottom info — tightened so more of the portrait stays visible above.
+  cardBottom: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 16 },
+  cardBottomInfo: { marginBottom: 6 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   nameText: {
     color: "#FFF",
-    fontSize: 36,
+    fontSize: 26,
     fontWeight: "900",
-    letterSpacing: -0.5,
-    lineHeight: 38,
+    letterSpacing: -0.4,
+    lineHeight: 28,
   },
   locationRow: {
-    marginTop: 8,
+    marginTop: 6,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  locationText: { color: "#E4E4E7", fontSize: 13, fontWeight: "600" },
+  locationText: { color: "#E4E4E7", fontSize: 11, fontWeight: "600" },
   locationGreenDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: "#34D399",
     marginLeft: 4,
   },
   badgeRow: {
-    marginTop: 12,
+    marginTop: 8,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 6,
   },
   intentBadge: {
     borderRadius: 999,
     overflow: "hidden",
-    paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
   intentBadgeText: {
     color: "#FFF",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "900",
     textTransform: "capitalize",
   },
   subBadge: {
     borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     backgroundColor: "rgba(0,0,0,0.45)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.15)",
   },
-  subBadgeText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
+  subBadgeText: { color: "#FFF", fontSize: 10, fontWeight: "700" },
   tapHintText: {
-    marginTop: 12,
-    color: "#D4D4D8",
-    fontSize: 13,
+    marginTop: 8,
+    color: "#A1A1AA",
+    fontSize: 11,
     fontWeight: "600",
   },
 
