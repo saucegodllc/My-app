@@ -26,13 +26,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
@@ -250,6 +253,7 @@ function formatRelative(iso: string | null): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function NetworkingTab() {
+  const [searchOpen, setSearchOpen] = useState(false);
   return (
     <View style={styles.root}>
       {/* Ambient pink + emerald blobs (mirrors the web `blur-[120px]` glows). */}
@@ -262,7 +266,7 @@ export default function NetworkingTab() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <NetworkingHeader />
+        <NetworkingHeader onPressSearch={() => setSearchOpen(true)} />
         <PowerStats />
         <QuickActions />
 
@@ -292,13 +296,18 @@ export default function NetworkingTab() {
 
         <BuildCircleCTA />
       </ScrollView>
+
+      <NetworkingSearchOverlay
+        visible={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
     </View>
   );
 }
 
 // ─── Header ──────────────────────────────────────────────────────────────────
 
-function NetworkingHeader() {
+function NetworkingHeader({ onPressSearch }: { onPressSearch: () => void }) {
   return (
     <View style={styles.headerRow}>
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -315,7 +324,7 @@ function NetworkingHeader() {
       </View>
 
       <View style={{ flexDirection: "row", gap: 8 }}>
-        <Pressable style={styles.headerIconBtn}>
+        <Pressable style={styles.headerIconBtn} onPress={onPressSearch}>
           <Ionicons name="search" size={20} color="#FFF" />
         </Pressable>
         <Pressable style={styles.headerIconBtn}>
@@ -324,6 +333,285 @@ function NetworkingHeader() {
         </Pressable>
       </View>
     </View>
+  );
+}
+
+// ─── Search Overlay ──────────────────────────────────────────────────────────
+
+const SEARCH_FILTERS = [
+  "All",
+  "Jobs",
+  "Internships",
+  "People",
+  "Groups",
+  "Events",
+  "Open Doors",
+] as const;
+type SearchFilter = (typeof SEARCH_FILTERS)[number];
+
+type SearchResult = {
+  key: string;
+  kind: Exclude<SearchFilter, "All">;
+  title: string;
+  subtitle: string;
+  tags: string[];
+  searchable: string;
+};
+
+/** Map an opportunity onto one of the search filter kinds. */
+function classifyOpportunity(o: Opportunity): SearchResult["kind"] {
+  const t = o.type.toLowerCase();
+  if (t.includes("intern")) return "Internships";
+  if (t.includes("collab") || t.includes("co-found") || t.includes("founding"))
+    return "Open Doors";
+  if (t === "event" || t.includes("event")) return "Events";
+  return "Jobs";
+}
+
+function NetworkingSearchOverlay({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<SearchFilter>("All");
+  const [opps, setOpps] = useState<Opportunity[]>([]);
+
+  const apiBase = useMemo(() => {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    return domain ? `https://${domain}` : "";
+  }, []);
+
+  // Lazy-load opportunities the first time the overlay opens. The API is
+  // single-flight + 10-min-cached so this is cheap even if other components
+  // (OpportunitiesSection) also called it.
+  useEffect(() => {
+    if (!visible || !apiBase) return;
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/opportunities`, {
+          signal: ctrl.signal,
+        });
+        if (!res.ok) return;
+        const data: OpportunitiesResponse = await res.json();
+        if (ctrl.signal.aborted) return;
+        setOpps(data.opportunities);
+      } catch {
+        /* swallow — search still works on People + Groups */
+      }
+    })();
+    return () => ctrl.abort();
+  }, [visible, apiBase]);
+
+  // Build a unified, searchable index every time inputs change.
+  const results = useMemo<SearchResult[]>(() => {
+    const peopleResults: SearchResult[] = PEOPLE.map((p) => ({
+      key: `person-${p.name}`,
+      kind: "People",
+      title: p.name,
+      subtitle: `${p.role} · ${p.org}`,
+      tags: p.skills,
+      searchable: [
+        p.name,
+        p.role,
+        p.org,
+        p.location,
+        p.openTo,
+        ...p.skills,
+      ]
+        .join(" ")
+        .toLowerCase(),
+    }));
+
+    const groupResults: SearchResult[] = WORK_GROUPS.map((g) => ({
+      key: `group-${g.title}`,
+      kind: "Groups",
+      title: g.title,
+      subtitle: `${g.members} members · ${g.online}`,
+      tags: ["Group", "Networking"],
+      searchable: [g.title, g.members, g.online, "group", "networking"]
+        .join(" ")
+        .toLowerCase(),
+    }));
+
+    const oppResults: SearchResult[] = opps.map((o) => ({
+      key: `opp-${o.id}`,
+      kind: classifyOpportunity(o),
+      title: o.title,
+      subtitle: `${o.company} · ${o.location || "Remote"}`,
+      tags: o.tags?.length ? o.tags : [o.type],
+      searchable: [
+        o.title,
+        o.company,
+        o.location,
+        o.type,
+        o.source,
+        ...(o.tags ?? []),
+      ]
+        .join(" ")
+        .toLowerCase(),
+    }));
+
+    const all = [...peopleResults, ...oppResults, ...groupResults];
+    const q = query.trim().toLowerCase();
+    return all.filter((item) => {
+      if (filter !== "All" && item.kind !== filter) return false;
+      if (!q) return true;
+      return item.searchable.includes(q);
+    });
+  }, [query, filter, opps]);
+
+  const showResults = query.trim().length > 0 || filter !== "All";
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="overFullScreen"
+      transparent
+      onRequestClose={onClose}
+    >
+      <View style={styles.searchOverlayRoot}>
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <View style={styles.blobPink} />
+          <View style={styles.blobEmerald} />
+        </View>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.searchHeaderRow}>
+            <Pressable
+              onPress={onClose}
+              style={styles.headerIconBtn}
+              hitSlop={8}
+            >
+              <Ionicons name="chevron-back" size={20} color="#FFF" />
+            </Pressable>
+            <Text style={styles.searchHeaderTitle}>Search</Text>
+            <View style={{ width: 42 }} />
+          </View>
+
+          <View style={styles.searchInputWrap}>
+            <Ionicons
+              name="search"
+              size={18}
+              color="#F9A8D4"
+              style={{ marginLeft: 16 }}
+            />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search jobs, internships, people, groups, open doors…"
+              placeholderTextColor="#71717A"
+              style={styles.searchInput}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+            />
+            {query.length > 0 && (
+              <Pressable
+                onPress={() => setQuery("")}
+                style={{ paddingHorizontal: 14 }}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={18} color="#A1A1AA" />
+              </Pressable>
+            )}
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.searchChipsRow}
+          >
+            {SEARCH_FILTERS.map((item) => {
+              const active = filter === item;
+              return (
+                <Pressable
+                  key={item}
+                  onPress={() => setFilter(item)}
+                  style={[
+                    styles.searchChip,
+                    active && styles.searchChipActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.searchChipText,
+                      active && styles.searchChipTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.searchResultsList}
+            keyboardShouldPersistTaps="handled"
+          >
+            {!showResults ? (
+              <View style={styles.searchHintCard}>
+                <Ionicons name="search-circle" size={36} color="#F472B6" />
+                <Text style={styles.searchHintTitle}>
+                  Find your next opportunity
+                </Text>
+                <Text style={styles.searchHintSub}>
+                  Search across jobs, internships, collabs, people, and work
+                  groups.
+                </Text>
+              </View>
+            ) : results.length === 0 ? (
+              <View style={styles.searchEmptyCard}>
+                <Text style={styles.searchEmptyTitle}>Nothing found yet</Text>
+                <Text style={styles.searchEmptySub}>
+                  Post an open door and help someone connect.
+                </Text>
+                <Pressable style={styles.searchEmptyBtn}>
+                  <Text style={styles.searchEmptyBtnText}>
+                    Post an Open Door
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              results.map((item) => (
+                <View key={item.key} style={styles.searchResultCard}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={styles.searchKindPill}>
+                      <Text style={styles.searchKindPillText}>{item.kind}</Text>
+                    </View>
+                    <Text style={styles.searchResultTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.searchResultSub} numberOfLines={1}>
+                      {item.subtitle}
+                    </Text>
+                    <View style={styles.searchResultTagsRow}>
+                      {item.tags.slice(0, 3).map((tag) => (
+                        <View key={tag} style={styles.searchResultTag}>
+                          <Text style={styles.searchResultTagText}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                  <Pressable style={styles.searchResultOpenBtn}>
+                    <Text style={styles.searchResultOpenText}>Open</Text>
+                  </Pressable>
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   );
 }
 
@@ -926,6 +1214,200 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
+  },
+
+  // ── Search overlay ─────────────────────────────────────────────────────
+  searchOverlayRoot: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  searchHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 60 : 24,
+    paddingBottom: 12,
+  },
+  searchHeaderTitle: {
+    color: "#FFF",
+    fontSize: 18,
+    fontFamily: "Sora_800ExtraBold",
+    fontWeight: "900",
+    letterSpacing: -0.4,
+  },
+  searchInputWrap: {
+    marginHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(244,114,182,0.25)",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    height: 48,
+  },
+  searchInput: {
+    flex: 1,
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "600",
+    paddingHorizontal: 12,
+    height: 48,
+    outlineStyle: "none" as unknown as undefined,
+  },
+  searchChipsRow: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  searchChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  searchChipActive: {
+    borderColor: "transparent",
+    backgroundColor: "#EC4899",
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  searchChipText: {
+    color: "#A1A1AA",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  searchChipTextActive: {
+    color: "#FFF",
+  },
+  searchResultsList: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    gap: 12,
+  },
+  searchHintCard: {
+    marginTop: 32,
+    alignItems: "center",
+    padding: 28,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    gap: 8,
+  },
+  searchHintTitle: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  searchHintSub: {
+    color: "#A1A1AA",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  searchEmptyCard: {
+    marginTop: 24,
+    alignItems: "center",
+    padding: 28,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(244,114,182,0.20)",
+    backgroundColor: "rgba(236,72,153,0.10)",
+    gap: 8,
+  },
+  searchEmptyTitle: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  searchEmptySub: {
+    color: "#A1A1AA",
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  searchEmptyBtn: {
+    marginTop: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#EC4899",
+  },
+  searchEmptyBtnText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  searchResultCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  searchKindPill: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(236,72,153,0.15)",
+  },
+  searchKindPillText: {
+    color: "#F9A8D4",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+  },
+  searchResultTitle: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 8,
+  },
+  searchResultSub: {
+    color: "#A1A1AA",
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  searchResultTagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 8,
+  },
+  searchResultTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  searchResultTagText: {
+    color: "#D4D4D8",
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  searchResultOpenBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#EC4899",
+  },
+  searchResultOpenText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "900",
   },
 
   // Stats / actions row (4-up grid)
