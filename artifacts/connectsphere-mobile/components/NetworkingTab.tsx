@@ -21,7 +21,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import type { ComponentProps } from "react";
+import { createElement, type ComponentProps } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -37,46 +37,102 @@ import {
 } from "react-native";
 
 /**
- * Open an external URL in a way that works on iOS, Android, AND inside
- * the Replit canvas iframe.
- *
- * Why this is non-trivial on web: `Linking.openURL` on React Native Web
- * delegates to `window.open(url, '_self')` by default, which inside a
- * sandboxed iframe either does nothing or navigates the iframe itself
- * (so the user sees no change). We explicitly:
- *   1. Try `window.open(url, '_blank', ...)` to pop a new tab.
- *   2. If the popup is blocked (returns null), navigate the top frame.
- *   3. As a last resort, synthesize an <a target="_blank"> click.
+ * Validate and clean an opportunity's `applyUrl`. Returns the url if it's
+ * an https link to a real external destination, otherwise null. Rejects:
+ *   - empty / "#" placeholders
+ *   - the parked connectsphere.app domain (ad networks redirect parked
+ *     domains to junk like SearchHounds)
+ *   - non-https schemes (avoids tel:, mailto:, intent:// abuse)
  */
-async function openExternal(url: string): Promise<void> {
-  if (Platform.OS !== "web") {
-    await Linking.openURL(url);
-    return;
+function validateApplyUrl(applyUrl: string | undefined | null): string | null {
+  const url = applyUrl?.trim();
+  if (!url || url === "#") return null;
+  if (/^https?:\/\/(www\.)?connectsphere\.app\//i.test(url)) return null;
+  if (!/^https:\/\//i.test(url)) return null;
+  return url;
+}
+
+/**
+ * Open an external URL on native (web uses an actual <a target="_blank">
+ * element rendered by ApplyButton — see below — because window.open is
+ * blocked inside the Replit canvas iframe sandbox).
+ */
+async function openExternalNative(url: string): Promise<void> {
+  await Linking.openURL(url);
+}
+
+/**
+ * Apply button.
+ *
+ * On native (iOS/Android) we render a Pressable + Linking.openURL.
+ * On web we render an actual HTML <a target="_blank"> element so the
+ * browser treats the click as a native user-gesture navigation — this is
+ * the only thing that reliably escapes the Replit canvas iframe sandbox
+ * (window.open + window.top.location both get blocked cross-origin).
+ *
+ * If the URL is missing/invalid we render a Pressable on both platforms
+ * that fires `onInvalid` to show the "coming soon" alert.
+ */
+function ApplyButton({
+  url,
+  onInvalid,
+}: {
+  url: string | null;
+  onInvalid: () => void;
+}) {
+  const label = (
+    <Text style={styles.applyBtnText}>Apply</Text>
+  );
+
+  // Web + valid url → real anchor. createElement avoids needing a JSX
+  // intrinsic for 'a' (this file is RN, not DOM).
+  if (Platform.OS === "web" && url) {
+    return createElement(
+      "a",
+      {
+        href: url,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        style: {
+          flex: 1,
+          backgroundColor: "#34D399",
+          paddingTop: 9,
+          paddingBottom: 9,
+          borderRadius: 999,
+          textAlign: "center",
+          color: "#000",
+          fontSize: 12,
+          fontWeight: 900,
+          textDecoration: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        },
+      },
+      "Apply",
+    );
   }
-  // Web (incl. iframe-embedded preview):
-  const win = (globalThis as { window?: Window }).window;
-  if (!win) return;
-  const popup = win.open(url, "_blank", "noopener,noreferrer");
-  if (popup) return;
-  // Popup blocked — try escaping the iframe.
-  try {
-    const top = win.top ?? win;
-    top.location.href = url;
-    return;
-  } catch {
-    /* cross-origin frame — fall through */
-  }
-  // Last resort: anchor click trick (some browsers allow this even when
-  // window.open is blocked because it's a user-gesture navigation).
-  const doc = (globalThis as { document?: Document }).document;
-  if (!doc) return;
-  const a = doc.createElement("a");
-  a.href = url;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  doc.body.appendChild(a);
-  a.click();
-  a.remove();
+
+  // Native (or web with no url) → Pressable.
+  return (
+    <Pressable
+      onPress={async () => {
+        if (!url) {
+          onInvalid();
+          return;
+        }
+        try {
+          await openExternalNative(url);
+        } catch {
+          Alert.alert("Couldn't open link", url);
+        }
+      }}
+      style={({ pressed }) => [styles.applyBtn, pressed && styles.pressed96]}
+    >
+      {label}
+    </Pressable>
+  );
 }
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
@@ -505,33 +561,11 @@ function OpportunitiesSection() {
     });
   }, []);
 
-  const onApply = useCallback(async (o: Opportunity) => {
-    // Reject missing / placeholder URLs and the parked connectsphere.app
-    // domain (ad networks redirect parked domains to junk like SearchHounds).
-    const url = o.applyUrl?.trim();
-    const isParked =
-      !!url && /^https?:\/\/(www\.)?connectsphere\.app\//i.test(url);
-    if (!url || url === "#" || isParked) {
-      Alert.alert(
-        "Apply",
-        "Apply link coming soon. This opportunity is not connected yet.",
-      );
-      return;
-    }
-    // Only open https links — provider-supplied URLs could otherwise trigger
-    // unsafe deep-link schemes (tel:, mailto:, intent://, etc.).
-    if (!/^https:\/\//i.test(url)) {
-      Alert.alert(
-        "Apply",
-        "Apply link coming soon. This opportunity is not connected yet.",
-      );
-      return;
-    }
-    try {
-      await openExternal(url);
-    } catch {
-      Alert.alert("Couldn't open link", url);
-    }
+  const onApplyInvalid = useCallback(() => {
+    Alert.alert(
+      "Apply",
+      "Apply link coming soon. This opportunity is not connected yet.",
+    );
   }, []);
 
   const onShare = useCallback(async (o: Opportunity) => {
@@ -627,7 +661,7 @@ function OpportunitiesSection() {
               key={o.id}
               opportunity={o}
               saved={savedIds.has(o.id)}
-              onApply={() => onApply(o)}
+              onApplyInvalid={onApplyInvalid}
               onSave={() => toggleSave(o.id)}
               onShare={() => onShare(o)}
               onJoinGroup={() => onJoinGroup(o)}
@@ -644,18 +678,19 @@ function OpportunitiesSection() {
 function OpportunityCard({
   opportunity,
   saved,
-  onApply,
+  onApplyInvalid,
   onSave,
   onShare,
   onJoinGroup,
 }: {
   opportunity: Opportunity;
   saved: boolean;
-  onApply: () => void;
+  onApplyInvalid: () => void;
   onSave: () => void;
   onShare: () => void;
   onJoinGroup: () => void;
 }) {
+  const validUrl = validateApplyUrl(opportunity.applyUrl);
   return (
     <View style={styles.opportunityCard}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
@@ -694,12 +729,7 @@ function OpportunityCard({
       </View>
 
       <View style={styles.opportunityActionRow}>
-        <Pressable
-          onPress={onApply}
-          style={({ pressed }) => [styles.applyBtn, pressed && styles.pressed96]}
-        >
-          <Text style={styles.applyBtnText}>Apply</Text>
-        </Pressable>
+        <ApplyButton url={validUrl} onInvalid={onApplyInvalid} />
         <Pressable
           onPress={onSave}
           style={({ pressed }) => [
