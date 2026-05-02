@@ -1,4 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
@@ -618,6 +619,11 @@ export default function DiscoverScreen() {
             if (h > 0 && h !== measuredCardH) setMeasuredCardH(h);
           }}
         >
+          {/* Stack ghosts behind the active card for depth (mirrors web
+              `inset-x-3 bottom-[-14px]` and `inset-x-6 bottom-[-26px]`). */}
+          <View pointerEvents="none" style={[styles.ghostCard, styles.ghostCard1]} />
+          <View pointerEvents="none" style={[styles.ghostCard, styles.ghostCard2]} />
+
           {profile ? (
             <SwipeDeck
               key={`deck-${activeIntent}-${activeSubTab}`}
@@ -819,16 +825,39 @@ const styles = StyleSheet.create({
   noticeText: { color: "#FCE7F3", fontSize: 12, fontWeight: "700" },
 
   // Card area + deck. flex:1 so it fills the rest of the viewport in the
-  // no-scroll layout. Web spec: `mt-3 flex-1 pl-1 pr-[68px]`.
+  // no-scroll layout. Web spec: `mt-3 flex-1 pl-1 pr-[86px]` with the card
+  // sitting at left-0 and width=section-88, so the inner deck spans the
+  // section minus an 88px right gutter for the larger 66×66 rail.
   cardArea: {
     flex: 1,
     minHeight: 0,
     marginTop: 12,
-    paddingLeft: 4,
-    paddingRight: 68,
+    paddingLeft: 0,
+    paddingRight: 88,
     position: "relative",
     alignItems: "stretch",
     justifyContent: "flex-start",
+  },
+  // Two faint pink "ghost" cards stacked behind the live deck. They peek out
+  // below the main card to give the feed real physical depth.
+  ghostCard: {
+    position: "absolute",
+    height: "100%",
+    borderRadius: 34,
+    borderWidth: 1,
+    backgroundColor: "rgba(236,72,153,0.05)",
+  },
+  ghostCard1: {
+    left: 12,
+    right: 12,
+    bottom: -14,
+    borderColor: "rgba(236,72,153,0.15)",
+  },
+  ghostCard2: {
+    left: 24,
+    right: 24,
+    bottom: -26,
+    borderColor: "rgba(236,72,153,0.10)",
   },
   deckCard: {
     position: "absolute",
@@ -838,12 +867,12 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    borderRadius: 30, overflow: "hidden",
-    // Web spec: `border border-pink-400/40 shadow-[0_0_45px_rgba(236,72,153,0.25)]`
-    borderWidth: 1, borderColor: "rgba(244,114,182,0.40)",
+    borderRadius: 34, overflow: "hidden",
+    // Web spec: `border border-pink-400/45 shadow-[0_0_65px_rgba(236,72,153,0.35)]`
+    borderWidth: 1, borderColor: "rgba(244,114,182,0.45)",
     backgroundColor: "#000",
-    shadowColor: "#EC4899", shadowOpacity: 0.25, shadowRadius: 22, shadowOffset: { width: 0, height: 0 },
-    elevation: 16,
+    shadowColor: "#EC4899", shadowOpacity: 0.35, shadowRadius: 32, shadowOffset: { width: 0, height: 0 },
+    elevation: 22,
   },
   cardImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
 
@@ -1475,7 +1504,7 @@ function RailButton({
           },
         ]}
       >
-        <Ionicons name={icon} size={24} color={palette.text} />
+        <Ionicons name={icon} size={28} color={palette.text} />
       </View>
       <Text style={railStyles.label}>{label}</Text>
       <Text style={railStyles.sub}>{sub}</Text>
@@ -1484,47 +1513,49 @@ function RailButton({
 }
 
 const railStyles = StyleSheet.create({
-  // Sits in the 68px right gutter created by `cardArea.paddingRight`. Web
-  // spec: `right-0` flush + 52×52 buttons with `gap-4` between them.
+  // Sits in the 88px right gutter created by `cardArea.paddingRight`. Web
+  // spec: `right-2` (8px from section edge) + 66×66 buttons with `gap-6`
+  // (24px) between them. Anchored via `right: -76` so the rail's right
+  // edge lands ~8px inside the section's outer right edge.
   rail: {
     position: "absolute",
-    right: -68,
+    right: -76,
     top: 0,
     bottom: 0,
-    width: 52,
+    width: 66,
     alignItems: "center",
     justifyContent: "center",
-    gap: 16,
+    gap: 24,
   },
   button: {
     alignItems: "center",
   },
   circle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    shadowOpacity: 0.55,
-    shadowRadius: 14,
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
+    elevation: 8,
   },
   label: {
-    marginTop: 6,
-    fontSize: 9,
+    marginTop: 8,
+    fontSize: 10,
     fontWeight: "900",
-    letterSpacing: 1.4,
+    letterSpacing: 1.8,
     color: "#FFF",
   },
   sub: {
-    marginTop: 1,
+    marginTop: 2,
     textAlign: "center",
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: "600",
-    color: "#71717A",
-    lineHeight: 10,
+    color: "#A1A1AA",
+    lineHeight: 11,
   },
 });
 
@@ -1666,10 +1697,14 @@ function SwipeCard({
       {/* Tap surface for the image area — tap-to-expand. PanResponder will
           take over once the user moves, leaving taps to fall through. */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onOpenProfile}>
-        <Image
+        {/* expo-image's `contentPosition` mirrors CSS `object-position: center 25%`,
+            anchoring the focal point near the top so faces stay visible. */}
+        <ExpoImage
           source={{ uri: profile.image }}
           style={deckStyles.cardImage}
-          resizeMode="cover"
+          contentFit="cover"
+          contentPosition={{ top: "25%", left: "50%" }}
+          transition={150}
         />
 
         {/* Cinematic dark gradient */}
