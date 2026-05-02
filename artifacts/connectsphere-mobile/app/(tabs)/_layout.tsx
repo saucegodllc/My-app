@@ -19,12 +19,16 @@ type IconPair = {
   inactive: keyof typeof Ionicons.glyphMap;
 };
 
+// Lucide-equivalent glyph mapping requested by the user. `lucide-react-native`
+// isn't installed, so we use the closest Ionicons visual matches:
+//   Compass → compass, Users → people, Calendar → calendar,
+//   MapPin → location, User → person.
 const ICONS: Record<string, IconPair> = {
-  index: { active: "flame", inactive: "flame-outline" },
-  matches: { active: "chatbubble-ellipses", inactive: "chatbubble-ellipses-outline" },
+  index: { active: "compass", inactive: "compass-outline" },
+  matches: { active: "people", inactive: "people-outline" },
   events: { active: "calendar", inactive: "calendar-outline" },
   map: { active: "location", inactive: "location-outline" },
-  profile: { active: "person-circle", inactive: "person-circle-outline" },
+  profile: { active: "person", inactive: "person-outline" },
 };
 
 const LABELS: Record<string, string> = {
