@@ -1451,21 +1451,21 @@ function SwipeCard({
         pointerEvents="none"
         style={[deckStyles.overlayPass, { opacity: passOpacity }]}
       >
-        <Text style={deckStyles.overlayPassText}>PASS</Text>
+        <Ionicons name="close" size={48} color="#FB7185" />
       </Animated.View>
 
       <Animated.View
         pointerEvents="none"
         style={[deckStyles.overlayVibe, { opacity: vibeOpacity }]}
       >
-        <Text style={deckStyles.overlayVibeText}>VIBE</Text>
+        <Ionicons name="heart" size={48} color="#F472B6" />
       </Animated.View>
 
       <View pointerEvents="none" style={deckStyles.overlaySparkWrap}>
         <Animated.View
           style={[deckStyles.overlaySpark, { opacity: sparkOpacity }]}
         >
-          <Text style={deckStyles.overlaySparkText}>SPARK</Text>
+          <Ionicons name="flash" size={56} color="#6EE7B7" />
         </Animated.View>
       </View>
 
@@ -1698,58 +1698,55 @@ const deckStyles = StyleSheet.create({
     position: "absolute",
     top: 96,
     left: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#FB7185",
-    backgroundColor: "rgba(0,0,0,0.6)",
-    transform: [{ rotate: "-14deg" }],
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 1,
+    borderColor: "rgba(251,113,133,0.4)",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#F43F5E",
-    shadowOpacity: 0.55,
-    shadowRadius: 24,
+    shadowOpacity: 0.6,
+    shadowRadius: 28,
   },
-  overlayPassText: { color: "#FB7185", fontSize: 36, fontWeight: "900" },
 
   overlayVibe: {
     position: "absolute",
     top: 96,
     right: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#F472B6",
-    backgroundColor: "rgba(0,0,0,0.6)",
-    transform: [{ rotate: "14deg" }],
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 1,
+    borderColor: "rgba(244,114,182,0.4)",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#EC4899",
-    shadowOpacity: 0.6,
-    shadowRadius: 24,
+    shadowOpacity: 0.7,
+    shadowRadius: 28,
   },
-  overlayVibeText: { color: "#FBCFE8", fontSize: 36, fontWeight: "900" },
 
   overlaySparkWrap: {
     position: "absolute",
-    top: 80,
+    top: 64,
     left: 0,
     right: 0,
     alignItems: "center",
   },
   overlaySpark: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#6EE7B7",
-    backgroundColor: "rgba(0,0,0,0.6)",
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    borderWidth: 1,
+    borderColor: "rgba(110,231,183,0.4)",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#34D399",
-    shadowOpacity: 0.6,
-    shadowRadius: 24,
-  },
-  overlaySparkText: {
-    color: "#6EE7B7",
-    fontSize: 36,
-    fontWeight: "900",
+    shadowOpacity: 0.85,
+    shadowRadius: 36,
   },
 
   // Bottom info
