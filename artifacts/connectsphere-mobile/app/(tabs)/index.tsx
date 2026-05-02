@@ -557,17 +557,19 @@ export default function DiscoverScreen() {
       <View
         style={[
           styles.main,
-          { paddingTop: topInset + 14, paddingBottom: bottomInset },
+          // Web spec: `pt-[calc(env(safe-area-inset-top)+42px)]` — give the
+          // header real breathing room below the status bar / dynamic island.
+          { paddingTop: topInset + 42, paddingBottom: bottomInset },
         ]}
       >
-        {/* Header — minimalist per the latest spec. One centered headline:
-            "Discover" in white + "Miami" in pink italic. No top neon line,
-            no MiamiNeon Yellowtail, no subtitle. */}
+        {/* Header — minimalist per the latest spec. Flex-row with gap-2 so
+            "Discover" (Sora sans-serif) and "Miami" (serif italic) sit side
+            by side on a shared baseline. No neon line, no subtitle. */}
         <View style={styles.header}>
-          <Text style={styles.titleHeadline}>
-            <Text style={styles.titleHeadlineWord}>Discover </Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.titleHeadlineWord}>Discover</Text>
             <Text style={styles.titleHeadlineMiami}>Miami</Text>
-          </Text>
+          </View>
         </View>
 
         {/* Intent Tabs */}
@@ -751,31 +753,41 @@ const styles = StyleSheet.create({
   // exactly one viewport (h-screen overflow-hidden in the web spec).
   main: { flex: 1, paddingHorizontal: 16 },
 
-  // Header — minimalist single headline (web spec: `pb-2 text-center`).
+  // Header — minimalist single headline (web spec: `shrink-0 pb-3 text-center`).
   header: {
     alignItems: "center",
-    paddingBottom: 8,
+    paddingBottom: 12,
   },
-  // Single-line headline: "Discover " (white) + "Miami" (pink italic).
-  titleHeadline: {
-    textAlign: "center",
-    fontSize: 32,
-    lineHeight: 36,
+  // Web spec: `flex items-center justify-center gap-2`. Baseline alignment
+  // keeps the sans-serif and serif italic words sitting on the same line.
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "center",
+    gap: 8,
   },
+  // Web spec: `font-[Sora] text-[30px] font-black tracking-[-0.05em] text-white`.
   titleHeadlineWord: {
     color: "#FFF",
     fontFamily: "Sora_800ExtraBold",
     fontWeight: "900",
-    letterSpacing: -1.4,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -1.5,
   },
+  // Web spec: `font-serif text-[30px] italic text-pink-300
+  // drop-shadow-[0_0_18px_rgba(236,72,153,0.9)]`. RN doesn't ship Sora-Italic
+  // and there's no serif font loaded, so we lean on the system serif
+  // (Georgia on iOS, Noto Serif on Android) which gives the same elegant
+  // italic feel as the web mockup.
   titleHeadlineMiami: {
     color: "#F9A8D4",
-    fontFamily: "Sora_800ExtraBold",
-    fontWeight: "900",
+    fontFamily: Platform.select({ ios: "Georgia", android: "serif", default: "serif" }),
     fontStyle: "italic",
-    letterSpacing: -1.4,
-    textShadowColor: "rgba(236,72,153,0.55)",
-    textShadowRadius: 12,
+    fontSize: 30,
+    lineHeight: 34,
+    textShadowColor: "rgba(236,72,153,0.9)",
+    textShadowRadius: 18,
     textShadowOffset: { width: 0, height: 0 },
   },
   // Thin neon top line above the title (web `w-24 h-[2px]`).
