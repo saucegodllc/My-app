@@ -345,28 +345,60 @@ const SEARCH_FILTERS = [
   "People",
   "Groups",
   "Events",
-  "Open Doors",
 ] as const;
 type SearchFilter = (typeof SEARCH_FILTERS)[number];
 
+type SearchKind = Exclude<SearchFilter, "All">;
+
 type SearchResult = {
   key: string;
-  kind: Exclude<SearchFilter, "All">;
+  kind: SearchKind;
   title: string;
   subtitle: string;
   tags: string[];
+  action: "Apply" | "View" | "Join";
   searchable: string;
 };
 
 /** Map an opportunity onto one of the search filter kinds. */
-function classifyOpportunity(o: Opportunity): SearchResult["kind"] {
+function classifyOpportunity(o: Opportunity): SearchKind {
   const t = o.type.toLowerCase();
   if (t.includes("intern")) return "Internships";
-  if (t.includes("collab") || t.includes("co-found") || t.includes("founding"))
-    return "Open Doors";
   if (t === "event" || t.includes("event")) return "Events";
   return "Jobs";
 }
+
+/** Color theme per result kind, mirroring the web spec. */
+const KIND_THEME: Record<
+  SearchKind,
+  { bg: string; fg: string; border: string }
+> = {
+  People: {
+    bg: "rgba(236,72,153,0.15)",
+    fg: "#F9A8D4",
+    border: "rgba(244,114,182,0.20)",
+  },
+  Jobs: {
+    bg: "rgba(16,185,129,0.15)",
+    fg: "#6EE7B7",
+    border: "rgba(52,211,153,0.20)",
+  },
+  Internships: {
+    bg: "rgba(59,130,246,0.15)",
+    fg: "#93C5FD",
+    border: "rgba(96,165,250,0.20)",
+  },
+  Groups: {
+    bg: "rgba(168,85,247,0.15)",
+    fg: "#D8B4FE",
+    border: "rgba(192,132,252,0.20)",
+  },
+  Events: {
+    bg: "rgba(249,115,22,0.15)",
+    fg: "#FDBA74",
+    border: "rgba(251,146,60,0.20)",
+  },
+};
 
 function NetworkingSearchOverlay({
   visible,
@@ -414,6 +446,7 @@ function NetworkingSearchOverlay({
       title: p.name,
       subtitle: `${p.role} · ${p.org}`,
       tags: p.skills,
+      action: "View",
       searchable: [
         p.name,
         p.role,
@@ -432,6 +465,7 @@ function NetworkingSearchOverlay({
       title: g.title,
       subtitle: `${g.members} members · ${g.online}`,
       tags: ["Group", "Networking"],
+      action: "Join",
       searchable: [g.title, g.members, g.online, "group", "networking"]
         .join(" ")
         .toLowerCase(),
@@ -443,6 +477,7 @@ function NetworkingSearchOverlay({
       title: o.title,
       subtitle: `${o.company} · ${o.location || "Remote"}`,
       tags: o.tags?.length ? o.tags : [o.type],
+      action: "Apply",
       searchable: [
         o.title,
         o.company,
@@ -455,7 +490,8 @@ function NetworkingSearchOverlay({
         .toLowerCase(),
     }));
 
-    const all = [...peopleResults, ...oppResults, ...groupResults];
+    // Opportunities first (matches the web spec ordering).
+    const all = [...oppResults, ...peopleResults, ...groupResults];
     const q = query.trim().toLowerCase();
     return all.filter((item) => {
       if (filter !== "All" && item.kind !== filter) return false;
@@ -496,68 +532,72 @@ function NetworkingSearchOverlay({
             <View style={{ width: 42 }} />
           </View>
 
-          <View style={styles.searchInputWrap}>
-            <Ionicons
-              name="search"
-              size={18}
-              color="#F9A8D4"
-              style={{ marginLeft: 16 }}
-            />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search jobs, internships, people, groups, open doors…"
-              placeholderTextColor="#71717A"
-              style={styles.searchInput}
-              autoCorrect={false}
-              autoCapitalize="none"
-              returnKeyType="search"
-            />
-            {query.length > 0 && (
-              <Pressable
-                onPress={() => setQuery("")}
-                style={{ paddingHorizontal: 14 }}
-                hitSlop={8}
-              >
-                <Ionicons name="close" size={18} color="#A1A1AA" />
-              </Pressable>
-            )}
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.searchChipsRow}
-          >
-            {SEARCH_FILTERS.map((item) => {
-              const active = filter === item;
-              return (
-                <Pressable
-                  key={item}
-                  onPress={() => setFilter(item)}
-                  style={[
-                    styles.searchChip,
-                    active && styles.searchChipActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.searchChipText,
-                      active && styles.searchChipTextActive,
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={styles.searchResultsList}
+            contentContainerStyle={styles.searchScrollContent}
             keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
+            {/* Glassy pink-bordered card wrapping the input + filter chips. */}
+            <View style={styles.searchCard}>
+              <View style={styles.searchInputWrap}>
+                <Ionicons
+                  name="search"
+                  size={18}
+                  color="#F9A8D4"
+                  style={{ marginLeft: 16 }}
+                />
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="Search jobs, internships, people, groups…"
+                  placeholderTextColor="#71717A"
+                  style={styles.searchInput}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  returnKeyType="search"
+                />
+                {query.length > 0 && (
+                  <Pressable
+                    onPress={() => setQuery("")}
+                    style={{ paddingHorizontal: 14 }}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="close" size={18} color="#A1A1AA" />
+                  </Pressable>
+                )}
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.searchChipsRow}
+              >
+                {SEARCH_FILTERS.map((item) => {
+                  const active = filter === item;
+                  return (
+                    <Pressable
+                      key={item}
+                      onPress={() => setFilter(item)}
+                      style={[
+                        styles.searchChip,
+                        active && styles.searchChipActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.searchChipText,
+                          active && styles.searchChipTextActive,
+                        ]}
+                      >
+                        {item}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
             {!showResults ? (
               <View style={styles.searchHintCard}>
                 <Ionicons name="search-circle" size={36} color="#F472B6" />
@@ -569,49 +609,79 @@ function NetworkingSearchOverlay({
                   groups.
                 </Text>
               </View>
-            ) : results.length === 0 ? (
-              <View style={styles.searchEmptyCard}>
-                <Text style={styles.searchEmptyTitle}>Nothing found yet</Text>
-                <Text style={styles.searchEmptySub}>
-                  Post an open door and help someone connect.
-                </Text>
-                <Pressable style={styles.searchEmptyBtn}>
-                  <Text style={styles.searchEmptyBtnText}>
-                    Post an Open Door
-                  </Text>
-                </Pressable>
-              </View>
             ) : (
-              results.map((item) => (
-                <View key={item.key} style={styles.searchResultCard}>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <View style={styles.searchKindPill}>
-                      <Text style={styles.searchKindPillText}>{item.kind}</Text>
-                    </View>
-                    <Text style={styles.searchResultTitle} numberOfLines={1}>
-                      {item.title}
-                    </Text>
-                    <Text style={styles.searchResultSub} numberOfLines={1}>
-                      {item.subtitle}
-                    </Text>
-                    <View style={styles.searchResultTagsRow}>
-                      {item.tags.slice(0, 3).map((tag) => (
-                        <View key={tag} style={styles.searchResultTag}>
-                          <Text style={styles.searchResultTagText}>{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                  <Pressable style={styles.searchResultOpenBtn}>
-                    <Text style={styles.searchResultOpenText}>Open</Text>
-                  </Pressable>
+              <>
+                <View style={styles.searchResultsHeader}>
+                  <Text style={styles.searchResultsCount}>
+                    {results.length} results
+                  </Text>
+                  <Text style={styles.searchResultsSub}>
+                    Open doors nearby
+                  </Text>
                 </View>
-              ))
+
+                {results.length === 0 ? (
+                  <View style={styles.searchEmptyCard}>
+                    <Text style={styles.searchEmptyTitle}>No results yet</Text>
+                    <Text style={styles.searchEmptySub}>
+                      Post an open door and help someone connect.
+                    </Text>
+                    <Pressable style={styles.searchEmptyBtn}>
+                      <Text style={styles.searchEmptyBtnText}>
+                        Post an Open Door
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  results.map((item) => (
+                    <SearchResultCard key={item.key} item={item} />
+                  ))
+                )}
+              </>
             )}
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
     </Modal>
+  );
+}
+
+function SearchResultCard({ item }: { item: SearchResult }) {
+  const theme = KIND_THEME[item.kind];
+  return (
+    <View style={styles.searchResultCard}>
+      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View
+            style={[
+              styles.searchKindPill,
+              { backgroundColor: theme.bg, borderColor: theme.border },
+            ]}
+          >
+            <Text style={[styles.searchKindPillText, { color: theme.fg }]}>
+              {item.kind}
+            </Text>
+          </View>
+          <Text style={styles.searchResultTitle} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text style={styles.searchResultSub} numberOfLines={1}>
+            {item.subtitle}
+          </Text>
+        </View>
+        <Pressable style={styles.searchResultActionBtn}>
+          <Text style={styles.searchResultActionText}>{item.action}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.searchResultTagsRow}>
+        {item.tags.slice(0, 4).map((tag) => (
+          <View key={tag} style={styles.searchResultTag}>
+            <Text style={styles.searchResultTagText}>{tag}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -1236,14 +1306,30 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -0.4,
   },
+  searchScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 96,
+    gap: 16,
+  },
+  searchCard: {
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "rgba(244,114,182,0.25)",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    padding: 12,
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.18,
+    shadowRadius: 35,
+    shadowOffset: { width: 0, height: 0 },
+  },
   searchInputWrap: {
-    marginHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(244,114,182,0.25)",
-    backgroundColor: "rgba(0,0,0,0.55)",
+    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(255,255,255,0.06)",
     height: 48,
   },
   searchInput: {
@@ -1256,12 +1342,13 @@ const styles = StyleSheet.create({
     outlineStyle: "none" as unknown as undefined,
   },
   searchChipsRow: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 4,
     gap: 8,
   },
   searchChip: {
-    paddingHorizontal: 14,
+    flexShrink: 0,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
@@ -1284,13 +1371,23 @@ const styles = StyleSheet.create({
   searchChipTextActive: {
     color: "#FFF",
   },
-  searchResultsList: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    gap: 12,
+  searchResultsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+  },
+  searchResultsCount: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  searchResultsSub: {
+    color: "#F9A8D4",
+    fontSize: 11,
+    fontWeight: "700",
   },
   searchHintCard: {
-    marginTop: 32,
     alignItems: "center",
     padding: 28,
     borderRadius: 24,
@@ -1312,7 +1409,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   searchEmptyCard: {
-    marginTop: 24,
     alignItems: "center",
     padding: 28,
     borderRadius: 24,
@@ -1345,49 +1441,46 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   searchResultCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
     padding: 16,
-    borderRadius: 24,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.10)",
     backgroundColor: "rgba(255,255,255,0.06)",
+    marginBottom: 12,
   },
   searchKindPill: {
     alignSelf: "flex-start",
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: "rgba(236,72,153,0.15)",
+    borderWidth: 1,
   },
   searchKindPillText: {
-    color: "#F9A8D4",
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "900",
     letterSpacing: 0.4,
   },
   searchResultTitle: {
     color: "#FFF",
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "900",
-    marginTop: 8,
+    marginTop: 12,
   },
   searchResultSub: {
     color: "#A1A1AA",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
-    marginTop: 2,
+    marginTop: 4,
   },
   searchResultTagsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginTop: 8,
+    gap: 8,
+    marginTop: 12,
   },
   searchResultTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.10)",
@@ -1395,16 +1488,21 @@ const styles = StyleSheet.create({
   },
   searchResultTagText: {
     color: "#D4D4D8",
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "700",
   },
-  searchResultOpenBtn: {
-    paddingHorizontal: 14,
+  searchResultActionBtn: {
+    flexShrink: 0,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: "#EC4899",
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.35,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 0 },
   },
-  searchResultOpenText: {
+  searchResultActionText: {
     color: "#FFF",
     fontSize: 11,
     fontWeight: "900",
