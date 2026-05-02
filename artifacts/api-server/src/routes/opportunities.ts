@@ -158,106 +158,259 @@ async function fetchNativePosts(): Promise<Opportunity[]> {
   return raw.map((r) => normalizeOpportunity(r, "ConnectSphere"));
 }
 
-async function fetchAdzuna(): Promise<Opportunity[]> {
-  // Real call would be:
-  //   GET https://api.adzuna.com/v1/api/jobs/us/search/1?app_id=...&app_key=...&where=miami
-  const raw: RawOpportunity[] = [
-    {
-      id: "adzuna-7821",
-      title: "Frontend Engineer",
-      company: "Magic Leap",
-      location: "Plantation, FL",
-      type: "Job",
-      tags: ["React", "TypeScript", "AR/VR"],
-      applyUrl: "https://www.adzuna.com/job/7821",
-      isRemote: false,
-      postedAt: new Date(Date.now() - 1000 * 60 * 47).toISOString(),
-    },
-    {
-      id: "adzuna-9982",
-      title: "Growth Marketing Lead",
-      company: "Papa",
-      location: "Miami, FL",
-      type: "Job",
-      tags: ["Growth", "Paid", "Lifecycle"],
-      applyUrl: "https://www.adzuna.com/job/9982",
-      postedAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    },
-  ];
-  return raw.map((r) => normalizeOpportunity(r, "Adzuna"));
+// HTTP helper with a per-provider timeout so a slow upstream can't stall a
+// whole refresh. Returns null on any failure (timeout / non-2xx / parse).
+async function fetchJsonWithTimeout<T>(url: string, timeoutMs = 8000): Promise<T | null> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { Accept: "application/json", "User-Agent": "ConnectSphere/1.0" },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
 }
+
+/** Best-effort job-type classifier from a free-form title. */
+function classifyType(title: string, fallback = "Job"): string {
+  const t = title.toLowerCase();
+  if (t.includes("intern")) return "Internship";
+  if (t.includes("co-founder") || t.includes("cofounder") || t.includes("founding")) return "Collab";
+  if (t.includes("contract") || t.includes("contractor")) return "Contract";
+  return fallback;
+}
+
+/** Pull the first N tags from a list of strings, dropping empties + dupes. */
+function pickTags(values: (string | undefined | null)[], n = 3): string[] {
+  const out: string[] = [];
+  for (const v of values) {
+    if (!v) continue;
+    const trimmed = v.trim();
+    if (!trimmed) continue;
+    if (!out.includes(trimmed)) out.push(trimmed);
+    if (out.length >= n) break;
+  }
+  return out;
+}
+
+// ─── Adzuna (requires API key — disabled until configured) ───────────────────
+
+async function fetchAdzuna(): Promise<Opportunity[]> {
+  // Adzuna requires app_id + app_key (free at https://developer.adzuna.com/).
+  // When you set ADZUNA_APP_ID / ADZUNA_APP_KEY, swap this body for:
+  //   const url = `https://api.adzuna.com/v1/api/jobs/us/search/1?app_id=${id}&app_key=${key}&where=miami&results_per_page=15&content-type=application/json`;
+  // Until then, return [] so we don't pollute the feed with fake links.
+  const id = process.env.ADZUNA_APP_ID;
+  const key = process.env.ADZUNA_APP_KEY;
+  if (!id || !key) return [];
+
+  type AdzunaResp = {
+    results?: Array<{
+      id: string | number;
+      title: string;
+      company?: { display_name?: string };
+      location?: { display_name?: string };
+      redirect_url: string;
+      created?: string;
+      category?: { label?: string };
+    }>;
+  };
+  const data = await fetchJsonWithTimeout<AdzunaResp>(
+    `https://api.adzuna.com/v1/api/jobs/us/search/1?app_id=${id}&app_key=${key}&where=miami&results_per_page=15&content-type=application/json`,
+  );
+  if (!data?.results) return [];
+  return data.results.map((j) =>
+    normalizeOpportunity(
+      {
+        id: `adzuna-${j.id}`,
+        title: j.title,
+        company: j.company?.display_name ?? "Unknown",
+        location: j.location?.display_name ?? "Remote",
+        type: classifyType(j.title),
+        tags: pickTags([j.category?.label]),
+        applyUrl: j.redirect_url,
+        postedAt: j.created ?? new Date().toISOString(),
+      },
+      "Adzuna",
+    ),
+  );
+}
+
+// ─── USAJOBS (requires API key — disabled until configured) ──────────────────
 
 async function fetchUSAJOBS(): Promise<Opportunity[]> {
-  // Real call: GET https://data.usajobs.gov/api/search?LocationName=Miami,FL
-  const raw: RawOpportunity[] = [
-    {
-      id: "usajobs-114455",
-      title: "Cybersecurity Analyst",
-      company: "U.S. Department of Homeland Security",
-      location: "Miami, FL",
-      type: "Job",
-      tags: ["Government", "Security", "Federal"],
-      applyUrl: "https://www.usajobs.gov/job/114455",
-      postedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    },
-  ];
-  return raw.map((r) => normalizeOpportunity(r, "USAJOBS"));
+  // USAJOBS requires User-Agent (your contact email) + Authorization-Key
+  // (free at https://developer.usajobs.gov/APIRequest/Index). Disabled until
+  // USAJOBS_USER_AGENT + USAJOBS_API_KEY are configured.
+  const ua = process.env.USAJOBS_USER_AGENT;
+  const key = process.env.USAJOBS_API_KEY;
+  if (!ua || !key) return [];
+
+  type USAResp = {
+    SearchResult?: {
+      SearchResultItems?: Array<{
+        MatchedObjectId: string;
+        MatchedObjectDescriptor: {
+          PositionTitle: string;
+          OrganizationName: string;
+          PositionURI: string;
+          PositionLocationDisplay: string;
+          PublicationStartDate: string;
+          JobCategory?: Array<{ Name: string }>;
+        };
+      }>;
+    };
+  };
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(
+      "https://data.usajobs.gov/api/search?LocationName=Miami,FL&ResultsPerPage=15",
+      {
+        signal: ctrl.signal,
+        headers: {
+          Host: "data.usajobs.gov",
+          "User-Agent": ua,
+          "Authorization-Key": key,
+        },
+      },
+    );
+    if (!res.ok) return [];
+    const data: USAResp = await res.json();
+    const items = data.SearchResult?.SearchResultItems ?? [];
+    return items.map((it) => {
+      const d = it.MatchedObjectDescriptor;
+      return normalizeOpportunity(
+        {
+          id: `usajobs-${it.MatchedObjectId}`,
+          title: d.PositionTitle,
+          company: d.OrganizationName,
+          location: d.PositionLocationDisplay,
+          type: "Job",
+          tags: pickTags((d.JobCategory ?? []).map((c) => c.Name)),
+          applyUrl: d.PositionURI,
+          postedAt: d.PublicationStartDate,
+        },
+        "USAJOBS",
+      );
+    });
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(t);
+  }
 }
+
+// ─── Greenhouse (LIVE — public job board API, no key required) ───────────────
+
+/** Public Greenhouse job boards we aggregate from. Add/remove as needed.
+ *  These are the company "board tokens" used by Greenhouse's hosted ATS. */
+const GREENHOUSE_BOARDS = ["airbnb", "doordash", "robinhood", "discord", "figma"];
 
 async function fetchGreenhouse(): Promise<Opportunity[]> {
-  // Real call: GET https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs
-  const raw: RawOpportunity[] = [
-    {
-      id: "gh-3344",
-      title: "Product Design Intern",
-      company: "Nike",
-      location: "Miami, FL",
-      type: "Internship",
-      tags: ["Design", "Figma", "Brand"],
-      applyUrl: "https://boards.greenhouse.io/nike/jobs/3344",
-      postedAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-    },
-    {
-      id: "gh-7711",
-      title: "Software Engineer Intern",
-      company: "Robinhood",
-      location: "Remote",
-      type: "Internship",
-      tags: ["Backend", "Go", "Fintech"],
-      applyUrl: "https://boards.greenhouse.io/robinhood/jobs/7711",
-      isRemote: true,
-      postedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    },
-  ];
-  return raw.map((r) => normalizeOpportunity(r, "Greenhouse"));
+  type GHResp = {
+    jobs?: Array<{
+      id: number;
+      title: string;
+      absolute_url: string;
+      location?: { name?: string };
+      updated_at?: string;
+      departments?: Array<{ name: string }>;
+      offices?: Array<{ name: string }>;
+    }>;
+  };
+
+  const results = await Promise.all(
+    GREENHOUSE_BOARDS.map(async (board) => {
+      const data = await fetchJsonWithTimeout<GHResp>(
+        `https://boards-api.greenhouse.io/v1/boards/${board}/jobs`,
+      );
+      if (!data?.jobs) return [];
+      // Take the 3 most-recently-updated postings per company so the feed
+      // stays fresh and varied without one company dominating it.
+      const sorted = [...data.jobs].sort(
+        (a, b) =>
+          new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime(),
+      );
+      return sorted.slice(0, 3).map((j) => {
+        const loc = j.location?.name ?? "Remote";
+        return normalizeOpportunity(
+          {
+            id: `gh-${board}-${j.id}`,
+            title: j.title,
+            // Capitalize the board token as a display name fallback.
+            company: board.charAt(0).toUpperCase() + board.slice(1),
+            location: loc,
+            type: classifyType(j.title),
+            tags: pickTags((j.departments ?? []).map((d) => d.name)),
+            applyUrl: j.absolute_url,
+            postedAt: j.updated_at,
+            isRemote: /remote/i.test(loc),
+          },
+          "Greenhouse",
+        );
+      });
+    }),
+  );
+
+  return results.flat();
 }
 
+// ─── Lever (LIVE — public postings API, no key required) ─────────────────────
+
+/** Public Lever job sites we aggregate from (URL slug under jobs.lever.co/...). */
+const LEVER_BOARDS = ["netflix", "brex", "ramp", "mixpanel", "scaleai"];
+
 async function fetchLever(): Promise<Opportunity[]> {
-  // Real call: GET https://api.lever.co/v0/postings/{company}?mode=json
-  const raw: RawOpportunity[] = [
-    {
-      id: "lever-22aa",
-      title: "Founding Engineer",
-      company: "Stealth (YC F25)",
-      location: "Miami, FL",
-      type: "Collab",
-      tags: ["Founding", "Equity", "AI"],
-      applyUrl: "https://jobs.lever.co/stealth/22aa",
-      postedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-    },
-    {
-      id: "lever-88zz",
-      title: "Developer Relations",
-      company: "Linear",
-      location: "Remote",
-      type: "Job",
-      tags: ["DevRel", "Content", "Community"],
-      applyUrl: "https://jobs.lever.co/linear/88zz",
-      isRemote: true,
-      postedAt: new Date(Date.now() - 1000 * 60 * 60 * 9).toISOString(),
-    },
-  ];
-  return raw.map((r) => normalizeOpportunity(r, "Lever"));
+  type LeverPosting = {
+    id: string;
+    text: string;
+    hostedUrl: string;
+    applyUrl?: string;
+    createdAt: number;
+    categories?: {
+      location?: string;
+      team?: string;
+      commitment?: string;
+      department?: string;
+    };
+    workplaceType?: string; // "remote" | "on-site" | "hybrid"
+  };
+
+  const results = await Promise.all(
+    LEVER_BOARDS.map(async (board) => {
+      const data = await fetchJsonWithTimeout<LeverPosting[]>(
+        `https://api.lever.co/v0/postings/${board}?mode=json`,
+      );
+      if (!Array.isArray(data)) return [];
+      const sorted = [...data].sort((a, b) => b.createdAt - a.createdAt);
+      return sorted.slice(0, 3).map((p) => {
+        const loc = p.categories?.location ?? "Remote";
+        return normalizeOpportunity(
+          {
+            id: `lever-${board}-${p.id}`,
+            title: p.text,
+            company: board.charAt(0).toUpperCase() + board.slice(1),
+            location: loc,
+            type: classifyType(p.text, p.categories?.commitment ?? "Job"),
+            tags: pickTags([p.categories?.team, p.categories?.department]),
+            applyUrl: p.hostedUrl,
+            postedAt: new Date(p.createdAt).toISOString(),
+            isRemote: p.workplaceType === "remote" || /remote/i.test(loc),
+          },
+          "Lever",
+        );
+      });
+    }),
+  );
+
+  return results.flat();
 }
 
 // ─── Refresh loop ────────────────────────────────────────────────────────────
