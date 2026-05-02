@@ -935,13 +935,12 @@ const styles = StyleSheet.create({
   cardArea: {
     flex: 1,
     minHeight: 0,
-    // Extra breathing room below the intent tabs ("For you · Active tonight
-    // · Double dates") so the card doesn't crowd the tab pills above it.
-    marginTop: 24,
-    // Small breathing room below the card before the glass tab bar starts.
-    // Dialed down from 32 → 12 so the card extends further toward the bottom
-    // of the viewport per the latest spec.
-    marginBottom: 12,
+    // Breathing room below the intent tabs ("For you · Active tonight ·
+    // Double dates") and above the glass tab bar. Kept at a 2:1 top-vs-bottom
+    // ratio (16/8) so the card stays visually centered while gaining ~12px
+    // of vertical real estate vs the previous 24/12 spec.
+    marginTop: 16,
+    marginBottom: 8,
     paddingLeft: 0,
     paddingRight: 90,
     position: "relative",
