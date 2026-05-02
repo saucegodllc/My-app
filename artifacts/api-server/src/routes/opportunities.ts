@@ -146,17 +146,6 @@ async function fetchNativePosts(): Promise<Opportunity[]> {
       groupChatId: "group-founders-mia",
       postedAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
     },
-    {
-      id: "native-eventbrite-miami",
-      title: "Miami Tech Networking Events",
-      company: "Eventbrite",
-      location: "Miami, FL",
-      type: "Event",
-      tags: ["Networking", "Miami", "Tech"],
-      applyUrl: "https://www.eventbrite.com/d/fl--miami/tech/",
-      groupChatId: "group-miami-events",
-      postedAt: new Date(Date.now() - 1000 * 60 * 31).toISOString(),
-    },
   ];
   return raw.map((r) => normalizeOpportunity(r, "ConnectSphere"));
 }

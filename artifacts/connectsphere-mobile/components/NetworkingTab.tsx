@@ -159,7 +159,7 @@ type OpportunitiesResponse = {
   opportunities: Opportunity[];
 };
 
-const OPPORTUNITY_FILTERS = ["For You", "Jobs", "Internships", "Collabs", "Events"] as const;
+const OPPORTUNITY_FILTERS = ["For You", "Jobs", "Internships", "Collabs"] as const;
 type OpportunityFilter = (typeof OPPORTUNITY_FILTERS)[number];
 
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
@@ -232,7 +232,6 @@ function matchesFilter(o: Opportunity, filter: OpportunityFilter): boolean {
   if (filter === "Jobs") return t === "job" || t.includes("part-time") || t.includes("full-time");
   if (filter === "Internships") return t.includes("intern");
   if (filter === "Collabs") return t.includes("collab") || t.includes("co-found") || t.includes("founding");
-  if (filter === "Events") return t.includes("event");
   return true;
 }
 
