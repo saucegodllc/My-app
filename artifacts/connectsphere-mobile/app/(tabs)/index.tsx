@@ -583,11 +583,11 @@ export default function DiscoverScreen() {
               <Pressable
                 key={tab}
                 onPress={() => { setActiveSubTab(tab); setCardIndex(0); }}
-                style={styles.subTabBtn}
+                style={[styles.subTabBtn, active && styles.subTabBtnActive]}
               >
                 {active ? (
                   <LinearGradient
-                    colors={["#EC4899", "#F43F5E"]}
+                    colors={["#EC4899", "#D946EF", "#F43F5E"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
@@ -697,7 +697,7 @@ export default function DiscoverScreen() {
                 <View style={styles.badgeRow}>
                   <View style={styles.intentBadge}>
                     <LinearGradient
-                      colors={["#EC4899", "#F43F5E"]}
+                      colors={theme.accent}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
@@ -747,7 +747,7 @@ export default function DiscoverScreen() {
                     <Text style={styles.swipeText}>
                       <Text style={styles.swipeArrowPink}>← </Text>
                       SWIPE LEFT OR RIGHT
-                      <Text style={styles.swipeArrowGreen}> →</Text>
+                      <Text style={[styles.swipeArrowGreen, { color: theme.glow }]}> →</Text>
                     </Text>
                   </View>
 
@@ -758,8 +758,17 @@ export default function DiscoverScreen() {
                       pressed && { transform: [{ scale: 0.94 }] },
                     ]}
                   >
-                    <View style={styles.tinderBtnLike}>
-                      <Ionicons name="heart" size={36} color="#6EE7B7" />
+                    <View
+                      style={[
+                        styles.tinderBtnLike,
+                        {
+                          borderColor: theme.glow + "99",
+                          backgroundColor: theme.glow + "22",
+                          shadowColor: theme.glow,
+                        },
+                      ]}
+                    >
+                      <Ionicons name="heart" size={36} color={theme.glow} />
                     </View>
                     <Text style={styles.tinderBtnLabel}>LIKE</Text>
                   </Pressable>
@@ -796,24 +805,24 @@ export default function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#030303" },
+  root: { flex: 1, backgroundColor: "#050007" },
 
-  // Background blobs
+  // Background blobs — neon Miami glow
   blob1: {
-    position: "absolute", top: -96, left: -80,
-    width: 288, height: 288, borderRadius: 144,
-    backgroundColor: "rgba(236,72,153,0.25)",
+    position: "absolute", top: -120, left: -100,
+    width: 360, height: 360, borderRadius: 180,
+    backgroundColor: "rgba(236,72,153,0.32)",
     transform: [{ scaleX: 1.2 }],
   },
   blob2: {
-    position: "absolute", top: 48, right: -100,
-    width: 320, height: 320, borderRadius: 160,
-    backgroundColor: "rgba(45,212,191,0.15)",
+    position: "absolute", top: 320, right: -140,
+    width: 420, height: 420, borderRadius: 210,
+    backgroundColor: "rgba(217,70,239,0.22)",
   },
   blob3: {
-    position: "absolute", bottom: 80, left: "25%",
-    width: 384, height: 384, borderRadius: 192,
-    backgroundColor: "rgba(217,70,239,0.10)",
+    position: "absolute", bottom: 60, left: "20%",
+    width: 460, height: 460, borderRadius: 230,
+    backgroundColor: "rgba(244,63,94,0.18)",
   },
 
   scroll: { flex: 1 },
@@ -848,18 +857,20 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
-  // Intent tabs
+  // Intent tabs — black glass with pink glow on active
   intentRow: {
     marginTop: 22, flexDirection: "row", alignItems: "center",
-    borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 999, borderWidth: 1, borderColor: "rgba(236,72,153,0.22)",
+    backgroundColor: "rgba(0,0,0,0.55)",
     padding: 5,
+    shadowColor: "#EC4899", shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 0 },
   },
   intentSlot: { flex: 1, flexDirection: "row", alignItems: "center" },
   intentBtn: { flex: 1, borderRadius: 999, overflow: "hidden", minHeight: 46, justifyContent: "center" },
   intentBtnActiveBg: {
     borderRadius: 999,
-    shadowColor: "#EC4899", shadowOpacity: 0.6, shadowRadius: 18, shadowOffset: { width: 0, height: 0 },
+    shadowColor: "#EC4899", shadowOpacity: 0.95, shadowRadius: 24, shadowOffset: { width: 0, height: 0 },
+    elevation: 12,
   },
   intentBtnInner: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
@@ -876,20 +887,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 9, justifyContent: "center",
     minHeight: 36,
   },
+  subTabBtnActive: {
+    shadowColor: "#EC4899", shadowOpacity: 0.7, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+  },
   subTabInactive: {
     borderRadius: 999, borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(0,0,0,0.55)",
   },
   subTabLabel: { fontSize: 12, fontWeight: "800" },
 
-  // Notice
+  // Notice — black glass with pink border
   notice: {
     marginTop: 14, borderRadius: 999,
-    borderWidth: 1, borderColor: "rgba(244,114,182,0.25)",
-    backgroundColor: "rgba(236,72,153,0.08)",
-    paddingHorizontal: 16, paddingVertical: 10,
+    borderWidth: 1, borderColor: "rgba(236,72,153,0.4)",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    paddingHorizontal: 16, paddingVertical: 11,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    shadowColor: "#EC4899", shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
   },
   noticeLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   noticeText: { color: "#FCE7F3", fontSize: 12, fontWeight: "700" },
@@ -907,10 +923,10 @@ const styles = StyleSheet.create({
 
   card: {
     minHeight: 760, borderRadius: 28, overflow: "hidden",
-    borderWidth: 2, borderColor: "rgba(236,72,153,0.65)",
+    borderWidth: 1.5, borderColor: "rgba(236,72,153,0.85)",
     backgroundColor: "#09090B",
-    shadowColor: "#EC4899", shadowOpacity: 0.45, shadowRadius: 28, shadowOffset: { width: 0, height: 12 },
-    elevation: 18,
+    shadowColor: "#EC4899", shadowOpacity: 0.85, shadowRadius: 40, shadowOffset: { width: 0, height: 0 },
+    elevation: 24,
   },
   cardImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
 
@@ -995,19 +1011,18 @@ const styles = StyleSheet.create({
   tinderBtnWrap: { alignItems: "center", gap: 8 },
   tinderBtnPass: {
     width: 80, height: 80, borderRadius: 40,
-    borderWidth: 1, borderColor: "rgba(244,63,94,0.4)",
-    backgroundColor: "rgba(244,63,94,0.12)",
+    borderWidth: 1.5, borderColor: "rgba(244,63,94,0.55)",
+    backgroundColor: "rgba(244,63,94,0.14)",
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#F43F5E", shadowOpacity: 0.55, shadowRadius: 22, shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
+    shadowColor: "#F43F5E", shadowOpacity: 0.95, shadowRadius: 32, shadowOffset: { width: 0, height: 0 },
+    elevation: 14,
   },
   tinderBtnLike: {
     width: 80, height: 80, borderRadius: 40,
-    borderWidth: 1, borderColor: "rgba(45,212,191,0.4)",
-    backgroundColor: "rgba(45,212,191,0.12)",
+    borderWidth: 1.5,
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#2DD4BF", shadowOpacity: 0.55, shadowRadius: 22, shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
+    shadowOpacity: 0.95, shadowRadius: 32, shadowOffset: { width: 0, height: 0 },
+    elevation: 14,
   },
   tinderBtnLabel: {
     color: "#FFF", fontSize: 11, fontWeight: "900", letterSpacing: 3,
