@@ -9,6 +9,7 @@ import {
   Sora_700Bold,
   Sora_800ExtraBold,
 } from "@expo-google-fonts/sora";
+import { GreatVibes_400Regular } from "@expo-google-fonts/great-vibes";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
@@ -100,6 +101,7 @@ export default function RootLayout() {
     Inter_700Bold,
     Sora_700Bold,
     Sora_800ExtraBold,
+    GreatVibes_400Regular,
   });
   const [i18nReady, setI18nReady] = useState(false);
 

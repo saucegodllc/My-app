@@ -442,7 +442,7 @@ function EmptyState({ theme }: { theme: Theme }) {
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
   const { height: winH } = useWindowDimensions();
-  const topInset = Platform.OS === "web" ? 52 : Math.max(insets.top, 52);
+  const topInset = Platform.OS === "web" ? 16 : Math.max(insets.top, 12);
   const bottomInset = Platform.OS === "web" ? 96 : 82 + insets.bottom;
   const cardHeight = Math.max(470, Math.min(620, winH - 390));
 
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
   header: {
     position: "relative",
     alignItems: "center",
-    paddingTop: 16,
+    paddingTop: 4,
     paddingBottom: 12,
     overflow: "hidden",
   },
@@ -759,26 +759,22 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#FFF",
-    fontSize: 34,
+    fontSize: 40,
     fontFamily: "Sora_800ExtraBold",
-    letterSpacing: -1.7,
-    lineHeight: 36,
+    letterSpacing: -2,
+    lineHeight: 42,
     textShadowColor: "rgba(255,255,255,0.28)",
     textShadowRadius: 12,
     textShadowOffset: { width: 0, height: 0 },
   },
   titleMiami: {
-    marginLeft: 12,
+    marginLeft: 14,
     color: "#F9A8D4",
-    fontSize: 35,
-    fontWeight: "300",
-    lineHeight: 36,
-    fontStyle: "italic",
-    fontFamily: Platform.select({
-      ios: "Snell Roundhand",
-      android: "cursive",
-      default: "cursive",
-    }),
+    // Great Vibes is a romantic script font; renders visually smaller than
+    // sans-serif at the same point size, so bump it up to match "Discover".
+    fontSize: 54,
+    lineHeight: 50,
+    fontFamily: "GreatVibes_400Regular",
     textShadowColor: "rgba(236,72,153,1)",
     textShadowOffset: { width: 0, height: 0 },
   },

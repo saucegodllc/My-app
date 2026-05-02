@@ -459,6 +459,9 @@ importers:
       '@clerk/clerk-expo':
         specifier: ^2.19.31
         version: 2.19.31(@types/react@19.1.17)(bs58@6.0.0)(expo-auth-session@7.0.10(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(expo-crypto@15.0.8(expo@54.0.33))(expo-secure-store@15.0.8(expo@54.0.33))(expo-web-browser@15.0.10(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)))(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)(use-sync-external-store@1.6.0(react@19.1.0))(zod@3.25.76)
+      '@expo-google-fonts/great-vibes':
+        specifier: ^0.4.1
+        version: 0.4.1
       '@expo-google-fonts/sora':
         specifier: ^0.4.2
         version: 0.4.2
@@ -1628,6 +1631,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@expo-google-fonts/great-vibes@0.4.1':
+    resolution: {integrity: sha512-sh3S2Toirw5R2smI5YFHPiUcd1mJkcr5njRBGaFW3ldpP8ayTTm3e/aEJLfZzza/zUyL/F85ahplW8RYZXK/TA==}
 
   '@expo-google-fonts/inter@0.4.2':
     resolution: {integrity: sha512-syfiImMaDmq7cFi0of+waE2M4uSCyd16zgyWxdPOY7fN2VBmSLKEzkfbZgeOjJq61kSqPBNNtXjggiQiSD6gMQ==}
@@ -8534,6 +8540,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.3':
     optional: true
+
+  '@expo-google-fonts/great-vibes@0.4.1': {}
 
   '@expo-google-fonts/inter@0.4.2': {}
 
