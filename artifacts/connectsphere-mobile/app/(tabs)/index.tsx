@@ -606,7 +606,12 @@ export default function DiscoverScreen() {
         {/* Premium notice */}
         <Pressable
           style={({ pressed }) => [styles.notice, pressed && { opacity: 0.7 }]}
-          onPress={() => setActiveSubTab("Active Tonight")}
+          onPress={() => {
+            if (subTabs[activeIntent].includes("Active Tonight")) {
+              setActiveSubTab("Active Tonight");
+              setCardIndex(0);
+            }
+          }}
           accessibilityRole="button"
           accessibilityLabel="Show people active tonight"
         >
@@ -837,8 +842,8 @@ const styles = StyleSheet.create({
   },
   filterBtn: {
     width: 44, height: 44, borderRadius: 22,
-    borderWidth: 1, borderColor: "rgba(236,72,153,0.55)",
-    backgroundColor: "rgba(0,0,0,0.55)",
+    borderWidth: 1, borderColor: "rgba(236,72,153,0.6)",
+    backgroundColor: "rgba(236,72,153,0.18)",
     alignItems: "center", justifyContent: "center",
     shadowColor: "#EC4899", shadowOpacity: 0.7, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
     elevation: 10,
