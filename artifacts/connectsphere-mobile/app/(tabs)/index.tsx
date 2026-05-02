@@ -1545,7 +1545,7 @@ function CardActionsRail({
     <View style={railStyles.rail} pointerEvents="box-none">
       <RailButton
         icon="heart"
-        label="VIBE"
+        label="LIKE"
         sub="Energy"
         color="pink"
         onPress={onVibe}
