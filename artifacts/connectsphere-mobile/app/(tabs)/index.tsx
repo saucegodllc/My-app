@@ -1696,7 +1696,6 @@ function RailButton({
         </Animated.View>
       </Animated.View>
       <Text style={railStyles.label}>{label}</Text>
-      <Text style={railStyles.sub}>{sub}</Text>
     </Pressable>
   );
 }
