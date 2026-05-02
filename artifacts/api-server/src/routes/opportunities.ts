@@ -124,17 +124,118 @@ async function fetchNativePosts(): Promise<Opportunity[]> {
   // external destinations — never the parked connectsphere.app domain
   // (ad networks redirect those to junk like SearchHounds).
   const raw: RawOpportunity[] = [
+    // ── Internships (real career pages) ───────────────────────────────────
     {
       id: "native-nike-design-intern",
       title: "Product Design Intern",
       company: "Nike",
-      location: "Miami, FL",
+      location: "Beaverton, OR",
       type: "Internship",
       tags: ["Design", "Figma", "Brand"],
       applyUrl: "https://www.nike.com/careers",
-      groupChatId: "group-miami-design",
+      groupChatId: "group-design-interns",
       postedAt: new Date(Date.now() - 1000 * 60 * 4).toISOString(),
     },
+    {
+      id: "native-google-step",
+      title: "STEP Software Engineering Intern",
+      company: "Google",
+      location: "Multiple US Offices",
+      type: "Internship",
+      tags: ["Engineering", "First-Year", "STEP"],
+      applyUrl: "https://buildyourfuture.withgoogle.com/programs/step",
+      groupChatId: "group-google-step",
+      postedAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+    },
+    {
+      id: "native-meta-university",
+      title: "Meta University Engineering Intern",
+      company: "Meta",
+      location: "Menlo Park, CA",
+      type: "Internship",
+      tags: ["Engineering", "Diversity", "MetaU"],
+      applyUrl: "https://www.metacareers.com/students-and-grads",
+      groupChatId: "group-meta-univ",
+      postedAt: new Date(Date.now() - 1000 * 60 * 22).toISOString(),
+    },
+    {
+      id: "native-tesla-intern",
+      title: "Engineering Internship",
+      company: "Tesla",
+      location: "Palo Alto, CA",
+      type: "Internship",
+      tags: ["Hardware", "EV", "Manufacturing"],
+      applyUrl: "https://www.tesla.com/careers/students",
+      groupChatId: "group-tesla-students",
+      postedAt: new Date(Date.now() - 1000 * 60 * 38).toISOString(),
+    },
+    {
+      id: "native-spacex-intern",
+      title: "Student Engineering Internship",
+      company: "SpaceX",
+      location: "Hawthorne, CA",
+      type: "Internship",
+      tags: ["Aerospace", "Rockets", "Hardware"],
+      applyUrl: "https://www.spacex.com/careers/students/",
+      groupChatId: "group-spacex-students",
+      postedAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    },
+    {
+      id: "native-apple-intern",
+      title: "Apple Student Internship",
+      company: "Apple",
+      location: "Cupertino, CA",
+      type: "Internship",
+      tags: ["Software", "Hardware", "Design"],
+      applyUrl: "https://www.apple.com/careers/us/students.html",
+      groupChatId: "group-apple-students",
+      postedAt: new Date(Date.now() - 1000 * 60 * 53).toISOString(),
+    },
+    {
+      id: "native-microsoft-intern",
+      title: "Microsoft Student Programs",
+      company: "Microsoft",
+      location: "Redmond, WA",
+      type: "Internship",
+      tags: ["Engineering", "PM", "Cloud"],
+      applyUrl: "https://careers.microsoft.com/students/us/en",
+      groupChatId: "group-msft-students",
+      postedAt: new Date(Date.now() - 1000 * 60 * 67).toISOString(),
+    },
+    {
+      id: "native-nasa-intern",
+      title: "NASA Pathways Internship",
+      company: "NASA",
+      location: "Multiple US Centers",
+      type: "Internship",
+      tags: ["Aerospace", "Research", "STEM"],
+      applyUrl: "https://www.nasa.gov/learning-resources/internship-programs/",
+      groupChatId: "group-nasa-pathways",
+      postedAt: new Date(Date.now() - 1000 * 60 * 82).toISOString(),
+    },
+    {
+      id: "native-bloomberg-intern",
+      title: "Software Engineering Internship",
+      company: "Bloomberg",
+      location: "New York, NY",
+      type: "Internship",
+      tags: ["Finance", "Engineering", "NYC"],
+      applyUrl: "https://www.bloomberg.com/company/early-careers/",
+      groupChatId: "group-bloomberg-early",
+      postedAt: new Date(Date.now() - 1000 * 60 * 94).toISOString(),
+    },
+    {
+      id: "native-goldman-intern",
+      title: "Goldman Sachs Summer Analyst",
+      company: "Goldman Sachs",
+      location: "New York, NY",
+      type: "Internship",
+      tags: ["Finance", "Analyst", "Summer"],
+      applyUrl: "https://www.goldmansachs.com/careers/students/programs/",
+      groupChatId: "group-gs-summer",
+      postedAt: new Date(Date.now() - 1000 * 60 * 110).toISOString(),
+    },
+    // ── Collabs (real platforms) ──────────────────────────────────────────
     {
       id: "native-yc-cofounder",
       title: "Co-Founder Match (Technical)",
@@ -143,8 +244,63 @@ async function fetchNativePosts(): Promise<Opportunity[]> {
       type: "Collab",
       tags: ["Startup", "Equity", "AI"],
       applyUrl: "https://www.ycombinator.com/cofounder-matching",
-      groupChatId: "group-founders-mia",
+      groupChatId: "group-yc-cofounders",
       postedAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
+    },
+    {
+      id: "native-wellfound-cofounder",
+      title: "Find a Startup Co-Founder",
+      company: "Wellfound",
+      location: "Remote",
+      type: "Collab",
+      tags: ["Co-Founder", "Equity", "Startup"],
+      applyUrl: "https://wellfound.com/cofounders",
+      groupChatId: "group-wellfound-cofounders",
+      postedAt: new Date(Date.now() - 1000 * 60 * 27).toISOString(),
+    },
+    {
+      id: "native-indiehackers-collab",
+      title: "Looking for Co-Founder (Indie)",
+      company: "Indie Hackers",
+      location: "Remote",
+      type: "Collab",
+      tags: ["Indie", "Bootstrapping", "SaaS"],
+      applyUrl: "https://www.indiehackers.com/tags/looking-for-cofounder",
+      groupChatId: "group-indie-cofounders",
+      postedAt: new Date(Date.now() - 1000 * 60 * 41).toISOString(),
+    },
+    {
+      id: "native-antler-collab",
+      title: "Antler Founder Residency",
+      company: "Antler",
+      location: "Global (NYC, London, Singapore)",
+      type: "Collab",
+      tags: ["Residency", "Pre-Seed", "Founders"],
+      applyUrl: "https://www.antler.co/apply",
+      groupChatId: "group-antler-residency",
+      postedAt: new Date(Date.now() - 1000 * 60 * 58).toISOString(),
+    },
+    {
+      id: "native-southpark-collab",
+      title: "South Park Commons Founder Fellowship",
+      company: "South Park Commons",
+      location: "SF / NYC",
+      type: "Collab",
+      tags: ["Pre-Idea", "Fellowship", "Community"],
+      applyUrl: "https://www.southparkcommons.com/founder-fellowship",
+      groupChatId: "group-spc-fellows",
+      postedAt: new Date(Date.now() - 1000 * 60 * 76).toISOString(),
+    },
+    {
+      id: "native-techstars-collab",
+      title: "Techstars Accelerator (Co-Founder Track)",
+      company: "Techstars",
+      location: "Global",
+      type: "Collab",
+      tags: ["Accelerator", "Pre-Seed", "Mentorship"],
+      applyUrl: "https://www.techstars.com/accelerators",
+      groupChatId: "group-techstars",
+      postedAt: new Date(Date.now() - 1000 * 60 * 99).toISOString(),
     },
   ];
   return raw.map((r) => normalizeOpportunity(r, "ConnectSphere"));
@@ -303,7 +459,20 @@ async function fetchUSAJOBS(): Promise<Opportunity[]> {
 
 /** Public Greenhouse job boards we aggregate from. Add/remove as needed.
  *  These are the company "board tokens" used by Greenhouse's hosted ATS. */
-const GREENHOUSE_BOARDS = ["airbnb", "doordash", "robinhood", "discord", "figma"];
+const GREENHOUSE_BOARDS = [
+  "airbnb",
+  "doordash",
+  "robinhood",
+  "discord",
+  "figma",
+  "stripe",
+  "plaid",
+  "gusto",
+  "instacart",
+  "anthropic",
+  "notion",
+  "cloudflare",
+];
 
 async function fetchGreenhouse(): Promise<Opportunity[]> {
   type GHResp = {
@@ -357,7 +526,18 @@ async function fetchGreenhouse(): Promise<Opportunity[]> {
 // ─── Lever (LIVE — public postings API, no key required) ─────────────────────
 
 /** Public Lever job sites we aggregate from (URL slug under jobs.lever.co/...). */
-const LEVER_BOARDS = ["netflix", "brex", "ramp", "mixpanel", "scaleai"];
+const LEVER_BOARDS = [
+  "netflix",
+  "brex",
+  "ramp",
+  "mixpanel",
+  "scaleai",
+  "attentive",
+  "blockchain",
+  "kraken",
+  "shieldai",
+  "anduril",
+];
 
 async function fetchLever(): Promise<Opportunity[]> {
   type LeverPosting = {
