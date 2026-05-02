@@ -935,7 +935,9 @@ const styles = StyleSheet.create({
   cardArea: {
     flex: 1,
     minHeight: 0,
-    marginTop: 8,
+    // Extra breathing room below the intent tabs ("For you · Active tonight
+    // · Double dates") so the card doesn't crowd the tab pills above it.
+    marginTop: 24,
     // Dedicated breathing room below the card so it sits visually centered
     // between the intent tabs above and the glass tab bar below — without
     // this the flex-1 deck hugged the tab bar after we removed the double
