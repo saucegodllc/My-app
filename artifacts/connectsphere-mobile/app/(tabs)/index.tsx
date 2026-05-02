@@ -936,6 +936,11 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
     marginTop: 8,
+    // Dedicated breathing room below the card so it sits visually centered
+    // between the intent tabs above and the glass tab bar below — without
+    // this the flex-1 deck hugged the tab bar after we removed the double
+    // bottom-inset padding on the root.
+    marginBottom: 32,
     paddingLeft: 0,
     paddingRight: 90,
     position: "relative",
