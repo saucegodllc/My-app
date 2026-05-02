@@ -542,7 +542,10 @@ export default function DiscoverScreen() {
   const ghost2Scale = ghostLift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] });
 
   return (
-    <View style={[styles.root, { paddingBottom: bottomInset }]}>
+    // Root only owns the dark backdrop + ambient blobs. The bottom inset
+    // for the glass tab bar lives on `main` below — applying it here too
+    // would double-pad and leave a ~115px dead band under the card.
+    <View style={styles.root}>
       {/* Premium ambient background glow — two soft pink blobs centered
           top and bottom, fading off the edges to fake the web spec's
           `blur-[130-150px]`. `pointerEvents="none"` mirrors the spec's
