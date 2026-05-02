@@ -255,11 +255,12 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
   },
-  // Web spec: `text-[10px] font-bold`.
+  // Web spec: `text-[10px] font-bold`. Bumped inactive color from zinc-400
+  // to pure white so the labels stay legible against the dark glass pill.
   label: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#A1A1AA",
+    color: "#FFFFFF",
     fontFamily: "Inter_500Medium",
   },
   labelActive: {
