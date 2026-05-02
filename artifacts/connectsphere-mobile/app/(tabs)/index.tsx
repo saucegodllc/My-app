@@ -371,92 +371,6 @@ const profiles: Profile[] = [
   },
 ];
 
-// ─── Circle Action Button ──────────────────────────────────────────────────────
-type CircleActionDef = {
-  label: string;
-  iconLib: "ion" | "material";
-  iconName: IoniconName | MaterialIconName;
-  main?: boolean;
-};
-
-function CircleAction({
-  def,
-  theme,
-  onPress,
-}: {
-  def: CircleActionDef;
-  theme: Theme;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.circleWrap, pressed && { transform: [{ scale: 0.93 }] }]}
-    >
-      <View style={styles.circleBtn}>
-        {def.main ? (
-          <LinearGradient
-            colors={def.main ? theme.accent : ["transparent", "transparent"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
-          />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.circleBtnDefault]} />
-        )}
-        {def.iconLib === "ion" ? (
-          <Ionicons name={def.iconName as IoniconName} size={24} color="#FFFFFF" />
-        ) : (
-          <MaterialCommunityIcons name={def.iconName as MaterialIconName} size={24} color="#FFFFFF" />
-        )}
-      </View>
-      <Text style={styles.circleLabel}>{def.label}</Text>
-    </Pressable>
-  );
-}
-
-// ─── Intent Actions ────────────────────────────────────────────────────────────
-const datingActions: CircleActionDef[] = [
-  { label: "Pass", iconLib: "ion", iconName: "close" },
-  { label: "Like", iconLib: "ion", iconName: "heart", main: true },
-  { label: "Message", iconLib: "ion", iconName: "chatbubble" },
-];
-const friendsActions: CircleActionDef[] = [
-  { label: "Skip", iconLib: "ion", iconName: "close" },
-  { label: "Add Friend", iconLib: "ion", iconName: "people", main: true },
-  { label: "Invite", iconLib: "ion", iconName: "paper-plane" },
-];
-const networkingActions: CircleActionDef[] = [
-  { label: "Connect", iconLib: "material", iconName: "handshake", main: true },
-  { label: "Save Contact", iconLib: "ion", iconName: "person-add" },
-  { label: "Message", iconLib: "ion", iconName: "chatbubble" },
-];
-
-function IntentActions({
-  intent,
-  theme,
-  onAction,
-}: {
-  intent: IntentId;
-  theme: Theme;
-  onAction: () => void;
-}) {
-  const actions =
-    intent === "dating"
-      ? datingActions
-      : intent === "friends"
-      ? friendsActions
-      : networkingActions;
-
-  return (
-    <View style={styles.actionsRow}>
-      {actions.map((def) => (
-        <CircleAction key={def.label} def={def} theme={theme} onPress={onAction} />
-      ))}
-    </View>
-  );
-}
-
 // ─── Empty State ───────────────────────────────────────────────────────────────
 function EmptyState({ theme }: { theme: Theme }) {
   return (
@@ -589,28 +503,32 @@ export default function DiscoverScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Discover</Text>
-            <View style={styles.subtitleRow}>
-              <Ionicons name="flame" size={14} color="#EC4899" />
-              <Text style={styles.subtitleText}>9 people waiting</Text>
-              <View style={styles.greenDot} />
+          <View style={styles.headerSpacer} />
+          <View style={styles.headerCenter}>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>Discover </Text>
+              <Text style={styles.titleMiami}>Miami</Text>
+              <Text style={styles.titlePalm}>  🌴</Text>
+            </View>
+            <View style={styles.titleUnderlineRow}>
+              <View style={styles.titleUnderline} />
+              <Text style={styles.subtitleSmall}>SWIPE. CONNECT. VIBE.</Text>
+              <View style={styles.titleUnderline} />
             </View>
           </View>
           <Pressable style={styles.filterBtn}>
-            <Ionicons name="options-outline" size={20} color="#E4E4E7" />
+            <Ionicons name="options-outline" size={20} color="#FFF" />
           </Pressable>
         </View>
 
         {/* Intent Tabs */}
-        <View style={styles.intentWrap}>
-          <View style={styles.intentRow}>
-            {tabs.map((tab) => {
-              const isActive = activeIntent === tab.id;
-              const isAllowed = allowedTabs.some((a) => a.id === tab.id);
-              return (
+        <View style={styles.intentRow}>
+          {tabs.map((tab, idx) => {
+            const isActive = activeIntent === tab.id;
+            const isAllowed = allowedTabs.some((a) => a.id === tab.id);
+            return (
+              <View key={tab.id} style={styles.intentSlot}>
                 <Pressable
-                  key={tab.id}
                   disabled={!isAllowed}
                   onPress={() => {
                     setActiveIntent(tab.id);
@@ -621,23 +539,23 @@ export default function DiscoverScreen() {
                 >
                   {isActive ? (
                     <LinearGradient
-                      colors={tab.accent}
+                      colors={["#EC4899", "#F43F5E"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
-                      style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+                      style={[StyleSheet.absoluteFill, styles.intentBtnActiveBg]}
                     />
                   ) : null}
                   <View style={styles.intentBtnInner}>
                     <Ionicons
                       name={tab.icon}
-                      size={14}
-                      color={isActive ? "#FFF" : isAllowed ? "#FFF" : "#3F3F46"}
+                      size={16}
+                      color={isActive ? "#FFF" : isAllowed ? "#E4E4E7" : "#3F3F46"}
                     />
                     <Text
                       style={[
                         styles.intentBtnLabel,
                         {
-                          color: isActive ? "#FFF" : isAllowed ? "#FFF" : "#3F3F46",
+                          color: isActive ? "#FFF" : isAllowed ? "#E4E4E7" : "#3F3F46",
                           opacity: !isAllowed ? 0.35 : 1,
                         },
                       ]}
@@ -646,9 +564,10 @@ export default function DiscoverScreen() {
                     </Text>
                   </View>
                 </Pressable>
-              );
-            })}
-          </View>
+                {idx < tabs.length - 1 ? <View style={styles.intentSep} /> : null}
+              </View>
+            );
+          })}
         </View>
 
         {/* Sub Tabs */}
@@ -668,7 +587,7 @@ export default function DiscoverScreen() {
               >
                 {active ? (
                   <LinearGradient
-                    colors={theme.accent}
+                    colors={["#EC4899", "#F43F5E"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
@@ -676,7 +595,7 @@ export default function DiscoverScreen() {
                 ) : (
                   <View style={[StyleSheet.absoluteFill, styles.subTabInactive]} />
                 )}
-                <Text style={[styles.subTabLabel, { color: active ? "#FFF" : "#A1A1AA" }]}>
+                <Text style={[styles.subTabLabel, { color: active ? "#FFF" : "#E4E4E7" }]}>
                   {tab}
                 </Text>
               </Pressable>
@@ -684,20 +603,40 @@ export default function DiscoverScreen() {
           })}
         </ScrollView>
 
-        {/* Mock notice */}
-        <View style={styles.notice}>
-          <Text style={styles.noticeText}>✨ Showing mock profiles while your real feed is empty.</Text>
-        </View>
+        {/* Premium notice */}
+        <Pressable
+          style={({ pressed }) => [styles.notice, pressed && { opacity: 0.7 }]}
+          onPress={() => setActiveSubTab("Active Tonight")}
+          accessibilityRole="button"
+          accessibilityLabel="Show people active tonight"
+        >
+          <View style={styles.noticeLeft}>
+            <Ionicons name="flash" size={14} color="#FBBF24" />
+            <Text style={styles.noticeText}>Showing people near you who are actually active tonight.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#A1A1AA" />
+        </Pressable>
 
-        {/* Card */}
+        {/* Card area with stacked deck */}
         <View style={styles.cardArea}>
+          {/* Stacked shadow cards behind */}
+          <View style={[styles.deckCard, styles.deck3]} />
+          <View style={[styles.deckCard, styles.deck2]} />
+
           {profile ? (
             <Animated.View
               key={`${profile.id}-${cardIndex}-${activeIntent}-${activeSubTab}`}
               {...panResponder.panHandlers}
               style={[
                 styles.card,
-                { opacity: cardOpacity, transform: [{ translateY: dragY }, { scale: cardScale }] },
+                {
+                  opacity: cardOpacity,
+                  transform: [
+                    { translateX: dragX },
+                    { rotate: cardRotate },
+                    { scale: cardScale },
+                  ],
+                },
               ]}
             >
               <Pressable
@@ -706,31 +645,31 @@ export default function DiscoverScreen() {
               >
                 <Image source={{ uri: profile.image }} style={styles.cardImage} resizeMode="cover" />
 
-                {/* Dark overlay */}
+                {/* Dark gradient overlay */}
                 <LinearGradient
-                  colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.35)", "#000"]}
-                  locations={[0, 0.5, 1]}
+                  colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.55)", "#000"]}
+                  locations={[0, 0.55, 1]}
                   style={StyleSheet.absoluteFill}
                 />
 
-                {/* Gradient top bar */}
-                <LinearGradient
-                  colors={theme.accent}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.cardTopBar}
-                />
-
-                {/* Online + Match pills */}
-                <View style={styles.cardPillRow}>
-                  <View style={styles.pill}>
-                    <View style={styles.onlineDot} />
-                    <Text style={styles.pillText}>Online</Text>
-                  </View>
-                  <View style={styles.pill}>
-                    <Text style={styles.pillText}>{profile.matchScore}% Match</Text>
-                  </View>
+                {/* Online / Offline pill top-left */}
+                <View style={[styles.onlinePillTopLeft, !profile.online && styles.offlinePill]}>
+                  <View style={[styles.onlineDot, !profile.online && styles.offlineDot]} />
+                  <Text style={styles.onlinePillText}>{profile.online ? "Online" : "Offline"}</Text>
                 </View>
+
+                {/* Match badge top-right */}
+                <View style={styles.matchBadge}>
+                  <Text style={styles.matchBadgePct}>{profile.matchScore}%</Text>
+                  <Text style={styles.matchBadgeWord}>Match</Text>
+                </View>
+
+                {/* Verified bubble below match */}
+                {profile.verified ? (
+                  <View style={styles.verifiedBubble}>
+                    <Ionicons name="shield-checkmark" size={14} color="#FFF" />
+                  </View>
+                ) : null}
               </Pressable>
 
               {/* Bottom info */}
@@ -740,19 +679,25 @@ export default function DiscoverScreen() {
                     {profile.name}, {profile.age}
                   </Text>
                   {profile.verified ? (
-                    <Ionicons name="shield-checkmark" size={22} color="#EC4899" />
+                    <View style={styles.miniShield}>
+                      <Ionicons name="shield-checkmark" size={14} color="#FFF" />
+                    </View>
                   ) : null}
                 </View>
 
                 <View style={styles.locationRow}>
                   <Ionicons name="location-outline" size={14} color="#E4E4E7" />
                   <Text style={styles.locationText}>{profile.location}</Text>
+                  <View style={styles.greenDotSmall} />
+                  <Text style={styles.locationText}>
+                    {(((profile.id * 1.3) % 9) + 0.5).toFixed(1)} miles away
+                  </Text>
                 </View>
 
                 <View style={styles.badgeRow}>
                   <View style={styles.intentBadge}>
                     <LinearGradient
-                      colors={theme.accent}
+                      colors={["#EC4899", "#F43F5E"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
@@ -769,15 +714,55 @@ export default function DiscoverScreen() {
                 </Text>
 
                 <View style={styles.interestsRow}>
-                  {profile.interests.map((interest) => (
+                  {profile.interests.slice(0, 4).map((interest) => (
                     <View key={interest} style={styles.interestChip}>
                       <Text style={styles.interestText}>{interest}</Text>
                     </View>
                   ))}
                 </View>
 
-                <View style={styles.actionsWrap}>
-                  <IntentActions intent={activeIntent} theme={theme} onAction={() => animateExitAndAdvance(-1)} />
+                {/* Dots indicator */}
+                <View style={styles.dotsRow}>
+                  <View style={[styles.dot, styles.dotActive]} />
+                  <View style={styles.dot} />
+                  <View style={styles.dot} />
+                </View>
+
+                {/* Tinder-style swipe controls */}
+                <View style={styles.tinderRow}>
+                  <Pressable
+                    onPress={() => animateExitAndAdvance(-1)}
+                    style={({ pressed }) => [
+                      styles.tinderBtnWrap,
+                      pressed && { transform: [{ scale: 0.94 }] },
+                    ]}
+                  >
+                    <View style={styles.tinderBtnPass}>
+                      <Ionicons name="close" size={36} color="#FB7185" />
+                    </View>
+                    <Text style={styles.tinderBtnLabel}>PASS</Text>
+                  </Pressable>
+
+                  <View style={styles.swipeTextWrap}>
+                    <Text style={styles.swipeText}>
+                      <Text style={styles.swipeArrowPink}>← </Text>
+                      SWIPE LEFT OR RIGHT
+                      <Text style={styles.swipeArrowGreen}> →</Text>
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    onPress={() => animateExitAndAdvance(1)}
+                    style={({ pressed }) => [
+                      styles.tinderBtnWrap,
+                      pressed && { transform: [{ scale: 0.94 }] },
+                    ]}
+                  >
+                    <View style={styles.tinderBtnLike}>
+                      <Ionicons name="heart" size={36} color="#6EE7B7" />
+                    </View>
+                    <Text style={styles.tinderBtnLabel}>LIKE</Text>
+                  </Pressable>
                 </View>
               </View>
             </Animated.View>
@@ -835,120 +820,204 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 16, paddingBottom: 32 },
 
   // Header
-  header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
-  title: { color: "#FFF", fontSize: 34, fontWeight: "900", letterSpacing: -0.5 },
-  subtitleRow: { marginTop: 4, flexDirection: "row", alignItems: "center", gap: 8 },
-  subtitleText: { color: "#D4D4D8", fontSize: 13 },
-  greenDot: {
-    width: 8, height: 8, borderRadius: 4, backgroundColor: "#34D399",
-    shadowColor: "#34D399", shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 0 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  headerSpacer: { width: 44, height: 44 },
+  headerCenter: { flex: 1, alignItems: "center" },
+  titleRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "center" },
+  title: { color: "#FFF", fontSize: 32, fontWeight: "900", letterSpacing: -0.5 },
+  titleMiami: {
+    color: "#EC4899", fontSize: 34, fontWeight: "700",
+    fontStyle: "italic",
+    fontFamily: Platform.select({ ios: "Snell Roundhand", android: "cursive", default: "cursive" }),
+    textShadowColor: "rgba(236,72,153,0.9)", textShadowRadius: 12, textShadowOffset: { width: 0, height: 0 },
+  },
+  titlePalm: { fontSize: 28 },
+  titleUnderlineRow: {
+    marginTop: 6, flexDirection: "row", alignItems: "center", gap: 10, justifyContent: "center",
+  },
+  titleUnderline: {
+    width: 36, height: 1, backgroundColor: "rgba(236,72,153,0.7)",
+  },
+  subtitleSmall: {
+    color: "#FFF", fontSize: 11, fontWeight: "800", letterSpacing: 3,
   },
   filterBtn: {
-    marginTop: 8, width: 48, height: 48, borderRadius: 24,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.1)",
+    width: 44, height: 44, borderRadius: 22,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.06)",
     alignItems: "center", justifyContent: "center",
   },
 
   // Intent tabs
-  intentWrap: {
-    marginTop: 20, borderRadius: 999,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(0,0,0,0.4)",
-    padding: 4,
+  intentRow: {
+    marginTop: 22, flexDirection: "row", alignItems: "center",
+    borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    padding: 5,
   },
-  intentRow: { flexDirection: "row", gap: 4 },
-  intentBtn: { flex: 1, borderRadius: 999, overflow: "hidden" },
+  intentSlot: { flex: 1, flexDirection: "row", alignItems: "center" },
+  intentBtn: { flex: 1, borderRadius: 999, overflow: "hidden", minHeight: 46, justifyContent: "center" },
+  intentBtnActiveBg: {
+    borderRadius: 999,
+    shadowColor: "#EC4899", shadowOpacity: 0.6, shadowRadius: 18, shadowOffset: { width: 0, height: 0 },
+  },
   intentBtnInner: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, paddingVertical: 12, paddingHorizontal: 8,
+    gap: 8, paddingVertical: 12, paddingHorizontal: 8,
   },
-  intentBtnLabel: { fontSize: 12, fontWeight: "800" },
+  intentBtnLabel: { fontSize: 13, fontWeight: "800" },
+  intentSep: { width: 1, height: 22, backgroundColor: "rgba(255,255,255,0.12)" },
 
   // Sub tabs
-  subTabsScroll: { marginTop: 12, flexGrow: 0 },
+  subTabsScroll: { marginTop: 14, flexGrow: 0 },
   subTabsContent: { gap: 8, paddingRight: 4, paddingBottom: 4 },
   subTabBtn: {
     borderRadius: 999, overflow: "hidden",
-    paddingHorizontal: 16, paddingVertical: 8, justifyContent: "center",
+    paddingHorizontal: 16, paddingVertical: 9, justifyContent: "center",
+    minHeight: 36,
   },
   subTabInactive: {
     borderRadius: 999, borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.07)",
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
   subTabLabel: { fontSize: 12, fontWeight: "800" },
 
   // Notice
   notice: {
-    marginTop: 12, borderRadius: 999,
-    borderWidth: 1, borderColor: "rgba(244,114,182,0.2)",
-    backgroundColor: "rgba(236,72,153,0.1)",
-    paddingHorizontal: 16, paddingVertical: 8,
+    marginTop: 14, borderRadius: 999,
+    borderWidth: 1, borderColor: "rgba(244,114,182,0.25)",
+    backgroundColor: "rgba(236,72,153,0.08)",
+    paddingHorizontal: 16, paddingVertical: 10,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
-  noticeText: { color: "#FCE7F3", fontSize: 12, fontWeight: "700", textAlign: "center" },
+  noticeLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+  noticeText: { color: "#FCE7F3", fontSize: 12, fontWeight: "700" },
 
-  // Card area
-  cardArea: { marginTop: 16, minHeight: 560 },
+  // Card area + deck
+  cardArea: { marginTop: 18, minHeight: 760, alignItems: "stretch", justifyContent: "flex-start" },
+  deckCard: {
+    position: "absolute", left: 0, right: 0, top: 0,
+    height: 760, borderRadius: 28,
+    borderWidth: 1, borderColor: "rgba(236,72,153,0.18)",
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  deck2: { left: 10, right: 10, top: 8, height: 752, opacity: 0.55 },
+  deck3: { left: 20, right: 20, top: 16, height: 744, opacity: 0.3 },
+
   card: {
-    minHeight: 560, borderRadius: 30, overflow: "hidden",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+    minHeight: 760, borderRadius: 28, overflow: "hidden",
+    borderWidth: 2, borderColor: "rgba(236,72,153,0.65)",
     backgroundColor: "#09090B",
-    shadowColor: "#000", shadowOpacity: 0.85, shadowRadius: 35, shadowOffset: { width: 0, height: 35 },
-    elevation: 14,
+    shadowColor: "#EC4899", shadowOpacity: 0.45, shadowRadius: 28, shadowOffset: { width: 0, height: 12 },
+    elevation: 18,
   },
   cardImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
-  cardTopBar: { position: "absolute", top: 0, left: 0, right: 0, height: 4 },
-  cardPillRow: {
-    position: "absolute", top: 16, left: 16, right: 16,
-    flexDirection: "row", justifyContent: "space-between",
-  },
-  pill: {
+
+  // Top overlays
+  onlinePillTopLeft: {
+    position: "absolute", top: 16, left: 16,
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderWidth: 1, borderColor: "rgba(52,211,153,0.4)",
     borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
   },
+  offlinePill: { borderColor: "rgba(255,255,255,0.18)" },
   onlineDot: {
     width: 8, height: 8, borderRadius: 4, backgroundColor: "#34D399",
     shadowColor: "#34D399", shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 0 },
   },
-  pillText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
+  offlineDot: { backgroundColor: "#71717A", shadowOpacity: 0 },
+  onlinePillText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
+  matchBadge: {
+    position: "absolute", top: 16, right: 16,
+    width: 64, height: 64, borderRadius: 32,
+    borderWidth: 1.5, borderColor: "rgba(236,72,153,0.7)",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#EC4899", shadowOpacity: 0.6, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
+  },
+  matchBadgePct: { color: "#FFF", fontSize: 16, fontWeight: "900" },
+  matchBadgeWord: { color: "#FBCFE8", fontSize: 9, fontWeight: "800", letterSpacing: 1 },
+  verifiedBubble: {
+    position: "absolute", top: 88, right: 26,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: "#EC4899",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#EC4899", shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
+  },
 
-  // Card bottom
+  // Card bottom info
   cardBottom: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20 },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  nameText: { color: "#FFF", fontSize: 32, fontWeight: "900", letterSpacing: -0.5 },
-  locationRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 4 },
-  locationText: { color: "#E4E4E7", fontSize: 13 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  nameText: { color: "#FFF", fontSize: 30, fontWeight: "900", letterSpacing: -0.5 },
+  miniShield: {
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: "#EC4899",
+    alignItems: "center", justifyContent: "center",
+  },
+  locationRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 6 },
+  locationText: { color: "#E4E4E7", fontSize: 13, fontWeight: "600" },
+  greenDotSmall: {
+    width: 7, height: 7, borderRadius: 4, backgroundColor: "#34D399",
+    marginLeft: 4,
+  },
   badgeRow: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  intentBadge: { borderRadius: 999, overflow: "hidden", paddingHorizontal: 12, paddingVertical: 4 },
+  intentBadge: { borderRadius: 999, overflow: "hidden", paddingHorizontal: 14, paddingVertical: 5 },
   intentBadgeText: { color: "#FFF", fontSize: 12, fontWeight: "900", textTransform: "capitalize" },
-  subBadge: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: "rgba(255,255,255,0.15)" },
+  subBadge: {
+    borderRadius: 999, paddingHorizontal: 14, paddingVertical: 5,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
+  },
   subBadgeText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
   bioText: { marginTop: 12, color: "#F4F4F5", fontSize: 13, fontWeight: "500", lineHeight: 19 },
   interestsRow: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 8 },
   interestChip: {
-    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
     backgroundColor: "rgba(0,0,0,0.35)",
   },
   interestText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
-  actionsWrap: { marginTop: 20 },
 
-  // Circle action buttons
-  actionsRow: { flexDirection: "row", justifyContent: "space-around" },
-  circleWrap: { alignItems: "center", gap: 8 },
-  circleBtn: {
-    width: 56, height: 56, borderRadius: 28, overflow: "hidden",
+  // Dots indicator
+  dotsRow: {
+    marginTop: 18, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6,
+  },
+  dot: { width: 18, height: 3, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.18)" },
+  dotActive: { width: 26, backgroundColor: "#EC4899" },
+
+  // Tinder action row
+  tinderRow: {
+    marginTop: 18, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between",
+    paddingHorizontal: 8,
+  },
+  tinderBtnWrap: { alignItems: "center", gap: 8 },
+  tinderBtnPass: {
+    width: 80, height: 80, borderRadius: 40,
+    borderWidth: 1, borderColor: "rgba(244,63,94,0.4)",
+    backgroundColor: "rgba(244,63,94,0.12)",
     alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
+    shadowColor: "#F43F5E", shadowOpacity: 0.55, shadowRadius: 22, shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
   },
-  circleBtnDefault: {
-    backgroundColor: "rgba(0,0,0,0.35)",
-    borderRadius: 28,
+  tinderBtnLike: {
+    width: 80, height: 80, borderRadius: 40,
+    borderWidth: 1, borderColor: "rgba(45,212,191,0.4)",
+    backgroundColor: "rgba(45,212,191,0.12)",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#2DD4BF", shadowOpacity: 0.55, shadowRadius: 22, shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
   },
-  circleLabel: { color: "#E4E4E7", fontSize: 11, fontWeight: "800" },
+  tinderBtnLabel: {
+    color: "#FFF", fontSize: 11, fontWeight: "900", letterSpacing: 3,
+  },
+  swipeTextWrap: { paddingBottom: 28, flex: 1, alignItems: "center" },
+  swipeText: {
+    color: "#D4D4D8", fontSize: 11, fontWeight: "900", letterSpacing: 2, textAlign: "center",
+  },
+  swipeArrowPink: { color: "#F472B6" },
+  swipeArrowGreen: { color: "#6EE7B7" },
 
   // Empty state
   emptyCard: {
