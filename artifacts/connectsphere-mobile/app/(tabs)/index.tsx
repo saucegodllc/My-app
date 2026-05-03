@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 
 import NetworkingTab from "@/components/NetworkingTab";
+import { useDatingMatches } from "@/contexts/DatingMatchContext";
 import {
   Animated,
   Image,
@@ -44,6 +45,9 @@ type Profile = {
   online: boolean;
   verified: boolean;
   image: string;
+  
+  
+  likedCurrentUser?: boolean;
 };
 
 const currentUserIntent: IntentId | "all" = "all";
@@ -92,6 +96,7 @@ const profiles: Profile[] = [
     online: true,
     verified: true,
     image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=90",
+    likedCurrentUser: true,
   },
   {
     id: 2,
@@ -204,6 +209,7 @@ const profiles: Profile[] = [
     online: true,
     verified: true,
     image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1200&q=90",
+    likedCurrentUser: true,
   },
   {
     id: 10,
@@ -232,6 +238,7 @@ const profiles: Profile[] = [
     online: false,
     verified: true,
     image: "https://images.unsplash.com/photo-1521119989659-a83eee488004?auto=format&fit=crop&w=1200&q=90",
+    likedCurrentUser: true,
   },
   {
     id: 12,
@@ -502,10 +509,35 @@ export default function DiscoverScreen() {
       if (reactionTimeoutRef.current) clearTimeout(reactionTimeoutRef.current);
     };
   }, []);
+
+  
+  
+  
+  const dating = useDatingMatches();
+  const recordDatingAction = (action: SwipeAction) => {
+    if (activeIntent !== "dating") return;
+    if (!profile) return;
+    const snapshot = {
+      id: `mock_${profile.id}`,
+      name: profile.name,
+      age: profile.age,
+      location: profile.location,
+      intent: profile.intent,
+      photos: [profile.image],
+      likedCurrentUser: profile.likedCurrentUser === true,
+    };
+    if (action === "vibe") dating.recordVibe(snapshot);
+    else if (action === "spark") dating.recordSpark(snapshot);
+    else if (action === "pass") dating.recordPass(snapshot);
+  };
+
   const handleReaction = (action: SwipeAction) => {
     // If a reaction is already in flight, ignore — prevents the deck from
     // skipping two profiles on a rapid double-tap.
     if (actionState !== null) return;
+    
+    
+    recordDatingAction(action);
     setActionState(action);
     if (reactionTimeoutRef.current) clearTimeout(reactionTimeoutRef.current);
     // Two-phase timing so the card actually plays both halves of its spring:

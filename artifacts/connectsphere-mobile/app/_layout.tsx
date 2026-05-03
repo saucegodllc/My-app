@@ -22,6 +22,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CongratsVideoProvider } from "@/contexts/CongratsVideoContext";
+import { DatingMatchProvider } from "@/contexts/DatingMatchContext";
 import { DiscoveryModeProvider } from "@/contexts/DiscoveryModeContext";
 import { SuccessVideoProvider } from "@/contexts/SuccessVideoContext";
 import { TransitionOverlayProvider } from "@/contexts/TransitionOverlayContext";
@@ -129,16 +130,18 @@ export default function RootLayout() {
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
                 <DiscoveryModeProvider>
-                  <WelcomeVideoProvider>
-                    <CongratsVideoProvider>
-                      <SuccessVideoProvider>
-                        <TransitionOverlayProvider>
-                          <AuthTokenSetter />
-                          <RootLayoutNav />
-                        </TransitionOverlayProvider>
-                      </SuccessVideoProvider>
-                    </CongratsVideoProvider>
-                  </WelcomeVideoProvider>
+                  <DatingMatchProvider>
+                    <WelcomeVideoProvider>
+                      <CongratsVideoProvider>
+                        <SuccessVideoProvider>
+                          <TransitionOverlayProvider>
+                            <AuthTokenSetter />
+                            <RootLayoutNav />
+                          </TransitionOverlayProvider>
+                        </SuccessVideoProvider>
+                      </CongratsVideoProvider>
+                    </WelcomeVideoProvider>
+                  </DatingMatchProvider>
                 </DiscoveryModeProvider>
               </KeyboardProvider>
             </GestureHandlerRootView>

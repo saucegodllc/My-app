@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { DatingMatchesPreview } from "@/components/DatingMatchesPreview";
 import { MatchListItem } from "@/components/MatchListItem";
 import { useColors } from "@/hooks/useColors";
 import { useGetMatches } from "@workspace/api-client-react";
@@ -97,6 +98,7 @@ export default function MatchesScreen() {
           }
           ListHeaderComponent={
             <>
+              <DatingMatchesPreview />
               {newMatches.length > 0 && (
                 <View style={styles.newMatchesSection}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
