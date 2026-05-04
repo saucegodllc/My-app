@@ -164,11 +164,167 @@ function getDateRange(timeframe?: string): { startDateTime: string; endDateTime:
   return { startDateTime: toISONoMs(now), endDateTime: toISONoMs(twoWeeksFromNow) };
 }
 
+const MOCK_EVENTS: MappedEvent[] = [
+  {
+    id: "mock-1",
+    name: "Neon Nights: Rooftop DJ Set",
+    description: "Miami's hottest rooftop party with DJ sets, craft cocktails, and panoramic city views. Dress to impress.",
+    startDate: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10) + "T21:00:00",
+    endDate: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10) + "T02:00:00",
+    url: "",
+    imageUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&q=80",
+    venueName: "E11EVEN Rooftop",
+    venueAddress: "29 NE 11th St, Miami, FL",
+    neighborhood: "Downtown Miami",
+    latitude: 25.7838,
+    longitude: -80.1925,
+    isFree: false,
+    price: "From $35",
+    category: "Nightlife",
+  },
+  {
+    id: "mock-2",
+    name: "Wynwood Art Walk & Gallery Hop",
+    description: "Explore the vibrant street art and galleries of Wynwood. Live painters, pop-up shops, and food trucks.",
+    startDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) + "T18:00:00",
+    endDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) + "T22:00:00",
+    url: "",
+    imageUrl: "https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=800&q=80",
+    venueName: "Wynwood Walls",
+    venueAddress: "2520 NW 2nd Ave, Miami, FL",
+    neighborhood: "Wynwood",
+    latitude: 25.8012,
+    longitude: -80.1994,
+    isFree: true,
+    price: "Free",
+    category: "Arts",
+  },
+  {
+    id: "mock-3",
+    name: "Sunset Yoga on the Beach",
+    description: "Unwind with a guided vinyasa flow as the sun sets over the Atlantic. All levels welcome. Mats provided.",
+    startDate: new Date(Date.now() + 1 * 86400000).toISOString().slice(0, 10) + "T17:30:00",
+    endDate: new Date(Date.now() + 1 * 86400000).toISOString().slice(0, 10) + "T19:00:00",
+    url: "",
+    imageUrl: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=80",
+    venueName: "South Pointe Park",
+    venueAddress: "1 Washington Ave, Miami Beach, FL",
+    neighborhood: "South Beach",
+    latitude: 25.7649,
+    longitude: -80.1328,
+    isFree: true,
+    price: "Free",
+    category: "Sports",
+  },
+  {
+    id: "mock-4",
+    name: "Latin Beats: Salsa & Bachata Night",
+    description: "Free salsa lesson at 8pm followed by open dancing all night. Latin DJs spinning the best reggaeton and salsa.",
+    startDate: new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10) + "T20:00:00",
+    endDate: new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10) + "T01:00:00",
+    url: "",
+    imageUrl: "https://images.unsplash.com/photo-1504609813442-a8924e83f76e?w=800&q=80",
+    venueName: "Ball & Chain",
+    venueAddress: "1513 SW 8th St, Miami, FL",
+    neighborhood: "Little Havana",
+    latitude: 25.7659,
+    longitude: -80.2145,
+    isFree: false,
+    price: "From $15",
+    category: "Music",
+  },
+  {
+    id: "mock-5",
+    name: "Seafood Festival on the Bay",
+    description: "Fresh catches, live cooking demos, craft beer garden, and live music overlooking Biscayne Bay.",
+    startDate: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10) + "T12:00:00",
+    endDate: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10) + "T20:00:00",
+    url: "",
+    imageUrl: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800&q=80",
+    venueName: "Bayfront Park",
+    venueAddress: "301 Biscayne Blvd, Miami, FL",
+    neighborhood: "Downtown Miami",
+    latitude: 25.7743,
+    longitude: -80.1862,
+    isFree: false,
+    price: "From $20",
+    category: "Food",
+  },
+  {
+    id: "mock-6",
+    name: "Open Mic Comedy Night",
+    description: "Up-and-coming comics take the stage. Two-drink minimum. Come laugh, or dare to perform!",
+    startDate: new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10) + "T20:30:00",
+    endDate: new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10) + "T23:00:00",
+    url: "",
+    imageUrl: "https://images.unsplash.com/photo-1585699324551-f6c309eedeca?w=800&q=80",
+    venueName: "The Comedy Spot",
+    venueAddress: "3460 Main Hwy, Coconut Grove, FL",
+    neighborhood: "Coconut Grove",
+    latitude: 25.7281,
+    longitude: -80.2414,
+    isFree: false,
+    price: "From $10",
+    category: "Arts",
+  },
+  {
+    id: "mock-7",
+    name: "Fort Lauderdale Boat Show After-Party",
+    description: "Exclusive after-party on the waterfront with live DJ, bottle service, and yacht views.",
+    startDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10) + "T22:00:00",
+    endDate: new Date(Date.now() + 8 * 86400000).toISOString().slice(0, 10) + "T03:00:00",
+    url: "",
+    imageUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80",
+    venueName: "Las Olas Oceanside Park",
+    venueAddress: "3000 E Las Olas Blvd, Fort Lauderdale, FL",
+    neighborhood: "Fort Lauderdale",
+    latitude: 26.1068,
+    longitude: -80.1050,
+    isFree: false,
+    price: "From $50",
+    category: "Nightlife",
+  },
+  {
+    id: "mock-8",
+    name: "Morning Run Club + Brunch",
+    description: "5K run along the beach followed by group brunch at a local café. All paces welcome!",
+    startDate: new Date(Date.now() + 1 * 86400000).toISOString().slice(0, 10) + "T07:00:00",
+    endDate: new Date(Date.now() + 1 * 86400000).toISOString().slice(0, 10) + "T10:00:00",
+    url: "",
+    imageUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80",
+    venueName: "Miami Beach Boardwalk",
+    venueAddress: "Ocean Dr, Miami Beach, FL",
+    neighborhood: "Miami Beach",
+    latitude: 25.7907,
+    longitude: -80.1300,
+    isFree: true,
+    price: "Free",
+    category: "Sports",
+  },
+];
+
 router.get("/events", async (req, res) => {
   const apiKey = process.env.TICKETMASTER_API_KEY;
 
   if (!apiKey) {
-    return res.json({ events: [], total: 0, hasMore: false, configured: false });
+    const { category, freeOnly, timeframe } = req.query;
+    let events = [...MOCK_EVENTS];
+    if (typeof timeframe === "string" && (timeframe === "week" || timeframe === "weekend")) {
+      const { startDateTime, endDateTime } = getDateRange(timeframe);
+      const start = new Date(startDateTime).getTime();
+      const end = new Date(endDateTime).getTime();
+      events = events.filter((e) => {
+        const eventTime = new Date(e.startDate).getTime();
+        return eventTime >= start && eventTime <= end;
+      });
+    }
+    if (category && category !== "All") {
+      events = events.filter((e) => e.category === String(category));
+    }
+    if (freeOnly === "true") {
+      events = events.filter((e) => e.isFree);
+    }
+    return res.json({ events, total: events.length, hasMore: false, configured: true });
   }
 
   const { page = "1", category, freeOnly, timeframe } = req.query;

@@ -63,6 +63,10 @@ A full-featured global social platform for dating, friendships, and professional
 - `GET /discovery` — filtered profile discovery
 - `GET/POST /matches` — match list + create match
 - `GET/POST /messages/:matchId` — chat messages
+- `GET /events` — local events (Ticketmaster or mock fallback); supports `page`, `category`, `freeOnly`, `timeframe` filters
+- `GET /venues` — nearby venues (Google Places or mock fallback); supports `lat`, `lng`, `category`, `priceFilter` filters
+- `GET /venues/photo` — proxied venue photo (requires Google Places API key)
+- `GET /venues/saved`, `POST /venues/:placeId/save`, `DELETE /venues/:placeId/save` — saved venues
 - `GET /subscriptions/status`, `POST /subscriptions/checkout`, `POST /subscriptions/portal` — Stripe billing
 - `GET /subscriptions/products` — Stripe products list
 - `POST /stripe/webhook` — Stripe webhook handler
@@ -72,6 +76,12 @@ A full-featured global social platform for dating, friendships, and professional
 - `DELETE /blocks/:userId` — unblock
 - `GET /dashboard/stats` — dashboard stats
 - `POST /storage/uploads/request-url` — presigned upload URL
+
+### Mock Data Fallbacks
+
+When external API keys are not configured, the API server returns realistic mock data so all features work during development:
+- **Events** (`TICKETMASTER_API_KEY` not set): 8 mock Miami/Fort Lauderdale events across Nightlife, Arts, Sports, Food, Music categories. Supports all filters (category, freeOnly, timeframe).
+- **Venues** (`GOOGLE_PLACES_API_KEY` not set): 10 mock Miami venues across Food & Drinks, Nightlife, Outdoors, Arts & Culture, Activities categories. Supports all filters (category, priceFilter) with distance computed from user coordinates.
 
 ### Mobile App (Expo / React Native)
 

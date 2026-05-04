@@ -239,11 +239,175 @@ router.get("/venues/photo", async (req, res) => {
   }
 });
 
+const MOCK_VENUES: MappedVenue[] = [
+  {
+    id: "mock-v1",
+    name: "Zuma Miami",
+    category: "Food & Drinks",
+    priceLevel: 3,
+    priceTier: "$$$",
+    latitude: 25.7691,
+    longitude: -80.1878,
+    address: "270 Biscayne Blvd Way, Miami",
+    rating: 4.6,
+    photoUrl: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80",
+    isOpen: true,
+    distance: 0.5,
+  },
+  {
+    id: "mock-v2",
+    name: "LIV Nightclub",
+    category: "Nightlife",
+    priceLevel: 3,
+    priceTier: "$$$",
+    latitude: 25.8010,
+    longitude: -80.1234,
+    address: "4441 Collins Ave, Miami Beach",
+    rating: 4.3,
+    photoUrl: "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?w=400&q=80",
+    isOpen: true,
+    distance: 1.2,
+  },
+  {
+    id: "mock-v3",
+    name: "Crandon Park Beach",
+    category: "Outdoors",
+    priceLevel: 1,
+    priceTier: "$",
+    latitude: 25.6900,
+    longitude: -80.1540,
+    address: "6747 Crandon Blvd, Key Biscayne",
+    rating: 4.7,
+    photoUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80",
+    isOpen: true,
+    distance: 2.1,
+  },
+  {
+    id: "mock-v4",
+    name: "Pérez Art Museum Miami",
+    category: "Arts & Culture",
+    priceLevel: 2,
+    priceTier: "$$",
+    latitude: 25.7859,
+    longitude: -80.1863,
+    address: "1103 Biscayne Blvd, Miami",
+    rating: 4.5,
+    photoUrl: "https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=400&q=80",
+    isOpen: true,
+    distance: 0.8,
+  },
+  {
+    id: "mock-v5",
+    name: "Basement Miami",
+    category: "Activities",
+    priceLevel: 2,
+    priceTier: "$$",
+    latitude: 25.7892,
+    longitude: -80.1332,
+    address: "2901 Collins Ave, Miami Beach",
+    rating: 4.4,
+    photoUrl: "https://images.unsplash.com/photo-1545127398-14699f92334b?w=400&q=80",
+    isOpen: true,
+    distance: 1.5,
+  },
+  {
+    id: "mock-v6",
+    name: "Versailles Restaurant",
+    category: "Food & Drinks",
+    priceLevel: 1,
+    priceTier: "$",
+    latitude: 25.7655,
+    longitude: -80.2197,
+    address: "3555 SW 8th St, Miami",
+    rating: 4.4,
+    photoUrl: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80",
+    isOpen: true,
+    distance: 3.0,
+  },
+  {
+    id: "mock-v7",
+    name: "Vizcaya Museum & Gardens",
+    category: "Arts & Culture",
+    priceLevel: 2,
+    priceTier: "$$",
+    latitude: 25.7445,
+    longitude: -80.2106,
+    address: "3251 S Miami Ave, Miami",
+    rating: 4.6,
+    photoUrl: "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=400&q=80",
+    isOpen: false,
+    distance: 4.2,
+  },
+  {
+    id: "mock-v8",
+    name: "Space Park",
+    category: "Nightlife",
+    priceLevel: 2,
+    priceTier: "$$",
+    latitude: 25.7855,
+    longitude: -80.1889,
+    address: "34 NE 11th St, Miami",
+    rating: 4.5,
+    photoUrl: "https://images.unsplash.com/photo-1571266028243-d220c6a8b5e5?w=400&q=80",
+    isOpen: true,
+    distance: 0.6,
+  },
+  {
+    id: "mock-v9",
+    name: "South Pointe Park Pier",
+    category: "Outdoors",
+    priceLevel: 1,
+    priceTier: "$",
+    latitude: 25.7649,
+    longitude: -80.1328,
+    address: "1 Washington Ave, Miami Beach",
+    rating: 4.8,
+    photoUrl: "https://images.unsplash.com/photo-1519046904884-53103b34b206?w=400&q=80",
+    isOpen: true,
+    distance: 1.8,
+  },
+  {
+    id: "mock-v10",
+    name: "Wynwood Bowling",
+    category: "Activities",
+    priceLevel: 2,
+    priceTier: "$$",
+    latitude: 25.8020,
+    longitude: -80.1990,
+    address: "2200 NW 2nd Ave, Miami",
+    rating: 4.2,
+    photoUrl: "https://images.unsplash.com/photo-1611068661807-8e0f4ed1c3ab?w=400&q=80",
+    isOpen: true,
+    distance: 2.3,
+  },
+];
+
 router.get("/venues", async (req, res) => {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
 
   if (!apiKey) {
-    return res.json({ venues: [], configured: false });
+    const { category, priceFilter, lat = "25.7617", lng = "-80.1918" } = req.query;
+    const userLat = parseFloat(String(lat));
+    const userLng = parseFloat(String(lng));
+    if (
+      isNaN(userLat) || isNaN(userLng) ||
+      userLat < -90 || userLat > 90 ||
+      userLng < -180 || userLng > 180
+    ) {
+      return res.status(400).json({ error: "Invalid lat/lng coordinates" });
+    }
+    let venues = MOCK_VENUES.map((v) => ({
+      ...v,
+      distance: Math.round(haversineKm(userLat, userLng, v.latitude, v.longitude) * 10) / 10,
+    }));
+    venues.sort((a, b) => a.distance - b.distance);
+    if (category && category !== "All") {
+      venues = venues.filter((v) => v.category === String(category));
+    }
+    if (priceFilter && priceFilter !== "All") {
+      venues = venues.filter((v) => v.priceTier === String(priceFilter));
+    }
+    return res.json({ venues, configured: true });
   }
 
   const {
