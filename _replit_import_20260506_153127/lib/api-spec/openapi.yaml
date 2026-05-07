@@ -1,0 +1,1253 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: ConnectSphere API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: profiles
+    description: User profile operations
+  - name: discovery
+    description: Discovery feed and matching
+  - name: matches
+    description: Match management
+  - name: messages
+    description: Messaging between matches
+  - name: subscriptions
+    description: Premium subscription management
+  - name: reports
+    description: Safety reporting and blocking
+  - name: dashboard
+    description: Dashboard summaries
+  - name: storage
+    description: File storage operations
+  - name: venues
+    description: Nearby venue discovery
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /profiles/me:
+    get:
+      operationId: getMyProfile
+      tags: [profiles]
+      summary: Get current user profile
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "404":
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: upsertMyProfile
+      tags: [profiles]
+      summary: Create or update current user profile
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertProfileBody"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  /profiles/{userId}:
+    get:
+      operationId: getProfile
+      tags: [profiles]
+      summary: Get a user profile by ID
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /discovery:
+    get:
+      operationId: getDiscoveryFeed
+      tags: [discovery]
+      summary: Get discovery feed of profiles to swipe on
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: intent
+          in: query
+          schema:
+            $ref: "#/components/schemas/ConnectionIntent"
+        - name: subtype
+          in: query
+          schema:
+            type: string
+          description: Filter by connection subtype (e.g. "Find a Mentor", "1-on-1")
+        - name: minAge
+          in: query
+          schema:
+            type: integer
+            minimum: 16
+        - name: maxAge
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Feed of profiles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoveryFeedResponse"
+
+  /discovery/action:
+    post:
+      operationId: performDiscoveryAction
+      tags: [discovery]
+      summary: Like, super-like, or pass on a profile
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscoveryActionBody"
+      responses:
+        "200":
+          description: Action result with match info if matched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoveryActionResponse"
+
+  /matches:
+    get:
+      operationId: getMatches
+      tags: [matches]
+      summary: Get all matches for current user
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of matches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchListResponse"
+
+  /matches/{matchId}:
+    delete:
+      operationId: unmatch
+      tags: [matches]
+      summary: Unmatch / remove a match
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Unmatched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /messages/{matchId}:
+    get:
+      operationId: getMessages
+      tags: [messages]
+      summary: Get messages for a match conversation
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Messages list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageListResponse"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message in a match conversation
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageBody"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /subscriptions/status:
+    get:
+      operationId: getSubscriptionStatus
+      tags: [subscriptions]
+      summary: Get current user subscription status
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Subscription status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionStatus"
+
+  /subscriptions/checkout:
+    post:
+      operationId: createCheckoutSession
+      tags: [subscriptions]
+      summary: Create a Stripe checkout session for premium subscription
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCheckoutBody"
+      responses:
+        "200":
+          description: Checkout session URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSessionResponse"
+
+  /subscriptions/portal:
+    post:
+      operationId: createCustomerPortal
+      tags: [subscriptions]
+      summary: Create a Stripe customer portal session
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Portal URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalSessionResponse"
+
+  /subscriptions/products:
+    get:
+      operationId: getProducts
+      tags: [subscriptions]
+      summary: Get available premium products and prices
+      responses:
+        "200":
+          description: Products list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductsResponse"
+
+  /reports:
+    post:
+      operationId: reportUser
+      tags: [reports]
+      summary: Report a user for inappropriate behavior
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportUserBody"
+      responses:
+        "201":
+          description: Report submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /reports/block:
+    post:
+      operationId: blockUser
+      tags: [reports]
+      summary: Block a user
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlockUserBody"
+      responses:
+        "200":
+          description: User blocked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /reports/blocked:
+    get:
+      operationId: getBlockedUsers
+      tags: [reports]
+      summary: Get list of blocked users
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Blocked users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockedUsersResponse"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary stats for current user
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/who-liked-me:
+    get:
+      operationId: getWhoLikedMe
+      tags: [dashboard]
+      summary: Get profiles that liked the current user (premium feature)
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Profiles who liked me
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhoLikedMeResponse"
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL for profile photos
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlBody"
+      responses:
+        "200":
+          description: Upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestUploadUrlResponse"
+
+  /storage/objects/{path}:
+    get:
+      operationId: getObject
+      tags: [storage]
+      summary: Retrieve a stored object
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Object file
+
+  /storage/public-objects/{path}:
+    get:
+      operationId: getPublicObject
+      tags: [storage]
+      summary: Retrieve a public stored object
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public object file
+
+  /events:
+    get:
+      operationId: getEvents
+      tags: [events]
+      summary: Get upcoming local events in South Florida
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category (All, Nightlife, Arts, Sports, Food, Music)
+        - name: freeOnly
+          in: query
+          schema:
+            type: boolean
+          description: Filter to free events only
+        - name: timeframe
+          in: query
+          schema:
+            type: string
+            enum: [week, weekend]
+          description: Filter by this week or this weekend
+      responses:
+        "200":
+          description: List of upcoming events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventsResponse"
+
+  /venues:
+    get:
+      operationId: getVenues
+      tags: [venues]
+      summary: Get nearby venues from Google Places
+      parameters:
+        - name: lat
+          in: query
+          schema:
+            type: number
+          description: Latitude of search center
+        - name: lng
+          in: query
+          schema:
+            type: number
+          description: Longitude of search center
+        - name: radius
+          in: query
+          schema:
+            type: integer
+            default: 15000
+          description: Search radius in meters (max 50000)
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category (All, Food & Drinks, Nightlife, Outdoors, Arts & Culture, Activities)
+        - name: priceFilter
+          in: query
+          schema:
+            type: string
+          description: Filter by price tier (All, $, $$, $$$)
+      responses:
+        "200":
+          description: List of nearby venues
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VenuesResponse"
+
+  /venues/saved:
+    get:
+      operationId: getSavedVenues
+      tags: [venues]
+      summary: Get the authenticated user's saved venue place IDs
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Saved venue IDs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedVenuesResponse"
+
+  /venues/{placeId}/save:
+    post:
+      operationId: saveVenue
+      tags: [venues]
+      summary: Save a venue to the user's favourites
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: placeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveVenueBody"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveVenueResponse"
+    delete:
+      operationId: unsaveVenue
+      tags: [venues]
+      summary: Remove a venue from the user's favourites
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: placeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Unsaved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveVenueResponse"
+
+components:
+  securitySchemes:
+    clerkAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    ConnectionIntent:
+      type: string
+      enum: [dating, friendship, networking, all]
+
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        displayName:
+          type: string
+        bio:
+          type: string
+        birthDate:
+          type: string
+        age:
+          type: integer
+        gender:
+          type: string
+        location:
+          type: string
+        country:
+          type: string
+        intent:
+          $ref: "#/components/schemas/ConnectionIntent"
+        interests:
+          type: array
+          items:
+            type: string
+        languages:
+          type: array
+          items:
+            type: string
+        photos:
+          type: array
+          items:
+            type: string
+        role:
+          type: string
+        profession:
+          type: string
+        connectionSubtype:
+          type: string
+        isPremium:
+          type: boolean
+        isVerified:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - displayName
+        - intent
+        - isPremium
+        - isVerified
+
+    UpsertProfileBody:
+      type: object
+      properties:
+        displayName:
+          type: string
+        bio:
+          type: string
+        birthDate:
+          type: string
+        gender:
+          type: string
+        location:
+          type: string
+        country:
+          type: string
+        intent:
+          $ref: "#/components/schemas/ConnectionIntent"
+        interests:
+          type: array
+          items:
+            type: string
+        languages:
+          type: array
+          items:
+            type: string
+        photos:
+          type: array
+          items:
+            type: string
+        role:
+          type: string
+        profession:
+          type: string
+        connectionSubtype:
+          type: string
+        showGenderOnProfile:
+          type: boolean
+        lookingForGender:
+          type: string
+        modeData:
+          type: object
+          additionalProperties: true
+        latitude:
+          type: number
+        longitude:
+          type: number
+        locationVisibility:
+          type: string
+          enum: [hidden, fuzzy, active]
+        acceptCommunityCode:
+          type: boolean
+      required:
+        - displayName
+        - intent
+
+    DiscoveryFeedResponse:
+      type: object
+      properties:
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Profile"
+        total:
+          type: integer
+        page:
+          type: integer
+        hasMore:
+          type: boolean
+      required:
+        - profiles
+        - total
+        - page
+        - hasMore
+
+    DiscoveryActionBody:
+      type: object
+      properties:
+        targetUserId:
+          type: string
+        action:
+          type: string
+          enum: [like, superlike, pass]
+      required:
+        - targetUserId
+        - action
+
+    DiscoveryActionResponse:
+      type: object
+      properties:
+        matched:
+          type: boolean
+        match:
+          $ref: "#/components/schemas/Match"
+      required:
+        - matched
+
+    Match:
+      type: object
+      properties:
+        id:
+          type: string
+        userId1:
+          type: string
+        userId2:
+          type: string
+        matchedAt:
+          type: string
+        otherProfile:
+          $ref: "#/components/schemas/Profile"
+        lastMessage:
+          $ref: "#/components/schemas/Message"
+        unreadCount:
+          type: integer
+      required:
+        - id
+        - userId1
+        - userId2
+        - matchedAt
+
+    MatchListResponse:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+        total:
+          type: integer
+        page:
+          type: integer
+        hasMore:
+          type: boolean
+      required:
+        - matches
+        - total
+        - page
+        - hasMore
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        matchId:
+          type: string
+        senderId:
+          type: string
+        content:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - matchId
+        - senderId
+        - content
+        - isRead
+        - createdAt
+
+    SendMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+
+    MessageListResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        total:
+          type: integer
+        page:
+          type: integer
+        hasMore:
+          type: boolean
+      required:
+        - messages
+        - total
+        - page
+        - hasMore
+
+    SubscriptionStatus:
+      type: object
+      properties:
+        isPremium:
+          type: boolean
+        plan:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        currentPeriodEnd:
+          type: string
+          nullable: true
+        cancelAtPeriodEnd:
+          type: boolean
+      required:
+        - isPremium
+
+    CreateCheckoutBody:
+      type: object
+      properties:
+        priceId:
+          type: string
+        successUrl:
+          type: string
+        cancelUrl:
+          type: string
+      required:
+        - priceId
+        - successUrl
+        - cancelUrl
+
+    CheckoutSessionResponse:
+      type: object
+      properties:
+        url:
+          type: string
+      required:
+        - url
+
+    PortalSessionResponse:
+      type: object
+      properties:
+        url:
+          type: string
+      required:
+        - url
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        prices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Price"
+      required:
+        - id
+        - name
+        - prices
+
+    Price:
+      type: object
+      properties:
+        id:
+          type: string
+        unitAmount:
+          type: integer
+        currency:
+          type: string
+        interval:
+          type: string
+          nullable: true
+        intervalCount:
+          type: integer
+          nullable: true
+      required:
+        - id
+        - unitAmount
+        - currency
+
+    ProductsResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+      required:
+        - products
+
+    ReportUserBody:
+      type: object
+      properties:
+        reportedUserId:
+          type: string
+        reason:
+          type: string
+          enum: [spam, harassment, inappropriate_content, underage, fake_profile, other]
+        details:
+          type: string
+      required:
+        - reportedUserId
+        - reason
+
+    BlockUserBody:
+      type: object
+      properties:
+        blockedUserId:
+          type: string
+      required:
+        - blockedUserId
+
+    BlockedUsersResponse:
+      type: object
+      properties:
+        blockedUsers:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: string
+              blockedAt:
+                type: string
+            required:
+              - userId
+              - blockedAt
+      required:
+        - blockedUsers
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalMatches:
+          type: integer
+        newMatchesToday:
+          type: integer
+        unreadMessages:
+          type: integer
+        profileViews:
+          type: integer
+        likesReceived:
+          type: integer
+        superLikesReceived:
+          type: integer
+        isPremium:
+          type: boolean
+      required:
+        - totalMatches
+        - newMatchesToday
+        - unreadMessages
+        - profileViews
+        - likesReceived
+        - superLikesReceived
+        - isPremium
+
+    WhoLikedMeResponse:
+      type: object
+      properties:
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Profile"
+        isPremiumRequired:
+          type: boolean
+      required:
+        - profiles
+        - isPremiumRequired
+
+    RequestUploadUrlBody:
+      type: object
+      properties:
+        filename:
+          type: string
+        contentType:
+          type: string
+      required:
+        - filename
+        - contentType
+
+    RequestUploadUrlResponse:
+      type: object
+      properties:
+        uploadUrl:
+          type: string
+        objectPath:
+          type: string
+      required:
+        - uploadUrl
+        - objectPath
+
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        url:
+          type: string
+        imageUrl:
+          type: string
+        venueName:
+          type: string
+        venueAddress:
+          type: string
+        neighborhood:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        isFree:
+          type: boolean
+        price:
+          type: string
+        category:
+          type: string
+      required:
+        - id
+        - name
+        - startDate
+        - url
+        - isFree
+        - price
+        - category
+
+    EventsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/Event"
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+        configured:
+          type: boolean
+      required:
+        - events
+        - total
+        - hasMore
+        - configured
+
+    Venue:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        priceLevel:
+          type: integer
+        priceTier:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        rating:
+          type: number
+        photoUrl:
+          type: string
+        isOpen:
+          type: boolean
+        distance:
+          type: number
+      required:
+        - id
+        - name
+        - category
+        - priceLevel
+        - priceTier
+        - latitude
+        - longitude
+        - address
+        - photoUrl
+
+    VenuesResponse:
+      type: object
+      properties:
+        venues:
+          type: array
+          items:
+            $ref: "#/components/schemas/Venue"
+        configured:
+          type: boolean
+      required:
+        - venues
+        - configured
+
+    SaveVenueBody:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        address:
+          type: string
+        photoUrl:
+          type: string
+        priceTier:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        rating:
+          type: number
+      required:
+        - name
+        - category
+        - address
+        - photoUrl
+        - priceTier
+        - latitude
+        - longitude
+
+    SaveVenueResponse:
+      type: object
+      properties:
+        saved:
+          type: boolean
+      required:
+        - saved
+
+    SavedVenuesResponse:
+      type: object
+      properties:
+        placeIds:
+          type: array
+          items:
+            type: string
+      required:
+        - placeIds

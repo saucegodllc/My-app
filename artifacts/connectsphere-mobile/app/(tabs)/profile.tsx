@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { apiUrl } from "@/lib/apiBase";
 import { useGetMyProfile, useGetSubscriptionStatus, useGetSavedVenues } from "@workspace/api-client-react";
 import { useTranslation } from "react-i18next";
 
@@ -46,7 +47,7 @@ export default function ProfileScreen() {
     if (!profile || !user?.imageUrl || !user?.hasImage) return;
     if ((profile.photos as string[] | undefined)?.length) return; // already has photos
     getToken().then((token) => {
-      fetch(`https://${process.env.EXPO_PUBLIC_DOMAIN}/api/profiles/me`, {
+      fetch(apiUrl("/api/profiles/me"), {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
@@ -106,7 +107,7 @@ export default function ProfileScreen() {
       }
 
       const uploadRes = await fetch(
-        `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/profiles/me/photos`,
+        apiUrl("/api/profiles/me/photos"),
         {
           method: "POST",
           headers: {
@@ -125,7 +126,7 @@ export default function ProfileScreen() {
       const updated = [photoUrl, ...existing.slice(1)];
 
       const profileRes = await fetch(
-        `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/profiles/me`,
+        apiUrl("/api/profiles/me"),
         {
           method: "PUT",
           headers: {

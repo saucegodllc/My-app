@@ -23,6 +23,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { usePrimeCongratsVideo } from "@/contexts/CongratsVideoContext";
+import { apiUrl } from "@/lib/apiBase";
 import Svg, { Path } from "react-native-svg";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -40,6 +41,21 @@ function extractClerkError(err: unknown, fallback: string): string {
     if (typeof e.message === "string") return e.message;
   }
   return fallback;
+}
+
+function isExistingAccountError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("already") || normalized.includes("exists") || normalized.includes("taken");
+}
+
+function usernameFromIdentifier(identifier: string): string {
+  const base = identifier
+    .split("@")[0]
+    .replace(/[^a-zA-Z0-9_]/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 20);
+
+  return `${base || "user"}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
 export default function SignUpScreen() {
@@ -113,6 +129,24 @@ export default function SignUpScreen() {
     return false;
   }
 
+  async function beginEmailVerification(email: string, password: string) {
+    if (!signUp) throw new Error("Sign-up is not ready yet.");
+    try {
+      await signUp.create({
+        emailAddress: email,
+        password,
+        username: usernameFromIdentifier(email),
+      });
+    } catch (err) {
+      const message = extractClerkError(err, "");
+      if (!message.toLowerCase().includes("username")) throw err;
+      await signUp.create({ emailAddress: email, password });
+    }
+    await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+    setVerifyMode("email");
+    setPendingVerification(true);
+  }
+
   async function handleSignUp() {
     if (!isLoaded) return;
     if (!identifier.trim()) {
@@ -132,13 +166,37 @@ export default function SignUpScreen() {
     try {
       if (mode === "email") {
         const email = identifier.trim().toLowerCase();
-        const apiBase = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
-        const resp = await fetch(`${apiBase}/api/auth/signup-bypass`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        const data = await resp.json() as { success?: boolean; ticket?: string; error?: string };
+        try {
+          await beginEmailVerification(email, password);
+          return;
+        } catch (emailErr) {
+          const message = extractClerkError(emailErr, "Something went wrong. Please try again.");
+          if (!isExistingAccountError(message)) throw emailErr;
+
+          const signedIn = await tryPasswordSignIn(email, password);
+          if (signedIn) return;
+
+          Alert.alert(
+            "Account already exists",
+            "You already have a ConnectSphere account with that email. Please sign in instead.",
+            [{ text: "Sign In", onPress: () => router.replace("/(auth)/sign-in") }]
+          );
+          return;
+        }
+
+        let resp: Response;
+        try {
+          resp = await fetch(apiUrl("/api/auth/signup-bypass"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+        } catch (networkErr) {
+          console.warn("[sign-up] signup-bypass unavailable, using Clerk email verification:", networkErr);
+          await beginEmailVerification(email, password);
+          return;
+        }
+        const data = await resp.json().catch(() => ({})) as { success?: boolean; ticket?: string; error?: string };
 
         // ── 409: email already registered ────────────────────────────────────
         if (resp.status === 409) {
@@ -160,6 +218,12 @@ export default function SignUpScreen() {
             "You already have a ConnectSphere account with that email. Please sign in instead.",
             [{ text: "Sign In", onPress: () => router.replace("/(auth)/sign-in") }]
           );
+          return;
+        }
+
+        if (!resp.ok && resp.status >= 500) {
+          console.warn("[sign-up] signup-bypass server error, using Clerk email verification:", data.error);
+          await beginEmailVerification(email, password);
           return;
         }
 
@@ -197,13 +261,27 @@ export default function SignUpScreen() {
         );
       } else {
         const phone = identifier.trim().startsWith("+") ? identifier.trim() : `+1${identifier.trim().replace(/\D/g, "")}`;
-        await signUp!.create({ phoneNumber: phone });
+        try {
+          await signUp!.create({ phoneNumber: phone, username: usernameFromIdentifier(phone) });
+        } catch (err) {
+          const message = extractClerkError(err, "");
+          if (!message.toLowerCase().includes("username")) throw err;
+          await signUp!.create({ phoneNumber: phone });
+        }
         await signUp!.preparePhoneNumberVerification({ strategy: "phone_code" });
         setVerifyMode("phone");
         setPendingVerification(true);
       }
     } catch (err: unknown) {
-      Alert.alert("Sign Up Failed", extractClerkError(err, "Something went wrong. Please try again."));
+      const message = extractClerkError(err, "Something went wrong. Please try again.");
+      if (message.toLowerCase().includes("network request failed")) {
+        Alert.alert(
+          "Connection Problem",
+          "The app could not reach the sign-up service. Please check your connection, reload Expo, and try again."
+        );
+      } else {
+        Alert.alert("Sign Up Failed", message);
+      }
     } finally {
       setLoading(false);
     }

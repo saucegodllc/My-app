@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { apiUrl } from "@/lib/apiBase";
 
 type DetectResult = {
   isResume: boolean;
@@ -42,8 +43,7 @@ export default function ResumeScreen() {
     setResult(null);
     try {
       const token = await getToken();
-      const apiBase = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
-      const res = await fetch(`${apiBase}/api/resume/detect`, {
+      const res = await fetch(apiUrl("/api/resume/detect"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

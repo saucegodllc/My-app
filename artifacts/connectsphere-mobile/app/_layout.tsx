@@ -5,6 +5,11 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
+import {
+  Sora_700Bold,
+  Sora_800ExtraBold,
+} from "@expo-google-fonts/sora";
+import { Yellowtail_400Regular } from "@expo-google-fonts/yellowtail";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
@@ -17,15 +22,17 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CongratsVideoProvider } from "@/contexts/CongratsVideoContext";
+import { DatingMatchProvider } from "@/contexts/DatingMatchContext";
 import { DiscoveryModeProvider } from "@/contexts/DiscoveryModeContext";
 import { SuccessVideoProvider } from "@/contexts/SuccessVideoContext";
 import { TransitionOverlayProvider } from "@/contexts/TransitionOverlayContext";
 import { WelcomeVideoProvider } from "@/contexts/WelcomeVideoContext";
+import { getApiBaseUrl } from "@/lib/apiBase";
 import { tokenCache } from "@/lib/tokenCache";
 import i18n, { getSavedLanguage } from "@/i18n";
 
 // Set API base URL (absolute URL required for Expo bundles)
-setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+setBaseUrl(getApiBaseUrl());
 
 SplashScreen.preventAutoHideAsync();
 
@@ -94,6 +101,9 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    Sora_700Bold,
+    Sora_800ExtraBold,
+    Yellowtail_400Regular,
   });
   const [i18nReady, setI18nReady] = useState(false);
 
@@ -121,16 +131,18 @@ export default function RootLayout() {
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
                 <DiscoveryModeProvider>
-                  <WelcomeVideoProvider>
-                    <CongratsVideoProvider>
-                      <SuccessVideoProvider>
-                        <TransitionOverlayProvider>
-                          <AuthTokenSetter />
-                          <RootLayoutNav />
-                        </TransitionOverlayProvider>
-                      </SuccessVideoProvider>
-                    </CongratsVideoProvider>
-                  </WelcomeVideoProvider>
+                  <DatingMatchProvider>
+                    <WelcomeVideoProvider>
+                      <CongratsVideoProvider>
+                        <SuccessVideoProvider>
+                          <TransitionOverlayProvider>
+                            <AuthTokenSetter />
+                            <RootLayoutNav />
+                          </TransitionOverlayProvider>
+                        </SuccessVideoProvider>
+                      </CongratsVideoProvider>
+                    </WelcomeVideoProvider>
+                  </DatingMatchProvider>
                 </DiscoveryModeProvider>
               </KeyboardProvider>
             </GestureHandlerRootView>

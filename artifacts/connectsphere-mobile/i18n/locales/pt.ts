@@ -122,7 +122,7 @@ export default {
         findClients: "Encontrar clientes",
       },
       networkingDone: "Vamos nos conectar",
-      networking: "Networking",
+      networking: "Oportunidades",
       all: "Tudo acima",
       datingDesc: "Encontrar conexões românticas",
       friendshipDesc: "Fazer novos amigos",

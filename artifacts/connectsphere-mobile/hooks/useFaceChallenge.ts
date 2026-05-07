@@ -20,6 +20,7 @@ import {
   QUALITY_MIN_CONFIDENCE,
   type FaceAnalysis,
 } from "./useFaceDetector";
+import { apiUrl } from "@/lib/apiBase";
 
 export type ChallengeType = "smile";
 export type Phase = "loading" | "modelwait" | "quality" | "challenge" | "submitting" | "success" | "failed";
@@ -173,7 +174,7 @@ export function useFaceChallenge(
     bestConfRef.current    = 0;
     try {
       const token = await getToken();
-      const res = await fetch(`https://${domain}/api/profiles/liveness-nonce`, {
+      const res = await fetch(apiUrl("/api/profiles/liveness-nonce"), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.status === 429) {
@@ -244,7 +245,7 @@ export function useFaceChallenge(
         frameConfsRef.current   = [];
 
         const token = await getToken();
-        const tickRes = await fetch(`https://${domain}/api/profiles/liveness-challenge-tick`, {
+        const tickRes = await fetch(apiUrl("/api/profiles/liveness-challenge-tick"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -422,7 +423,7 @@ export function useFaceChallenge(
     computeFaceHash(geoVec)
       .then((faceHash) => getToken().then((token) => ({ faceHash, token })))
       .then(({ faceHash, token }) =>
-        fetch(`https://${domain}/api/profiles/verify-face`, {
+        fetch(apiUrl("/api/profiles/verify-face"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

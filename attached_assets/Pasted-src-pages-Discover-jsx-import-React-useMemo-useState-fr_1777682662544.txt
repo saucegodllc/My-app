@@ -1,0 +1,458 @@
+src/pages/Discover.jsx:
+
+import React, { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Flame,
+  Users,
+  BriefcaseBusiness,
+  SlidersHorizontal,
+  MapPin,
+  Heart,
+  X,
+  MessageCircle,
+  UserPlus,
+  Send,
+  Handshake,
+  Contact,
+  Compass,
+  CalendarDays,
+  Map,
+  UserCircle,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+
+const currentUserIntent = "all"; 
+// change to: "dating", "friends", "networking", or "all"
+
+const tabs = [
+  {
+    id: "dating",
+    label: "Dating",
+    icon: Flame,
+    gradient: "from-pink-500 via-fuchsia-500 to-rose-500",
+    glow: "shadow-[0_0_35px_rgba(236,72,153,0.65)]",
+  },
+  {
+    id: "friends",
+    label: "Friends",
+    icon: Users,
+    gradient: "from-blue-500 via-indigo-500 to-violet-500",
+    glow: "shadow-[0_0_35px_rgba(59,130,246,0.65)]",
+  },
+  {
+    id: "networking",
+    label: "Networking",
+    icon: BriefcaseBusiness,
+    gradient: "from-emerald-400 via-teal-400 to-cyan-400",
+    glow: "shadow-[0_0_35px_rgba(45,212,191,0.6)]",
+  },
+];
+
+const subTabs = {
+  dating: ["For You", "Active Tonight", "Double Dates", "Serious", "Miami Nightlife"],
+  friends: ["For You", "Brunch", "Gym", "Beach Day", "New to Miami"],
+  networking: ["For You", "Founders", "Creators", "Real Estate", "Investors"],
+};
+
+const profiles = [
+  {
+    id: 1,
+    name: "Maya",
+    age: 24,
+    location: "Miami, FL",
+    intent: "dating",
+    subGenre: "Active Tonight",
+    bio: "Looking for people to go out and have fun tonight. Love rooftop bars, dancing, and spontaneous plans.",
+    interests: ["Nightlife", "Travel", "Dancing", "Yoga"],
+    matchScore: 82,
+    online: true,
+    verified: true,
+    image:
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=90",
+  },
+  {
+    id: 2,
+    name: "Isabella",
+    age: 25,
+    location: "Miami, FL",
+    intent: "dating",
+    subGenre: "Double Dates",
+    bio: "Looking for fun people to explore Miami with and make memories.",
+    interests: ["Nightlife", "Travel", "Wine", "Sushi"],
+    matchScore: 84,
+    online: true,
+    verified: true,
+    image:
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=90",
+  },
+  {
+    id: 3,
+    name: "Jade",
+    age: 24,
+    location: "Miami, FL",
+    intent: "friends",
+    subGenre: "Gym",
+    bio: "Looking for workout buddies, beach days, and new girl friends.",
+    interests: ["Gym", "Wellness", "Beach", "Hiking"],
+    matchScore: 90,
+    online: true,
+    verified: true,
+    image:
+      "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?auto=format&fit=crop&w=1200&q=90",
+  },
+  {
+    id: 4,
+    name: "Marcus",
+    age: 29,
+    location: "Brickell, Miami",
+    intent: "networking",
+    subGenre: "Founders",
+    bio: "Building startups. Looking to connect with driven and ambitious people.",
+    interests: ["Startups", "Investing", "Tech", "AI"],
+    matchScore: 92,
+    online: true,
+    verified: true,
+    image:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=1200&q=90",
+  },
+];
+
+export default function Discover() {
+  const allowedTabs =
+    currentUserIntent === "all"
+      ? tabs
+      : tabs.filter((tab) => tab.id === currentUserIntent);
+
+  const [activeIntent, setActiveIntent] = useState(allowedTabs[0].id);
+  const [activeSubTab, setActiveSubTab] = useState("For You");
+  const [cardIndex, setCardIndex] = useState(0);
+
+  const theme = tabs.find((tab) => tab.id === activeIntent);
+
+  const visibleProfiles = useMemo(() => {
+    return profiles.filter((profile) => {
+      const allowed =
+        currentUserIntent === "all" ||
+        profile.intent === currentUserIntent ||
+        profile.intent === "all";
+
+      const matchesIntent =
+        profile.intent === activeIntent || profile.intent === "all";
+
+      const matchesSub =
+        activeSubTab === "For You" || profile.subGenre === activeSubTab;
+
+      return allowed && matchesIntent && matchesSub;
+    });
+  }, [activeIntent, activeSubTab]);
+
+  const profile =
+    visibleProfiles.length > 0
+      ? visibleProfiles[cardIndex % visibleProfiles.length]
+      : null;
+
+  const nextCard = () => setCardIndex((prev) => prev + 1);
+
+  return (
+    <div className="min-h-screen w-full bg-black text-white flex justify-center">
+      <div className="relative min-h-screen w-full max-w-[430px] overflow-hidden bg-[#030303] pb-24">
+        <div className="absolute inset-0">
+          <div className="absolute -top-24 left-[-80px] h-72 w-72 rounded-full bg-pink-500/25 blur-[90px]" />
+          <div className="absolute top-12 right-[-100px] h-80 w-80 rounded-full bg-emerald-400/15 blur-[100px]" />
+          <div className="absolute bottom-20 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-fuchsia-500/10 blur-[120px]" />
+        </div>
+
+        <main className="relative z-10 px-4 pt-4">
+          <header className="flex items-start justify-between">
+            <div>
+              <h1 className="text-[34px] font-black tracking-tight drop-shadow-lg">
+                Discover
+              </h1>
+
+              <div className="mt-1 flex items-center gap-2 text-sm text-zinc-300">
+                <Flame className="h-4 w-4 fill-pink-500 text-pink-500" />
+                <span>9 people waiting</span>
+                <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,1)]" />
+              </div>
+            </div>
+
+            <button className="grid h-12 w-12 place-items-center rounded-full border border-white/10 bg-white/10 backdrop-blur-2xl shadow-xl">
+              <SlidersHorizontal className="h-5 w-5" />
+            </button>
+          </header>
+
+          <section className="mt-5 rounded-full border border-white/10 bg-black/40 p-1 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+            <div className="grid grid-cols-3 gap-1">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const active = activeIntent === tab.id;
+                const allowed = allowedTabs.some((item) => item.id === tab.id);
+
+                return (
+                  <button
+                    key={tab.id}
+                    disabled={!allowed}
+                    onClick={() => {
+                      setActiveIntent(tab.id);
+                      setActiveSubTab("For You");
+                      setCardIndex(0);
+                    }}
+                    className={`relative flex items-center justify-center gap-2 rounded-full py-3 text-xs font-black transition ${
+                      allowed ? "text-white" : "text-zinc-700"
+                    }`}
+                  >
+                    {active && (
+                      <motion.div
+                        layoutId="main-active-pill"
+                        className={`absolute inset-0 rounded-full bg-gradient-to-r ${tab.gradient} ${tab.glow}`}
+                        transition={{
+                          type: "spring",
+                          stiffness: 420,
+                          damping: 34,
+                        }}
+                      />
+                    )}
+
+                    <span className="relative z-10 flex items-center gap-2">
+                      <Icon className="h-4 w-4" />
+                      {tab.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {subTabs[activeIntent].map((tab) => {
+              const active = activeSubTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  onClick={() => {
+                    setActiveSubTab(tab);
+                    setCardIndex(0);
+                  }}
+                  className={`relative shrink-0 rounded-full px-4 py-2 text-xs font-black transition ${
+                    active ? "text-white" : "text-zinc-400"
+                  }`}
+                >
+                  {active ? (
+                    <motion.div
+                      layoutId="sub-active-pill"
+                      className={`absolute inset-0 rounded-full bg-gradient-to-r ${theme.gradient} ${theme.glow}`}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 rounded-full border border-white/10 bg-white/7 backdrop-blur-xl" />
+                  )}
+
+                  <span className="relative z-10">{tab}</span>
+                </button>
+              );
+            })}
+          </section>
+
+          <div className="mt-3 rounded-full border border-pink-400/20 bg-pink-500/10 px-4 py-2 text-center text-xs font-bold text-pink-100 backdrop-blur-xl">
+            ✨ Showing mock profiles while your real feed is empty.
+          </div>
+
+          <section className="relative mt-4 h-[560px]">
+            <AnimatePresence mode="wait">
+              {profile ? (
+                <motion.article
+                  key={`${profile.id}-${cardIndex}-${activeIntent}-${activeSubTab}`}
+                  drag="y"
+                  dragConstraints={{ top: 0, bottom: 0 }}
+                  onDragEnd={(e, info) => {
+                    if (Math.abs(info.offset.y) > 80) nextCard();
+                  }}
+                  initial={{ opacity: 0, y: 90, scale: 0.94 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -100, scale: 0.94 }}
+                  transition={{ type: "spring", stiffness: 240, damping: 26 }}
+                  className="absolute inset-0 overflow-hidden rounded-[30px] border border-white/10 bg-zinc-950 shadow-[0_35px_90px_rgba(0,0,0,0.85)]"
+                >
+                  <img
+                    src={profile.image}
+                    alt={profile.name}
+                    className="h-full w-full object-cover"
+                  />
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/15" />
+                  <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${theme.gradient}`} />
+
+                  <div className="absolute left-4 right-4 top-4 flex items-center justify-between">
+                    <div className="rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-xs font-bold backdrop-blur-xl">
+                      <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,1)]" />
+                      Online
+                    </div>
+
+                    <div className="rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-xs font-bold backdrop-blur-xl">
+                      {profile.matchScore}% Match
+                    </div>
+                  </div>
+
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-4xl font-black tracking-tight">
+                        {profile.name}, {profile.age}
+                      </h2>
+
+                      {profile.verified && (
+                        <ShieldCheck className="h-6 w-6 fill-pink-500 text-white" />
+                      )}
+                    </div>
+
+                    <div className="mt-2 flex items-center gap-1 text-sm text-zinc-200">
+                      <MapPin className="h-4 w-4" />
+                      {profile.location}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className={`rounded-full bg-gradient-to-r ${theme.gradient} px-3 py-1 text-xs font-black capitalize`}>
+                        {profile.intent}
+                      </span>
+
+                      <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold backdrop-blur-xl">
+                        {profile.subGenre}
+                      </span>
+                    </div>
+
+                    <p className="mt-3 line-clamp-2 text-sm font-medium leading-5 text-zinc-100">
+                      {profile.bio}
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {profile.interests.map((interest) => (
+                        <span
+                          key={interest}
+                          className="rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-xs font-bold backdrop-blur-xl"
+                        >
+                          {interest}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-5">
+                      <IntentActions intent={activeIntent} theme={theme} onAction={nextCard} />
+                    </div>
+                  </div>
+                </motion.article>
+              ) : (
+                <EmptyState theme={theme} />
+              )}
+            </AnimatePresence>
+          </section>
+        </main>
+
+        <BottomNav />
+      </div>
+    </div>
+  );
+}
+
+function IntentActions({ intent, theme, onAction }) {
+  if (intent === "dating") {
+    return (
+      <div className="grid grid-cols-3 gap-4">
+        <CircleAction icon={X} label="Pass" onClick={onAction} />
+        <CircleAction icon={Heart} label="Like" main theme={theme} onClick={onAction} />
+        <CircleAction icon={MessageCircle} label="Message" onClick={onAction} />
+      </div>
+    );
+  }
+
+  if (intent === "friends") {
+    return (
+      <div className="grid grid-cols-3 gap-4">
+        <CircleAction icon={X} label="Skip" onClick={onAction} />
+        <CircleAction icon={Users} label="Add Friend" main theme={theme} onClick={onAction} />
+        <CircleAction icon={Send} label="Invite" onClick={onAction} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      <CircleAction icon={Handshake} label="Connect" main theme={theme} onClick={onAction} />
+      <CircleAction icon={Contact} label="Save Contact" onClick={onAction} />
+      <CircleAction icon={MessageCircle} label="Message" onClick={onAction} />
+    </div>
+  );
+}
+
+function CircleAction({ icon: Icon, label, main, theme, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-2 text-xs font-bold text-zinc-200 active:scale-95 transition"
+    >
+      <div
+        className={`grid h-14 w-14 place-items-center rounded-full border backdrop-blur-xl ${
+          main
+            ? `border-white/20 bg-gradient-to-r ${theme.gradient} ${theme.glow}`
+            : "border-white/15 bg-black/35"
+        }`}
+      >
+        <Icon className={`h-6 w-6 ${main ? "text-white fill-white/20" : "text-zinc-200"}`} />
+      </div>
+      {label}
+    </button>
+  );
+}
+
+function EmptyState({ theme }) {
+  return (
+    <div className="grid h-full place-items-center rounded-[30px] border border-white/10 bg-white/[0.04] p-8 text-center backdrop-blur-xl">
+      <div>
+        <div className={`mx-auto grid h-20 w-20 place-items-center rounded-full bg-gradient-to-r ${theme.gradient} ${theme.glow}`}>
+          <Sparkles className="h-9 w-9 text-white" />
+        </div>
+
+        <h2 className="mt-5 text-2xl font-black">Feed warming up</h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">
+          No profiles in this sub-category yet. Try another vibe or refresh your feed.
+        </p>
+
+        <button className={`mt-5 rounded-full bg-gradient-to-r ${theme.gradient} px-6 py-3 text-sm font-black ${theme.glow}`}>
+          Refresh Feed
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BottomNav() {
+  const nav = [
+    { label: "Discover", icon: Flame, active: true },
+    { label: "Connect", icon: Compass },
+    { label: "Events", icon: CalendarDays },
+    { label: "Map", icon: Map },
+    { label: "Profile", icon: UserCircle },
+  ];
+
+  return (
+    <nav className="absolute bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-black/80 px-3 pb-3 pt-2 backdrop-blur-2xl">
+      <div className="grid grid-cols-5">
+        {nav.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <button
+              key={item.label}
+              className={`flex flex-col items-center gap-1 text-[11px] font-bold ${
+                item.active ? "text-pink-500" : "text-zinc-500"
+              }`}
+            >
+              <Icon className={`h-5 w-5 ${item.active ? "fill-pink-500/20" : ""}`} />
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

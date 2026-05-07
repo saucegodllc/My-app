@@ -14,6 +14,9 @@ import bioRouter from "./bio";
 import eventsRouter from "./events";
 import venuesRouter from "./venues";
 import networkRouter from "./network";
+import opportunitiesRouter from "./opportunities";
+import friendsRouter from "./friends";
+import datingRouter from "./dating";
 
 const router: IRouter = Router();
 
@@ -26,6 +29,8 @@ router.use(healthRouter);
 router.use(profilesRouter);
 router.use(discoveryRouter);
 router.use(matchesRouter);
+router.use(datingRouter);
+router.use(friendsRouter);
 router.use(messagesRouter);
 router.use(subscriptionsRouter);
 router.use(reportsRouter);
@@ -37,5 +42,6 @@ router.use(bioRouter);
 router.use(eventsRouter);
 router.use(venuesRouter);
 router.use(networkRouter);
+router.use(opportunitiesRouter);
 
 export default router;

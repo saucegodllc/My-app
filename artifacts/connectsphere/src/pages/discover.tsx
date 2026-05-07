@@ -7,11 +7,30 @@ import {
   useTransform,
 } from "framer-motion";
 import {
+  Accessibility,
   BadgeCheck,
+  CalendarPlus,
+  Camera,
+  Check,
+  ChevronRight,
+  Coffee,
+  Dumbbell,
+  ImagePlus,
+  MessageCircle,
+  Moon,
+  MoreHorizontal,
+  PartyPopper,
+  Plus,
+  Search,
+  Send,
+  ShieldCheck,
+  Sparkles,
   Flame,
   Heart,
   Info,
   MapPin,
+  MessageSquare,
+  Users,
   SlidersHorizontal,
   Star,
   X,
@@ -37,14 +56,14 @@ import {
 
 const INTENTS: Record<string, string[]> = {
   Dating: ["All", "Serious", "Casual", "Double Dates", "Active Tonight", "New in Town"],
-  Friends: ["All", "Going Out", "Gym", "Study", "Travel", "Foodies", "Nightlife"],
-  Networking: ["All", "Entrepreneurs", "Creators", "Students", "Investors", "Jobs", "Mentors"],
+  Friends: ["All", "Going Out", "Study", "Travel", "Foodies", "Nightlife"],
+  Opportunities: ["All", "Entrepreneurs", "Creators", "Students", "Investors", "Jobs", "Mentors"],
 };
 
 const INTENT_API: Record<string, "dating" | "friendship" | "networking"> = {
   Dating: "dating",
   Friends: "friendship",
-  Networking: "networking",
+  Opportunities: "networking",
 };
 
 const NAV_ITEMS = [
@@ -128,7 +147,7 @@ function toUser(profile: ApiProfile): User {
     profile.intent === "friendship"
       ? "Friends"
       : profile.intent === "networking"
-        ? "Networking"
+        ? "Opportunities"
         : "Dating";
 
   return {
@@ -715,8 +734,595 @@ function PreviewSheet({
   );
 }
 
+type FriendPerson = {
+  id: string;
+  name: string;
+  age: number;
+  city: string;
+  avatar: string;
+  photo: string;
+  interests: string[];
+  badges: string[];
+  energy: string;
+  signal: string;
+  neighborhood: string;
+  connected?: boolean;
+};
+
+type FriendPost = {
+  id: string;
+  type: "post" | "profile" | "plan" | "signal";
+  person: FriendPerson;
+  text: string;
+  timestamp: string;
+  tag: string;
+  image?: string;
+  subtleSignals: string[];
+  prompt: string;
+};
+
+const FRIEND_STORIES = [
+  { label: "Coffee", icon: Coffee, ring: "from-amber-300 to-[#FF299B]" },
+  { label: "Gym", icon: Dumbbell, ring: "from-lime-300 to-emerald-400" },
+  { label: "Going Out", icon: PartyPopper, ring: "from-[#FF299B] to-purple-500" },
+  { label: "Chill", icon: Moon, ring: "from-sky-300 to-indigo-400" },
+  { label: "New to Miami", icon: MapPin, ring: "from-orange-300 to-pink-400" },
+  { label: "Study", icon: MessageSquare, ring: "from-violet-300 to-fuchsia-400" },
+  { label: "Accessible", icon: Accessibility, ring: "from-cyan-300 to-blue-400" },
+  { label: "Active Tonight", icon: Zap, ring: "from-[#FF299B] to-red-400" },
+];
+
+const FRIEND_CHIPS = [
+  "For You",
+  "Nearby",
+  "Active Now",
+  "Coffee",
+  "Gym",
+  "Chill",
+  "Nightlife",
+  "Learning",
+  "Accessible",
+  "LGBTQ+",
+  "Family-Friendly",
+  "50+",
+  "New to Miami",
+];
+
+const POST_TAGS = ["Coffee", "Gym", "Walk", "Brunch", "Chill", "Going Out", "Study", "Food", "Creative", "Movie"];
+
+const PLAN_OPTIONS = [
+  { label: "Coffee", reason: "Easy first plan and low pressure.", icon: Coffee },
+  { label: "Gym", reason: "Both enjoy active mornings.", icon: Dumbbell },
+  { label: "Walk", reason: "Good fit for a relaxed neighborhood meetup.", icon: MapPin },
+  { label: "Brunch", reason: "Shared food interests and weekend energy.", icon: Sparkles },
+  { label: "Night Out", reason: "Both show up for evening plans.", icon: PartyPopper },
+  { label: "Study", reason: "Quiet setting with a clear purpose.", icon: MessageSquare },
+  { label: "Movie", reason: "Simple plan for introvert-friendly connection.", icon: Camera },
+  { label: "Creative", reason: "Shared creative interests make this natural.", icon: Star },
+  { label: "Food", reason: "Both save food spots around Miami.", icon: Coffee },
+  { label: "Custom", reason: "Build something that fits your schedules.", icon: Plus },
+];
+
+const FRIEND_PEOPLE: FriendPerson[] = [
+  {
+    id: "friend-maya",
+    name: "Maya Johnson",
+    age: 29,
+    city: "Brickell",
+    avatar: "MJ",
+    photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80",
+    interests: ["coffee", "design", "beach walks", "brunch"],
+    badges: ["Active Tonight", "Coffee Person", "Accessible Friendly", "Fast Responder"],
+    energy: "Exploring Miami",
+    signal: "Trying a new coffee spot after work.",
+    neighborhood: "Brickell",
+  },
+  {
+    id: "friend-omar",
+    name: "Omar Ellis",
+    age: 35,
+    city: "Wynwood",
+    avatar: "OE",
+    photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=80",
+    interests: ["gym", "food", "nightlife", "music"],
+    badges: ["Gym Energy", "LGBTQ+ Friendly", "Social Weekend", "Fast Responder"],
+    energy: "Looking for Plans",
+    signal: "Open to a group dinner or a gallery night.",
+    neighborhood: "Wynwood",
+  },
+  {
+    id: "friend-nina",
+    name: "Nina Patel",
+    age: 42,
+    city: "Coral Gables",
+    avatar: "NP",
+    photo: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=900&q=80",
+    interests: ["family plans", "learning", "parks", "food"],
+    badges: ["Family-Friendly", "Chill Personality", "50+", "Accessible Friendly"],
+    energy: "Chill Mode",
+    signal: "Weekend park walk with coffee nearby.",
+    neighborhood: "Coral Gables",
+  },
+  {
+    id: "friend-jules",
+    name: "Jules Rivera",
+    age: 24,
+    city: "Downtown",
+    avatar: "JR",
+    photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=80",
+    interests: ["study", "creative", "movies", "new to miami"],
+    badges: ["New to Miami", "Study Mode", "LGBTQ+ Friendly", "Low-Noise Plans"],
+    energy: "Study Mode",
+    signal: "Looking for a quiet cafe to co-work.",
+    neighborhood: "Downtown",
+  },
+];
+
+const FRIEND_FEED: FriendPost[] = [
+  {
+    id: "post-1",
+    type: "post",
+    person: FRIEND_PEOPLE[0],
+    text: "Down for an iced latte and a walk by the water around 6. Low-key, good conversation, no pressure.",
+    timestamp: "12m",
+    tag: "Coffee",
+    image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1200&q=80",
+    subtleSignals: ["Similar interests", "Also active around Brickell", "Usually joins coffee plans"],
+    prompt: "Favorite coffee spot in Miami?",
+  },
+  {
+    id: "profile-1",
+    type: "profile",
+    person: FRIEND_PEOPLE[1],
+    text: "Build a gym-to-food crew. Morning lifts, weekend markets, live music when the week allows it.",
+    timestamp: "Active now",
+    tag: "Gym",
+    subtleSignals: ["Same energy", "Into the same things", "Mutual creative circles"],
+    prompt: "Gym or beach walk?",
+  },
+  {
+    id: "plan-1",
+    type: "plan",
+    person: FRIEND_PEOPLE[2],
+    text: "Mini plan: family-friendly Saturday brunch, then a shaded park walk. Easy pace and accessible seating preferred.",
+    timestamp: "Today",
+    tag: "Brunch",
+    subtleSignals: ["Your kind of people", "Shared safety preferences", "Low-noise friendly"],
+    prompt: "Best calm brunch place in Coral Gables?",
+  },
+  {
+    id: "signal-1",
+    type: "signal",
+    person: FRIEND_PEOPLE[3],
+    text: "New to Miami and trying to find study friends, movie people, and quiet creative spaces.",
+    timestamp: "28m",
+    tag: "Study",
+    image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80",
+    subtleSignals: ["You'd probably get along", "Similar plan style", "Also likes quiet places"],
+    prompt: "Favorite chill place in Brickell?",
+  },
+];
+
+function getPlanSuggestions(person: FriendPerson) {
+  return PLAN_OPTIONS.map((option) => ({
+    ...option,
+    reason:
+      person.interests.includes(option.label.toLowerCase()) || person.signal.toLowerCase().includes(option.label.toLowerCase())
+        ? `${option.label} fits ${person.name.split(" ")[0]}'s current signal.`
+        : option.reason,
+  })).slice(0, 6);
+}
+
+function FriendStoryRow({ selected, onSelect }: { selected: string; onSelect: (value: string) => void }) {
+  return (
+    <div className="mt-5 flex gap-3 overflow-x-auto px-5 pb-2 scrollbar-none">
+      {FRIEND_STORIES.map(({ label, icon: Icon, ring }) => (
+        <button key={label} type="button" onClick={() => onSelect(label)} className="w-[74px] shrink-0 text-center">
+          <div className={`mx-auto grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br ${ring} p-[2px] shadow-[0_0_26px_rgba(255,41,155,.24)]`}>
+            <div className={`grid h-full w-full place-items-center rounded-full bg-zinc-950 ${selected === label ? "text-white" : "text-zinc-300"}`}>
+              <Icon size={21} />
+            </div>
+          </div>
+          <div className="mt-2 truncate text-[11px] font-semibold text-zinc-300">{label}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CompatibilitySignals({ signals }: { signals: string[] }) {
+  return (
+    <div className="mt-4 flex flex-wrap gap-2">
+      {signals.map((signal) => (
+        <span key={signal} className="rounded-full border border-pink-300/20 bg-pink-400/10 px-3 py-1 text-[11px] font-semibold text-pink-100">
+          {signal}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function PostCreator({ onPost }: { onPost: (text: string, tag: string) => void }) {
+  const [text, setText] = useState("");
+  const [tag, setTag] = useState("Coffee");
+
+  return (
+    <motion.section layout className="mx-5 mt-4 rounded-[28px] border border-white/10 bg-white/[.06] p-4 shadow-[0_24px_80px_rgba(255,41,155,.12)] backdrop-blur-xl">
+      <div className="flex gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#FF299B] to-purple-700 text-sm font-black">
+          ME
+        </div>
+        <div className="min-w-0 flex-1">
+          <textarea
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            placeholder="What are you down to do?"
+            className="h-20 w-full resize-none bg-transparent text-sm text-white placeholder:text-zinc-500 focus:outline-none"
+          />
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {POST_TAGS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setTag(option)}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+                  tag === option ? "border-[#FF299B] bg-[#FF299B] text-white" : "border-white/10 bg-black/30 text-zinc-300"
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
+        <button type="button" className="flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold text-zinc-300">
+          <ImagePlus size={16} className="text-[#FF299B]" />
+          Image
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!text.trim()) return;
+            onPost(text.trim(), tag);
+            setText("");
+          }}
+          className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#FF299B] to-purple-700 px-5 py-2 text-xs font-black text-white shadow-[0_0_22px_rgba(255,41,155,.35)]"
+        >
+          <Send size={14} />
+          Post
+        </button>
+      </div>
+    </motion.section>
+  );
+}
+
+function FriendPostCard({
+  item,
+  requested,
+  onConnect,
+  onPlan,
+}: {
+  item: FriendPost;
+  requested: boolean;
+  onConnect: (person: FriendPerson) => void;
+  onPlan: (person: FriendPerson) => void;
+}) {
+  const isProfile = item.type === "profile";
+
+  return (
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      className="mx-5 overflow-hidden rounded-[30px] border border-white/10 bg-zinc-950/90 shadow-[0_24px_90px_rgba(0,0,0,.45)]"
+    >
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[#FF299B] to-purple-700 text-sm font-black">
+            {item.person.avatar}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h3 className="font-black text-white">{item.person.name}</h3>
+                  <BadgeCheck size={15} className="text-[#FF299B]" />
+                  {isProfile ? <span className="text-xs text-zinc-400">{item.person.age}</span> : null}
+                </div>
+                <div className="mt-0.5 flex items-center gap-1 text-xs text-zinc-500">
+                  <MapPin size={12} />
+                  {item.person.city} · {item.timestamp}
+                </div>
+              </div>
+              <button type="button" className="rounded-full p-2 text-zinc-500 hover:bg-white/10 hover:text-white">
+                <MoreHorizontal size={18} />
+              </button>
+            </div>
+            <p className="mt-3 text-[15px] leading-relaxed text-zinc-100">{item.text}</p>
+          </div>
+        </div>
+
+        {isProfile ? (
+          <div className="mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-white/[.04]">
+            <div className="relative h-64">
+              <img src={item.person.photo} alt="" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/50 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
+                  <Zap size={13} className="text-[#FF299B]" />
+                  {item.person.energy}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {item.person.badges.slice(0, 4).map((badge) => (
+                    <span key={badge} className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold text-white backdrop-blur">
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : item.image ? (
+          <div className="mt-4 overflow-hidden rounded-[24px] border border-white/10">
+            <img src={item.image} alt="" className="h-64 w-full object-cover" />
+          </div>
+        ) : null}
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white">{item.tag}</span>
+          {item.person.interests.slice(0, 3).map((interest) => (
+            <span key={interest} className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300">
+              {interest}
+            </span>
+          ))}
+        </div>
+
+        <CompatibilitySignals signals={item.subtleSignals} />
+
+        <div className="mt-4 rounded-[22px] border border-white/10 bg-white/[.04] p-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-pink-100">
+            <Sparkles size={14} className="text-[#FF299B]" />
+            Icebreaker
+          </div>
+          <p className="mt-1 text-sm text-zinc-300">{item.prompt}</p>
+        </div>
+
+        <div className="mt-4 grid grid-cols-4 gap-2">
+          <button type="button" className="rounded-full border border-white/10 bg-white/[.05] px-3 py-3 text-xs font-bold text-zinc-200">
+            Like
+          </button>
+          <button type="button" className="inline-flex items-center justify-center gap-1 rounded-full border border-white/10 bg-white/[.05] px-3 py-3 text-xs font-bold text-zinc-200">
+            <MessageCircle size={13} />
+            Comment
+          </button>
+          <button
+            type="button"
+            onClick={() => onConnect(item.person)}
+            className={`inline-flex items-center justify-center gap-1 rounded-full px-3 py-3 text-xs font-black ${
+              requested ? "bg-white text-black" : "bg-gradient-to-r from-[#FF299B] to-purple-700 text-white"
+            }`}
+          >
+            {requested ? <Check size={13} /> : null}
+            {requested ? "Requested" : item.person.connected ? "Message" : "Connect"}
+          </button>
+          <button
+            type="button"
+            onClick={() => onPlan(item.person)}
+            className="inline-flex items-center justify-center gap-1 rounded-full border border-pink-300/30 bg-pink-400/10 px-3 py-3 text-xs font-black text-pink-100"
+          >
+            <CalendarPlus size={13} />
+            Plan
+          </button>
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
+function FriendPlanSheet({ person, onClose }: { person: FriendPerson; onClose: () => void }) {
+  const suggestions = getPlanSuggestions(person);
+
+  return (
+    <motion.div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-3 pb-3 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.div
+        initial={{ y: 420 }}
+        animate={{ y: 0 }}
+        exit={{ y: 420 }}
+        transition={{ type: "spring", stiffness: 260, damping: 28 }}
+        className="w-full max-w-md rounded-[34px] border border-white/10 bg-zinc-950 p-5 shadow-[0_0_90px_rgba(255,41,155,.28)]"
+      >
+        <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-white/20" />
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-black">Make a plan</h2>
+            <p className="mt-1 text-sm text-zinc-400">Smart suggestions based on shared interests, pace, and plan style.</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-full border border-white/10 bg-white/5 p-2">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="mt-5 grid gap-3">
+          {suggestions.map(({ label, reason, icon: Icon }) => (
+            <button key={label} type="button" className="flex items-center gap-3 rounded-[22px] border border-white/10 bg-white/[.05] p-3 text-left transition hover:border-pink-300/40 hover:bg-pink-400/10">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-[#FF299B] to-purple-700">
+                <Icon size={19} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-black text-white">{label}</div>
+                <div className="text-xs text-zinc-400">{reason}</div>
+              </div>
+              <ChevronRight size={18} className="text-zinc-500" />
+            </button>
+          ))}
+        </div>
+        <button type="button" className="mt-5 w-full rounded-full bg-gradient-to-r from-[#FF299B] to-purple-700 py-4 text-sm font-black text-white">
+          Create plan and chat
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function FriendsExperience() {
+  const [query, setQuery] = useState("");
+  const [activeChip, setActiveChip] = useState("For You");
+  const [requested, setRequested] = useState<string[]>([]);
+  const [planPerson, setPlanPerson] = useState<FriendPerson | null>(null);
+  const [localPosts, setLocalPosts] = useState<FriendPost[]>([]);
+
+  const feed = useMemo(() => {
+    const combined = [...localPosts, ...FRIEND_FEED];
+    const needle = query.trim().toLowerCase();
+
+    return combined.filter((item) => {
+      const haystack = [
+        item.person.name,
+        item.person.city,
+        item.person.neighborhood,
+        item.person.energy,
+        item.person.signal,
+        item.text,
+        item.tag,
+        ...item.person.interests,
+        ...item.person.badges,
+        ...item.subtleSignals,
+      ].join(" ").toLowerCase();
+
+      const matchesQuery = !needle || haystack.includes(needle);
+      const matchesChip =
+        activeChip === "For You" ||
+        activeChip === "Nearby" ||
+        haystack.includes(activeChip.toLowerCase().replace("+", ""));
+
+      return matchesQuery && matchesChip;
+    });
+  }, [activeChip, localPosts, query]);
+
+  function createPost(text: string, tag: string) {
+    setLocalPosts((current) => [
+      {
+        id: `local-${Date.now()}`,
+        type: "post",
+        person: {
+          id: "me",
+          name: "You",
+          age: 28,
+          city: "Miami",
+          avatar: "ME",
+          photo: "",
+          interests: [tag.toLowerCase(), "plans", "community"],
+          badges: ["Looking for Plans", "Fast Responder", "Safety Minded"],
+          energy: "Looking for Plans",
+          signal: text,
+          neighborhood: "Miami",
+        },
+        text,
+        timestamp: "Now",
+        tag,
+        subtleSignals: ["People nearby can join", "Plan-friendly post", "Your kind of people"],
+        prompt: "Who is down to join?",
+      },
+      ...current,
+    ]);
+    toast.success("Posted to Friends.");
+  }
+
+  return (
+    <div className="min-h-screen overflow-hidden bg-[#050505] text-white">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(255,41,155,.22),transparent_34%),linear-gradient(180deg,rgba(255,41,155,.06),transparent_28%)]" />
+      <div className="relative mx-auto min-h-screen max-w-md pb-28">
+        <header className="px-5 pt-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-black tracking-tight">Friends</h1>
+              <p className="mt-1 text-sm font-medium text-zinc-400">Find people. Make plans. Build your crew.</p>
+            </div>
+            <div className="grid h-12 w-12 place-items-center rounded-full border border-pink-300/30 bg-pink-400/10 text-[#FF299B] shadow-[0_0_28px_rgba(255,41,155,.28)]">
+              <Users size={22} />
+            </div>
+          </div>
+        </header>
+
+        <FriendStoryRow selected={activeChip} onSelect={setActiveChip} />
+
+        <div className="mx-5 mt-4 flex items-center gap-3 rounded-full border border-white/10 bg-white/[.06] px-4 py-3 backdrop-blur-xl">
+          <Search size={18} className="text-[#FF299B]" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search people, interests, plans..."
+            className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-zinc-500 focus:outline-none"
+          />
+        </div>
+
+        <div className="mt-4 flex gap-2 overflow-x-auto px-5 pb-1 scrollbar-none">
+          {FRIEND_CHIPS.map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => setActiveChip(chip)}
+              className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${
+                activeChip === chip
+                  ? "border-[#FF299B] bg-[#FF299B] text-white shadow-[0_0_22px_rgba(255,41,155,.35)]"
+                  : "border-white/10 bg-white/[.04] text-zinc-300"
+              }`}
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+
+        <PostCreator onPost={createPost} />
+
+        <div className="mx-5 mt-4 rounded-[24px] border border-white/10 bg-white/[.04] p-4">
+          <div className="flex items-center gap-2 text-sm font-black">
+            <ShieldCheck size={18} className="text-[#FF299B]" />
+            Smart social feed
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+            Recommendations quietly prioritize shared interests, location, activity style, accessibility, safety preferences, and how you interact.
+          </p>
+        </div>
+
+        <div className="mt-4 grid gap-4">
+          <AnimatePresence>
+            {feed.map((item) => (
+              <FriendPostCard
+                key={item.id}
+                item={item}
+                requested={requested.includes(item.person.id)}
+                onConnect={(person) => {
+                  setRequested((current) => current.includes(person.id) ? current : [...current, person.id]);
+                  toast.success(`Request sent to ${person.name}.`);
+                }}
+                onPlan={setPlanPerson}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
+
+        <nav className="fixed bottom-0 left-1/2 grid w-full max-w-md -translate-x-1/2 grid-cols-5 border-t border-white/10 bg-zinc-950/95 px-3 pb-5 pt-3 text-[11px] backdrop-blur-xl">
+          {NAV_ITEMS.map((item, index) => (
+            <Link key={item.label} href={item.href}>
+              <div className={`text-center transition-colors ${index === 0 ? "text-pink-400" : "text-zinc-500 hover:text-zinc-300"}`}>
+                {item.label}
+              </div>
+            </Link>
+          ))}
+        </nav>
+      </div>
+
+      <AnimatePresence>
+        {planPerson ? <FriendPlanSheet person={planPerson} onClose={() => setPlanPerson(null)} /> : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function ViralDiscoverTab({ users: externalUsers }: { users?: User[] }) {
-  const [intent, setIntent] = useState("Dating");
+  const [intent, setIntent] = useState("Friends");
   const [subIntent, setSubIntent] = useState("All");
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [matchUser, setMatchUser] = useState<User | null>(null);
@@ -813,6 +1419,10 @@ function ViralDiscoverTab({ users: externalUsers }: { users?: User[] }) {
   }
 
   const activeFilterCount = Number(Boolean(filters.minAge || filters.maxAge)) + Number(filters.onlyVerified);
+
+  if (intent === "Friends") {
+    return <FriendsExperience />;
+  }
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#050505] text-white">

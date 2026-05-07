@@ -7,6 +7,7 @@ import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { LivenessCamera } from "../components/LivenessCamera";
+import { apiUrl } from "@/lib/apiBase";
 import {
   ActivityIndicator,
   Alert,
@@ -120,6 +121,34 @@ const DATING_GOALS = [
   { value: "1-on-1",      icon: "heart-outline" as const,       label: "1-on-1 Date" },
   { value: "Double Date", icon: "people-outline" as const,       label: "Double Date" },
   { value: "Group Hang",  icon: "bonfire-outline" as const,      label: "Group Hang" },
+];
+
+const DATING_PACES = [
+  { value: "Tonight", icon: "flash-outline" as const, label: "Tonight" },
+  { value: "This week", icon: "calendar-outline" as const, label: "This week" },
+  { value: "Slow burn", icon: "hourglass-outline" as const, label: "Slow burn" },
+];
+
+const FIRST_DATE_STYLES = [
+  { value: "Coffee", icon: "cafe-outline" as const, label: "Coffee" },
+  { value: "Dinner", icon: "restaurant-outline" as const, label: "Dinner" },
+  { value: "Drinks", icon: "wine-outline" as const, label: "Drinks" },
+  { value: "Walk", icon: "walk-outline" as const, label: "Walk" },
+  { value: "Activity", icon: "tennisball-outline" as const, label: "Activity" },
+];
+
+const DATING_ENERGIES = [
+  { value: "Playful", icon: "sparkles-outline" as const, label: "Playful" },
+  { value: "Deep talks", icon: "chatbubbles-outline" as const, label: "Deep talks" },
+  { value: "Low-key", icon: "moon-outline" as const, label: "Low-key" },
+  { value: "Social", icon: "people-outline" as const, label: "Social" },
+];
+
+const DATING_COMFORTS = [
+  { value: "Public place first", icon: "shield-checkmark-outline" as const, label: "Public place first" },
+  { value: "Video first", icon: "videocam-outline" as const, label: "Video first" },
+  { value: "Friend-friendly", icon: "people-circle-outline" as const, label: "Friend-friendly" },
+  { value: "Low-noise plans", icon: "volume-low-outline" as const, label: "Low-noise plans" },
 ];
 
 
@@ -400,6 +429,10 @@ export default function OnboardingScreen() {
   // ── Step 5 — Intent + Interests ─────────────────────────────────────────────
   const [intent, setIntent] = useState("");
   const [datingGoal, setDatingGoal] = useState("");
+  const [datingPace, setDatingPace] = useState("");
+  const [firstDateStyle, setFirstDateStyle] = useState("");
+  const [datingEnergy, setDatingEnergy] = useState("");
+  const [datingComforts, setDatingComforts] = useState<string[]>([]);
   const [friendshipTypes, setFriendshipTypes] = useState<string[]>([]);
   const [careerStage, setCareerStage] = useState("");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
@@ -411,6 +444,14 @@ export default function OnboardingScreen() {
       prev.includes(interest)
         ? prev.filter((i) => i !== interest)
         : prev.length < 15 ? [...prev, interest] : prev
+    );
+  }
+
+  function toggleDatingComfort(value: string) {
+    setDatingComforts((prev) =>
+      prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : prev.length < 3 ? [...prev, value] : prev,
     );
   }
 
@@ -464,7 +505,7 @@ export default function OnboardingScreen() {
         base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       }
       const res = await fetch(
-        `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/profiles/me/photos`,
+        apiUrl("/api/profiles/me/photos"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -667,6 +708,10 @@ export default function OnboardingScreen() {
     if (typeof saved.lookingForGender === "string") setLookingForGender(saved.lookingForGender);
     if (typeof saved.intent === "string") setIntent(saved.intent);
     if (typeof saved.datingGoal === "string") setDatingGoal(saved.datingGoal);
+    if (typeof saved.datingPace === "string") setDatingPace(saved.datingPace);
+    if (typeof saved.firstDateStyle === "string") setFirstDateStyle(saved.firstDateStyle);
+    if (typeof saved.datingEnergy === "string") setDatingEnergy(saved.datingEnergy);
+    if (Array.isArray(saved.datingComforts)) setDatingComforts(saved.datingComforts as string[]);
     if (Array.isArray(saved.friendshipTypes)) setFriendshipTypes(saved.friendshipTypes as string[]);
     if (typeof saved.careerStage === "string") setCareerStage(saved.careerStage);
     if (Array.isArray(saved.selectedInterests)) setSelectedInterests(saved.selectedInterests as string[]);
@@ -686,7 +731,7 @@ export default function OnboardingScreen() {
           dobMonth, dobDay, dobYear,
           gender, showGenderOnProfile,
           lookingForGender,
-          intent, datingGoal, friendshipTypes, careerStage,
+          intent, datingGoal, datingPace, firstDateStyle, datingEnergy, datingComforts, friendshipTypes, careerStage,
           selectedInterests,
           county, city, locationVisibility,
           communityCodeAccepted,
@@ -718,7 +763,7 @@ export default function OnboardingScreen() {
       }
 
       const res = await fetch(
-        `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/profiles/me/photos`,
+        apiUrl("/api/profiles/me/photos"),
         {
           method: "POST",
           headers: {
@@ -810,7 +855,15 @@ export default function OnboardingScreen() {
 
       const modeData =
         intent === "dating"
-          ? { gender, lookingFor: lookingForGender, datingGoal: datingGoal || undefined }
+          ? {
+              gender,
+              lookingFor: lookingForGender,
+              datingGoal: datingGoal || undefined,
+              datingPace: datingPace || undefined,
+              firstDateStyle: firstDateStyle || undefined,
+              datingEnergy: datingEnergy || undefined,
+              comfortBadges: datingComforts,
+            }
           : intent === "friendship"
           ? { friendshipTypes: friendshipTypes.length > 0 ? friendshipTypes : ["Casual Hangout"] }
           : intent === "networking"
@@ -818,7 +871,7 @@ export default function OnboardingScreen() {
           : {};
 
       const response = await fetch(
-        `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/profiles/me`,
+        apiUrl("/api/profiles/me"),
         {
           method: "PUT",
           headers: {
@@ -901,7 +954,7 @@ export default function OnboardingScreen() {
     step === 2 ? (computedAge() ?? 0) >= 18 :
     step === 3 ? gender.length > 0 :
     step === 4 ? (
-      intent === "dating" ? datingGoal.length > 0 :
+      intent === "dating" ? datingGoal.length > 0 && datingPace.length > 0 && firstDateStyle.length > 0 && datingEnergy.length > 0 :
       intent === "friendship" ? friendshipTypes.length > 0 :
       intent === "networking" ? careerStage.length > 0 :
       false
@@ -1275,6 +1328,98 @@ export default function OnboardingScreen() {
                         );
                       })}
                     </ScrollView>
+
+                    <Text style={{ marginTop: 4, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>Dating speed</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                      {DATING_PACES.map((pace) => {
+                        const sel = datingPace === pace.value;
+                        return (
+                          <Pressable
+                            key={pace.value}
+                            onPress={() => setDatingPace(sel ? "" : pace.value)}
+                            style={{
+                              flexDirection: "row", alignItems: "center", gap: 8,
+                              borderRadius: 12, borderWidth: 1.5,
+                              paddingHorizontal: 14, paddingVertical: 10,
+                              backgroundColor: sel ? "rgba(255,41,155,0.15)" : "rgba(255,255,255,0.05)",
+                              borderColor: sel ? PINK : "rgba(255,255,255,0.12)",
+                            }}
+                          >
+                            <Ionicons name={pace.icon} size={14} color={sel ? PINK : "rgba(255,255,255,0.4)"} />
+                            <Text style={{ fontSize: 13, fontFamily: sel ? "Inter_600SemiBold" : "Inter_400Regular", color: sel ? PINK : "#fff" }}>{pace.label}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    <Text style={{ marginTop: 4, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>Best first date</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                      {FIRST_DATE_STYLES.map((style) => {
+                        const sel = firstDateStyle === style.value;
+                        return (
+                          <Pressable
+                            key={style.value}
+                            onPress={() => setFirstDateStyle(sel ? "" : style.value)}
+                            style={{
+                              flexDirection: "row", alignItems: "center", gap: 8,
+                              borderRadius: 12, borderWidth: 1.5,
+                              paddingHorizontal: 14, paddingVertical: 10,
+                              backgroundColor: sel ? "rgba(255,41,155,0.15)" : "rgba(255,255,255,0.05)",
+                              borderColor: sel ? PINK : "rgba(255,255,255,0.12)",
+                            }}
+                          >
+                            <Ionicons name={style.icon} size={14} color={sel ? PINK : "rgba(255,255,255,0.4)"} />
+                            <Text style={{ fontSize: 13, fontFamily: sel ? "Inter_600SemiBold" : "Inter_400Regular", color: sel ? PINK : "#fff" }}>{style.label}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+
+                    <Text style={{ marginTop: 4, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>Your date energy</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                      {DATING_ENERGIES.map((energy) => {
+                        const sel = datingEnergy === energy.value;
+                        return (
+                          <Pressable
+                            key={energy.value}
+                            onPress={() => setDatingEnergy(sel ? "" : energy.value)}
+                            style={{
+                              flexDirection: "row", alignItems: "center", gap: 8,
+                              borderRadius: 12, borderWidth: 1.5,
+                              paddingHorizontal: 14, paddingVertical: 10,
+                              backgroundColor: sel ? "rgba(255,41,155,0.15)" : "rgba(255,255,255,0.05)",
+                              borderColor: sel ? PINK : "rgba(255,255,255,0.12)",
+                            }}
+                          >
+                            <Ionicons name={energy.icon} size={14} color={sel ? PINK : "rgba(255,255,255,0.4)"} />
+                            <Text style={{ fontSize: 13, fontFamily: sel ? "Inter_600SemiBold" : "Inter_400Regular", color: sel ? PINK : "#fff" }}>{energy.label}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    <Text style={{ marginTop: 4, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>Comfort preferences</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                      {DATING_COMFORTS.map((comfort) => {
+                        const sel = datingComforts.includes(comfort.value);
+                        return (
+                          <Pressable
+                            key={comfort.value}
+                            onPress={() => toggleDatingComfort(comfort.value)}
+                            style={{
+                              flexDirection: "row", alignItems: "center", gap: 8,
+                              borderRadius: 12, borderWidth: 1.5,
+                              paddingHorizontal: 14, paddingVertical: 10,
+                              backgroundColor: sel ? "rgba(16,185,129,0.14)" : "rgba(255,255,255,0.05)",
+                              borderColor: sel ? "#6EE7B7" : "rgba(255,255,255,0.12)",
+                            }}
+                          >
+                            <Ionicons name={comfort.icon} size={14} color={sel ? "#6EE7B7" : "rgba(255,255,255,0.4)"} />
+                            <Text style={{ fontSize: 13, fontFamily: sel ? "Inter_600SemiBold" : "Inter_400Regular", color: sel ? "#D1FAE5" : "#fff" }}>{comfort.label}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
                   </View>
                 )}
 

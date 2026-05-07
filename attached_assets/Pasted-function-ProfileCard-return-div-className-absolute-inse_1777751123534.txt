@@ -1,0 +1,66 @@
+function ProfileCard() {
+  return (
+    <div className="absolute inset-0">
+
+      {/* STACKED CARDS */}
+      <div className="absolute inset-x-3 bottom-[-14px] h-full rounded-[36px] border border-pink-500/15 bg-pink-500/5" />
+      <div className="absolute inset-x-6 bottom-[-26px] h-full rounded-[36px] border border-pink-500/10 bg-pink-500/5" />
+
+      {/* MAIN CARD */}
+      <div className="absolute left-0 top-0 h-full w-[calc(100%-94px)] overflow-hidden rounded-[36px] border border-pink-400/45 bg-black shadow-[0_0_70px_rgba(236,72,153,0.35)]">
+
+        {/* IMAGE */}
+        <img
+          src={profile.image}
+          alt={profile.name}
+          className="absolute inset-0 h-full w-full object-cover object-[center_25%]"
+        />
+
+        {/* GRADIENT */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+
+        {/* TOP BADGES */}
+        <div className="absolute left-4 top-4">
+          <div className="rounded-full bg-black/60 px-3 py-1 text-xs">Online</div>
+        </div>
+
+        <div className="absolute right-4 top-4">
+          <div className="h-16 w-16 rounded-full bg-black/60 flex items-center justify-center text-sm">
+            82% Match
+          </div>
+        </div>
+
+        {/* BOTTOM INFO */}
+        <div className="absolute bottom-0 left-0 right-0 p-6">
+
+          <h2 className="text-[36px] font-black">
+            {profile.name}, {profile.age}
+          </h2>
+
+          <p className="mt-1 text-sm text-zinc-300">
+            {profile.location} • {profile.distance}
+          </p>
+
+          <div className="mt-3 flex gap-2">
+            <span className="px-3 py-1 rounded-full bg-pink-500 text-xs">
+              {profile.intent}
+            </span>
+
+            <span className="px-3 py-1 rounded-full border border-white/20 text-xs">
+              {profile.subGenre}
+            </span>
+          </div>
+
+          <p className="mt-3 text-xs text-zinc-400">
+            Tap to view full profile
+          </p>
+
+        </div>
+      </div>
+
+      {/* ACTION RAIL */}
+      <CardActionsRail />
+
+    </div>
+  );
+}

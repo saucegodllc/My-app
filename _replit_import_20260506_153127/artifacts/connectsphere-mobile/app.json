@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "ConnectSphere",
+    "slug": "connectsphere-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "connectsphere",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0a"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.connectsphere.mobile"
+    },
+    "android": {
+      "package": "com.connectsphere.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0a0a"
+      }
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "expo-video",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow ConnectSphere to access your camera for liveness verification.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow ConnectSphere to use your location to show nearby venues.",
+          "locationAlwaysAndWhenInUsePermission": "Allow ConnectSphere to use your location to show nearby venues."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

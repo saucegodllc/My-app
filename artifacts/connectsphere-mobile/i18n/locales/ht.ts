@@ -122,7 +122,7 @@ export default {
         findClients: "Jwenn kliyan",
       },
       networkingDone: "Ann konekte",
-      networking: "Reseotaj",
+      networking: "Opotinite",
       all: "Tout bagay",
       datingDesc: "Jwenn koneksyon romantik",
       friendshipDesc: "Fè nouvo zanmi",
