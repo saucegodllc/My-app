@@ -5,6 +5,8 @@ import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 
 import NetworkingTab from "@/components/NetworkingTab";
+import DoubleDateTab from "@/components/DoubleDateTab";
+import FriendsHubTab from "@/components/FriendsTab";
 import { ShotBottomSheet, ShotToast } from "@/components/ShotBottomSheet";
 import { useDatingMatches, type DatingPlanInput, type DatingProfileSnapshot } from "@/contexts/DatingMatchContext";
 import { useGetDiscoveryFeed, type Profile as ApiProfile } from "@workspace/api-client-react";
@@ -98,7 +100,7 @@ const tabs: Theme[] = [
 
 const subTabs: Record<IntentId, string[]> = {
   dating: ["For You", "Active Tonight", "Intentional", "Double Dates", "Date Ideas", "Miami Local"],
-  friends: ["For You", "Nearby", "Active Now", "Coffee", "Gym", "Chill", "Nightlife", "Learning", "Accessible", "LGBTQ+", "Family-Friendly", "50+", "New to Miami"],
+  friends: ["People", "Requests", "Plans"],
   networking: ["For You", "Founders", "Creators", "Real Estate", "Nightlife Pros", "Investors"],
 };
 
@@ -1037,9 +1039,9 @@ export default function DiscoverScreen() {
           })}
         </View>
 
-        {/* Sub Tabs — hidden for Networking, which has its own dedicated UI
-            (header + power stats + people / groups / opportunities feed). */}
-        {activeIntent !== "networking" && (
+        {/* Dating keeps swipe filters here. Friends and Opportunities own
+            their simpler controls inside their dedicated tab UIs. */}
+        {activeIntent === "dating" && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -1081,7 +1083,11 @@ export default function DiscoverScreen() {
           </View>
         ) : activeIntent === "friends" ? (
           <View style={{ flex: 1, marginHorizontal: -16 }}>
-            <FriendsTab activeFilter={activeSubTab} bottomInset={bottomInset} />
+            <FriendsHubTab bottomInset={bottomInset} />
+          </View>
+        ) : activeSubTab === "Double Dates" ? (
+          <View style={styles.cardArea}>
+            <DoubleDateTab />
           </View>
         ) : (
           /* Card area — flex:1 so it fills the rest of the viewport. Height
@@ -1171,420 +1177,6 @@ export default function DiscoverScreen() {
         onSend={sendShotToProfile}
       />
       <ShotToast visible={shotToastVisible} />
-    </View>
-  );
-}
-
-function FriendsTab({
-  activeFilter,
-  bottomInset,
-}: {
-  activeFilter: string;
-  bottomInset: number;
-}) {
-  const [query, setQuery] = useState("");
-  const [postText, setPostText] = useState("");
-  const [postTag, setPostTag] = useState("Coffee");
-  const [requestedIds, setRequestedIds] = useState<string[]>([]);
-  const [planPerson, setPlanPerson] = useState<FriendPerson | null>(null);
-  const [localPosts, setLocalPosts] = useState<FriendFeedItem[]>([]);
-  const [section, setSection] = useState<"feed" | "find" | "known" | "plans">("feed");
-
-  const feed = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return [...localPosts, ...friendFeedItems].filter((item) => {
-      const haystack = [
-        item.person.name,
-        item.person.city,
-        item.person.energy,
-        item.person.signal,
-        item.text,
-        item.tag,
-        ...item.person.interests,
-        ...item.person.badges,
-        ...item.socialSignals,
-      ].join(" ").toLowerCase();
-      const filterKey = activeFilter.toLowerCase().replace("+", "");
-      const filterMatches = activeFilter === "For You" || activeFilter === "Nearby" || haystack.includes(filterKey);
-      return (!needle || haystack.includes(needle)) && filterMatches;
-    });
-  }, [activeFilter, localPosts, query]);
-
-  const createPost = () => {
-    const text = postText.trim();
-    if (!text) return;
-    setLocalPosts((current) => [
-      {
-        id: `local-${Date.now()}`,
-        type: "post",
-        person: {
-          id: "me",
-          name: "You",
-          age: 28,
-          city: "Miami",
-          avatar: "ME",
-          image: "",
-          interests: [postTag, "Plans", "Community"],
-          badges: ["Looking for Plans", "Fast Responder", "Safety Minded"],
-          energy: "Looking for Plans",
-          signal: text,
-        },
-        text,
-        timestamp: "Now",
-        tag: postTag,
-        socialSignals: ["People nearby can join", "Plan-friendly post", "Your kind of people"],
-        icebreaker: "Who is down to join?",
-      },
-      ...current,
-    ]);
-    setPostText("");
-  };
-
-  return (
-    <View style={friendStyles.shell}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[friendStyles.content, { paddingBottom: bottomInset + 26 }]}>
-        <View style={friendStyles.hero}>
-          <View style={{ flex: 1 }}>
-            <Text style={friendStyles.heroTitle}>Friends</Text>
-            <Text style={friendStyles.heroSubtitle}>Feed, friends, contacts, and plans in one place.</Text>
-          </View>
-          <Pressable style={friendStyles.heroAction} onPress={() => setSection("find")}>
-            <Ionicons name="person-add" size={20} color="#FFF" />
-          </Pressable>
-        </View>
-
-        <View style={friendStyles.searchBar}>
-          <Ionicons name="search" size={18} color="#EC4899" />
-          <TextInput value={query} onChangeText={setQuery} placeholder="Search people, interests, plans..." placeholderTextColor="#71717A" style={friendStyles.searchInput} />
-        </View>
-
-        <View style={friendStyles.sectionTabs}>
-          {[
-            ["feed", "Feed", "home"],
-            ["find", "Find", "compass"],
-            ["known", "Known", "people"],
-            ["plans", "Plans", "calendar"],
-          ].map(([key, label, icon]) => {
-            const active = section === key;
-            return (
-              <Pressable key={key} onPress={() => setSection(key as typeof section)} style={[friendStyles.sectionTab, active && friendStyles.sectionTabActive]}>
-                <Ionicons name={icon as IoniconName} size={15} color={active ? "#FFF" : "#A1A1AA"} />
-                <Text style={[friendStyles.sectionTabText, active && friendStyles.sectionTabTextActive]}>{label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {section === "feed" ? (
-          <>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={friendStyles.storyRowCompact}>
-              {friendStories.map((story) => (
-                <Pressable key={story.label} style={friendStyles.storyPill}>
-                  <LinearGradient colors={story.colors} style={friendStyles.storyPillIcon}>
-                    <Ionicons name={story.icon} size={16} color="#FFF" />
-                  </LinearGradient>
-                  <Text style={friendStyles.storyPillText}>{story.label}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-
-            <View style={friendStyles.creatorCompact}>
-              <View style={friendStyles.creatorTop}>
-                <LinearGradient colors={["#EC4899", "#8B5CF6"]} style={friendStyles.myAvatar}>
-                  <Text style={friendStyles.avatarText}>ME</Text>
-                </LinearGradient>
-                <TextInput value={postText} onChangeText={setPostText} placeholder="What are you down to do?" placeholderTextColor="#71717A" multiline style={friendStyles.postInputCompact} />
-              </View>
-              <View style={friendStyles.creatorFooter}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={friendStyles.tagRowCompact}>
-                  {friendPostTags.slice(0, 6).map((tag) => {
-                    const active = postTag === tag;
-                    return (
-                      <Pressable key={tag} onPress={() => setPostTag(tag)} style={[friendStyles.tagChip, active && friendStyles.tagChipActive]}>
-                        <Text style={[friendStyles.tagText, active && friendStyles.tagTextActive]}>{tag}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-                <Pressable onPress={createPost} style={friendStyles.postBtnSmall}>
-                  <Ionicons name="send" size={15} color="#FFF" />
-                </Pressable>
-              </View>
-            </View>
-
-            {feed.map((item) => (
-              <FriendFeedCard
-                key={item.id}
-                item={item}
-                requested={requestedIds.includes(item.person.id)}
-                onConnect={() => setRequestedIds((current) => current.includes(item.person.id) ? current : [...current, item.person.id])}
-                onPlan={() => setPlanPerson(item.person)}
-              />
-            ))}
-          </>
-        ) : null}
-
-        {section === "find" ? (
-          <View style={friendStyles.gridSection}>
-            <Text style={friendStyles.sectionTitle}>People you may know</Text>
-            <Text style={friendStyles.sectionHint}>Sorted by shared places, interests, accessibility preferences, and mutual connections.</Text>
-            {friendPeople.map((person) => (
-              <FriendPersonRow
-                key={person.id}
-                person={person}
-                requested={requestedIds.includes(person.id)}
-                onConnect={() => setRequestedIds((current) => current.includes(person.id) ? current : [...current, person.id])}
-                onPlan={() => setPlanPerson(person)}
-              />
-            ))}
-          </View>
-        ) : null}
-
-        {section === "known" ? (
-          <View style={friendStyles.gridSection}>
-            <View style={friendStyles.importCard}>
-              <LinearGradient colors={["#EC4899", "#8B5CF6"]} style={friendStyles.importIcon}>
-                <Ionicons name="call" size={22} color="#FFF" />
-              </LinearGradient>
-              <View style={{ flex: 1 }}>
-                <Text style={friendStyles.importTitle}>Find people you already know</Text>
-                <Text style={friendStyles.importText}>Connect contacts, Instagram, or phone friends when you are ready.</Text>
-              </View>
-            </View>
-            {friendPeople.slice(0, 3).map((person, index) => (
-              <KnownFriendRow
-                key={person.id}
-                person={person}
-                detail={index === 0 ? "2 mutual friends" : index === 1 ? "From your gym area" : "Also new to Miami"}
-                requested={requestedIds.includes(person.id)}
-                onConnect={() => setRequestedIds((current) => current.includes(person.id) ? current : [...current, person.id])}
-              />
-            ))}
-          </View>
-        ) : null}
-
-        {section === "plans" ? (
-          <View style={friendStyles.gridSection}>
-            <Text style={friendStyles.sectionTitle}>Make plans faster</Text>
-            <Text style={friendStyles.sectionHint}>Pick a simple plan, then invite one person or grow it into a small group.</Text>
-            {[
-              ["Coffee after work", "Low pressure · Brickell · Today", "cafe"],
-              ["Weekend walk", "Accessible route · Coral Gables", "walk"],
-              ["Study table", "Quiet cafe · Downtown", "book"],
-              ["Night out crew", "Wynwood · Active tonight", "sparkles"],
-            ].map(([title, meta, icon]) => (
-              <Pressable key={title} style={friendStyles.planQuickCard}>
-                <LinearGradient colors={["#EC4899", "#8B5CF6"]} style={friendStyles.planQuickIcon}>
-                  <Ionicons name={icon as IoniconName} size={20} color="#FFF" />
-                </LinearGradient>
-                <View style={{ flex: 1 }}>
-                  <Text style={friendStyles.planQuickTitle}>{title}</Text>
-                  <Text style={friendStyles.planQuickMeta}>{meta}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#71717A" />
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-      </ScrollView>
-
-      <Modal visible={planPerson !== null} transparent animationType="slide" onRequestClose={() => setPlanPerson(null)}>
-        {planPerson ? <FriendPlanSheet person={planPerson} onClose={() => setPlanPerson(null)} /> : null}
-      </Modal>
-    </View>
-  );
-}
-
-function FriendFeedCard({
-  item,
-  requested,
-  onConnect,
-  onPlan,
-}: {
-  item: FriendFeedItem;
-  requested: boolean;
-  onConnect: () => void;
-  onPlan: () => void;
-}) {
-  const isProfile = item.type === "profile";
-  return (
-    <View style={friendStyles.feedCard}>
-      <View style={friendStyles.postHeader}>
-        <LinearGradient colors={["#EC4899", "#8B5CF6"]} style={friendStyles.avatar}>
-          <Text style={friendStyles.avatarText}>{item.person.avatar}</Text>
-        </LinearGradient>
-        <View style={{ flex: 1 }}>
-          <View style={friendStyles.nameRow}>
-            <Text style={friendStyles.name}>{item.person.name}</Text>
-            <Ionicons name="checkmark-circle" size={15} color="#EC4899" />
-            {isProfile ? <Text style={friendStyles.age}>{item.person.age}</Text> : null}
-          </View>
-          <Text style={friendStyles.meta}>{item.person.city} · {item.timestamp}</Text>
-        </View>
-        <Ionicons name="ellipsis-horizontal" size={20} color="#71717A" />
-      </View>
-
-      <Text style={friendStyles.postText}>{item.text}</Text>
-
-      {isProfile ? (
-        <View style={friendStyles.profileImageWrap}>
-          <Image source={{ uri: item.person.image }} style={friendStyles.profileImage} />
-          <LinearGradient colors={["transparent", "rgba(0,0,0,0.88)"]} style={StyleSheet.absoluteFill} />
-          <View style={friendStyles.profileOverlay}>
-            <View style={friendStyles.energyPill}>
-              <Ionicons name="flash" size={13} color="#EC4899" />
-              <Text style={friendStyles.energyText}>{item.person.energy}</Text>
-            </View>
-            <View style={friendStyles.badgeWrap}>
-              {item.person.badges.slice(0, 4).map((badge) => (
-                <Text key={badge} style={friendStyles.badge}>{badge}</Text>
-              ))}
-            </View>
-          </View>
-        </View>
-      ) : item.image ? (
-        <Image source={{ uri: item.image }} style={friendStyles.postImage} />
-      ) : null}
-
-      <View style={friendStyles.interestWrap}>
-        <Text style={friendStyles.primaryTag}>{item.tag}</Text>
-        {item.person.interests.slice(0, 3).map((interest) => (
-          <Text key={interest} style={friendStyles.interest}>{interest}</Text>
-        ))}
-      </View>
-
-      <View style={friendStyles.signalWrap}>
-        {item.socialSignals.map((signal) => (
-          <Text key={signal} style={friendStyles.signal}>{signal}</Text>
-        ))}
-      </View>
-
-      <View style={friendStyles.icebreaker}>
-        <Ionicons name="sparkles" size={14} color="#EC4899" />
-        <View style={{ flex: 1 }}>
-          <Text style={friendStyles.icebreakerLabel}>Icebreaker</Text>
-          <Text style={friendStyles.icebreakerText}>{item.icebreaker}</Text>
-        </View>
-      </View>
-
-      <View style={friendStyles.actionRow}>
-        <Pressable style={friendStyles.feedAction}><Text style={friendStyles.feedActionText}>Like</Text></Pressable>
-        <Pressable style={friendStyles.feedAction}><Text style={friendStyles.feedActionText}>Comment</Text></Pressable>
-        <Pressable onPress={onConnect} style={[friendStyles.connectAction, requested && friendStyles.requestedAction]}>
-          <Text style={[friendStyles.connectActionText, requested && friendStyles.requestedText]}>{requested ? "Requested" : "Connect"}</Text>
-        </Pressable>
-        <Pressable onPress={onPlan} style={friendStyles.planAction}><Text style={friendStyles.planActionText}>Plan</Text></Pressable>
-      </View>
-    </View>
-  );
-}
-
-function FriendPersonRow({
-  person,
-  requested,
-  onConnect,
-  onPlan,
-}: {
-  person: FriendPerson;
-  requested: boolean;
-  onConnect: () => void;
-  onPlan: () => void;
-}) {
-  return (
-    <View style={friendStyles.personRow}>
-      <Image source={{ uri: person.image }} style={friendStyles.personPhoto} />
-      <View style={friendStyles.personBody}>
-        <View style={friendStyles.nameRow}>
-          <Text style={friendStyles.personName}>{person.name}</Text>
-          <Text style={friendStyles.age}>{person.age}</Text>
-        </View>
-        <Text style={friendStyles.personMeta}>{person.city} · {person.energy}</Text>
-        <Text numberOfLines={1} style={friendStyles.personSignal}>{person.signal}</Text>
-        <View style={friendStyles.miniSignalRow}>
-          {person.badges.slice(0, 2).map((badge) => (
-            <Text key={badge} style={friendStyles.miniSignal}>{badge}</Text>
-          ))}
-        </View>
-      </View>
-      <View style={friendStyles.personActions}>
-        <Pressable onPress={onConnect} style={[friendStyles.personConnect, requested && friendStyles.personRequested]}>
-          <Text style={[friendStyles.personConnectText, requested && friendStyles.personRequestedText]}>{requested ? "Sent" : "Connect"}</Text>
-        </Pressable>
-        <Pressable onPress={onPlan} style={friendStyles.personPlan}>
-          <Ionicons name="calendar" size={15} color="#FCE7F3" />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-function KnownFriendRow({
-  person,
-  detail,
-  requested,
-  onConnect,
-}: {
-  person: FriendPerson;
-  detail: string;
-  requested: boolean;
-  onConnect: () => void;
-}) {
-  return (
-    <View style={friendStyles.knownRow}>
-      <LinearGradient colors={["#EC4899", "#8B5CF6"]} style={friendStyles.avatar}>
-        <Text style={friendStyles.avatarText}>{person.avatar}</Text>
-      </LinearGradient>
-      <View style={{ flex: 1 }}>
-        <Text style={friendStyles.personName}>{person.name}</Text>
-        <Text style={friendStyles.personMeta}>{detail}</Text>
-      </View>
-      <Pressable onPress={onConnect} style={[friendStyles.knownConnect, requested && friendStyles.personRequested]}>
-        <Text style={[friendStyles.personConnectText, requested && friendStyles.personRequestedText]}>{requested ? "Sent" : "Add"}</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-function FriendPlanSheet({ person, onClose }: { person: FriendPerson; onClose: () => void }) {
-  const suggestions: Array<[string, string, IoniconName]> = [
-    ["Coffee", "Coffee would fit both of you.", "cafe"],
-    ["Gym", "Both show active energy.", "barbell"],
-    ["Walk", "Simple and low-pressure.", "walk"],
-    ["Brunch", "Weekend-friendly social plan.", "sparkles"],
-    ["Study", "Quiet setting with a clear purpose.", "book"],
-    ["Custom", "Build around your schedules.", "add"],
-  ];
-
-  return (
-    <View style={friendStyles.sheetBackdrop}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      <View style={friendStyles.planSheet}>
-        <View style={friendStyles.sheetHandle} />
-        <View style={friendStyles.sheetHead}>
-          <View style={{ flex: 1 }}>
-            <Text style={friendStyles.sheetTitle}>Make a plan</Text>
-            <Text style={friendStyles.sheetSub}>Suggestions for you and {person.name}</Text>
-          </View>
-          <Pressable onPress={onClose} style={friendStyles.closeBtn}>
-            <Ionicons name="close" size={18} color="#FFF" />
-          </Pressable>
-        </View>
-        {suggestions.map(([title, reason, icon]) => (
-          <Pressable key={title} style={friendStyles.planOption}>
-            <LinearGradient colors={["#EC4899", "#8B5CF6"]} style={friendStyles.planIcon}>
-              <Ionicons name={icon} size={18} color="#FFF" />
-            </LinearGradient>
-            <View style={{ flex: 1 }}>
-              <Text style={friendStyles.planTitle}>{title}</Text>
-              <Text style={friendStyles.planReason}>{reason}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#71717A" />
-          </Pressable>
-        ))}
-        <Pressable style={friendStyles.createPlanBtn}>
-          <Text style={friendStyles.createPlanText}>Create plan and chat</Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -2007,7 +1599,7 @@ function ExpandedProfile({
 
   const handleAction = (action: SwipeAction | "plan" | "shot" | "generic") => {
     if (intent === "dating" && action === "plan") {
-      setPlanSheetOpen(true);
+      setPlanSheetOpen("plan");
       return;
     }
     if (intent === "dating" && action === "shot") {

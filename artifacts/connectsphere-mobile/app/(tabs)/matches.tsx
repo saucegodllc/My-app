@@ -2,8 +2,8 @@ import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -22,6 +22,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { IncomingShotsSection, SentShotsSection } from "@/components/ShotSections";
 import { useDatingMatches, type DatingPlan } from "@/contexts/DatingMatchContext";
+import { getConnect, type DoubleDateMatch } from "@/services/doubleDateApi";
+import { respondFriendRequest, respondPlanJoinRequest } from "@/services/friendsApi";
 import { useGetMatches } from "@workspace/api-client-react";
 
 const PINK = "#ff2da8";
@@ -69,11 +71,15 @@ type ConnectionMatch = {
 
 type ConnectionRequest = {
   id: string;
+  requestType?: "friend" | "plan_join";
+  kind?: string;
+  planId?: string;
   userId: string;
   name: string;
   photoUrl?: string;
   intentType: IntentType;
   reason: string;
+  planTitle?: string;
   createdAt: string;
 };
 
@@ -144,6 +150,8 @@ export default function ConnectScreen() {
   const botInset = Platform.OS === "web" ? 96 : 78 + insets.bottom;
   const { user } = useUser();
   const { isSignedIn } = useAuth();
+  const { openChatId } = useLocalSearchParams<{ openChatId?: string }>();
+  const consumedOpenChatIdRef = useRef<string | null>(null);
 
   const { data, isLoading, isError, refetch, isRefetching } = useGetMatches(
     { page: 1, limit: 50 },
@@ -158,8 +166,8 @@ export default function ConnectScreen() {
   );
 
   const dating = useDatingMatches();
-
-
+  const connectUserId = user?.id ?? dating.currentUserId;
+  const [connectData, setConnectData] = useState<Awaited<ReturnType<typeof getConnect>> | null>(null);
   const [tab, setTab] = useState<InboxTab>("primary");
   const [search, setSearch] = useState("");
   const [requestsState, setRequestsState] = useState<ConnectionRequest[]>(INITIAL_REQUESTS);
@@ -169,6 +177,32 @@ export default function ConnectScreen() {
   const [storyFilter, setStoryFilter] = useState<string | null>(null);
   const [actionsFor, setActionsFor] = useState<Conversation | null>(null);
 
+  const loadConnect = useCallback(async () => {
+    try {
+      const result = await getConnect(connectUserId);
+      setConnectData(result);
+    } catch {}
+  }, [connectUserId]);
+
+  useEffect(() => {
+    loadConnect();
+  }, [loadConnect]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadConnect();
+      refetch();
+    }, [loadConnect, refetch]),
+  );
+
+  useEffect(() => {
+    const targetChatId = Array.isArray(openChatId) ? openChatId[0] : openChatId;
+    if (!targetChatId || consumedOpenChatIdRef.current === targetChatId) return;
+    consumedOpenChatIdRef.current = targetChatId;
+    setTab("primary");
+    void Promise.allSettled([loadConnect(), refetch()]);
+    router.push(`/chat/${targetChatId}` as never);
+  }, [loadConnect, openChatId, refetch]);
 
   const { conversations, matches } = useMemo(() => {
     const convs: Conversation[] = [];
@@ -256,10 +290,60 @@ export default function ConnectScreen() {
       }
     }
 
-    return { conversations: convs, matches: ms };
-  }, [data, dating.matches, dating.chats, dating.currentUserId, user?.id, pinned, muted]);
+    for (const chat of ((connectData?.chats ?? []) as any[])) {
+      if (!["friend_direct", "friend_plan", "opportunity"].includes(chat.type)) continue;
+      if (convs.some((item) => item.id === chat.id)) continue;
+      const participants = chat.participants ?? [];
+      const other = participants.find((person: any) => person.id !== connectUserId) ?? participants[0];
+      const lastMessage = chat.lastMessage;
+      const isPlan = chat.type === "friend_plan";
+      const intent = chat.type === "opportunity" ? "networking" : "friends";
+      convs.push({
+        id: chat.id,
+        userId: other?.id ?? chat.id,
+        name: isPlan ? chat.title ?? "Friend plan" : other?.name ?? chat.title ?? "Friend chat",
+        photoUrl: other?.photoUrl,
+        lastMessage: lastMessage?.text ?? (isPlan ? "Plan chat is ready" : "Say hello"),
+        lastMessageAt: timeAgo(lastMessage?.createdAt ?? chat.createdAt),
+        rawTime: new Date(lastMessage?.createdAt ?? chat.createdAt ?? Date.now()).getTime(),
+        unreadCount: 0,
+        intentType: intent,
+        isOnline: false,
+        isPinned: !!pinned[chat.id],
+        isMuted: !!muted[chat.id],
+        source: "server",
+      });
+    }
 
-  const requests = requestsState;
+    return { conversations: convs, matches: ms };
+  }, [connectData?.chats, connectUserId, data, dating.matches, dating.chats, dating.currentUserId, user?.id, pinned, muted]);
+
+  const serverRequests = useMemo<ConnectionRequest[]>(() => {
+    return ((connectData?.requests ?? []) as any[]).map((request) => {
+      const isPlanJoin = request.requestType === "plan_join" || request.kind === "plan_join";
+      const planTitle = request.plan?.title;
+      return {
+        id: request.id,
+        requestType: isPlanJoin ? "plan_join" : "friend",
+        kind: request.kind,
+        planId: request.plan?.id ?? request.planId,
+        userId: request.fromUser?.id ?? request.fromUserId,
+        name: request.fromUser?.name ?? "Someone",
+        photoUrl: request.fromUser?.photoUrl,
+        intentType: "friends",
+        reason: isPlanJoin
+          ? `Wants to join ${planTitle ?? "your plan"}`
+          : request.message ?? "Wants to connect",
+        planTitle,
+        createdAt: request.createdAt ?? new Date().toISOString(),
+      };
+    });
+  }, [connectData?.requests]);
+
+  const requests = useMemo(() => {
+    const serverIds = new Set(serverRequests.map((request) => request.id));
+    return [...serverRequests, ...requestsState.filter((request) => !serverIds.has(request.id))];
+  }, [requestsState, serverRequests]);
 
 
   const visibleConversations = useMemo(() => {
@@ -323,10 +407,40 @@ export default function ConnectScreen() {
     return list;
   }, [requests, search, storyFilter]);
 
+  const visibleDoubleDateMatches = useMemo(() => {
+    let list: DoubleDateMatch[] = connectData?.doubleDateMatches ?? [];
+    if (storyFilter && storyFilter !== "double") return [];
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((match) => {
+        const names = match.users?.map((person) => person.name).join(" ") ?? "";
+        const title = doubleDateTitle(match, dating.currentUserId);
+        return names.toLowerCase().includes(q) || title.toLowerCase().includes(q);
+      });
+    }
+    return list;
+  }, [connectData?.doubleDateMatches, dating.currentUserId, search, storyFilter]);
+
+  const visibleFriendPlans = useMemo(() => {
+    let list = ((connectData?.friendPlans ?? []) as any[]);
+    if (storyFilter && storyFilter !== "friends") return [];
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((plan) =>
+        [plan.title, plan.type, plan.location, plan.creator?.name]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(q)),
+      );
+    }
+    return list;
+  }, [connectData?.friendPlans, search, storyFilter]);
+
 
   const hasConnections =
     conversations.length > 0 ||
     matches.length > 0 ||
+    visibleDoubleDateMatches.length > 0 ||
+    visibleFriendPlans.length > 0 ||
     requests.length > 0 ||
     dating.incomingShots.length > 0 ||
     dating.sentShots.length > 0;
@@ -349,12 +463,33 @@ export default function ConnectScreen() {
     if (result.success && action !== "ignore") refetch();
   };
 
-  const handleAcceptRequest = (req: ConnectionRequest) => {
+  const handleAcceptRequest = async (req: ConnectionRequest) => {
     setRequestsState((prev) => prev.filter((r) => r.id !== req.id));
-
+    try {
+      if (req.requestType === "plan_join" || req.kind === "plan_join") {
+        const result = await respondPlanJoinRequest(req.id, connectUserId, "accept");
+        if (result.chat?.id) router.push(`/chat/${result.chat.id}` as never);
+      } else {
+        const result = await respondFriendRequest(req.id, "accept");
+        if (result.chat?.id) router.push(`/chat/${result.chat.id}` as never);
+      }
+      await loadConnect();
+    } catch {
+      setRequestsState((prev) => (prev.some((item) => item.id === req.id) ? prev : [req, ...prev]));
+    }
   };
-  const handlePassRequest = (req: ConnectionRequest) => {
+  const handlePassRequest = async (req: ConnectionRequest) => {
     setRequestsState((prev) => prev.filter((r) => r.id !== req.id));
+    try {
+      if (req.requestType === "plan_join" || req.kind === "plan_join") {
+        await respondPlanJoinRequest(req.id, connectUserId, "decline");
+      } else {
+        await respondFriendRequest(req.id, "ignore");
+      }
+      await loadConnect();
+    } catch {
+      setRequestsState((prev) => (prev.some((item) => item.id === req.id) ? prev : [req, ...prev]));
+    }
   };
 
   const togglePin = (id: string) => setPinned((p) => ({ ...p, [id]: !p[id] }));
@@ -378,7 +513,14 @@ export default function ConnectScreen() {
         <ScrollView
           contentContainerStyle={{ paddingBottom: botInset, flexGrow: 1 }}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={PINK} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => {
+                refetch();
+                loadConnect();
+              }}
+              tintColor={PINK}
+            />
           }
         >
           <GlobalEmptyState />
@@ -388,7 +530,14 @@ export default function ConnectScreen() {
           contentContainerStyle={{ paddingBottom: botInset }}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={PINK} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => {
+                refetch();
+                loadConnect();
+              }}
+              tintColor={PINK}
+            />
           }
         >
           <StoryConnectionRow
@@ -407,6 +556,21 @@ export default function ConnectScreen() {
           />
 
           <SentShotsSection shots={dating.sentShots} />
+
+          {visibleDoubleDateMatches.length > 0 ? (
+            <DoubleDatesSection
+              matches={visibleDoubleDateMatches}
+              currentUserId={dating.currentUserId}
+              onOpen={(chatId) => router.push(`/chat/${chatId}` as never)}
+            />
+          ) : null}
+
+          {visibleFriendPlans.length > 0 ? (
+            <FriendPlansSection
+              plans={visibleFriendPlans}
+              onOpen={(chatId) => router.push(`/chat/${chatId}` as never)}
+            />
+          ) : null}
 
           {dating.plans.length > 0 ? (
             <ActiveDatingPlans
@@ -452,7 +616,7 @@ export default function ConnectScreen() {
             visibleRequests.length === 0 ? (
               <EmptyInboxState
                 title="No requests right now"
-                text="When someone wants to connect, they'll show up here."
+                text="Friend requests and plan join approvals will show up here."
               />
             ) : (
               <View style={{ paddingTop: 4 }}>
@@ -689,6 +853,134 @@ function StoryBubble({
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+function doubleDateTitle(match: DoubleDateMatch, currentUserId: string) {
+  const pairs = match.pairs ?? [];
+  const ownPair = pairs.find((pair) => pair.userIds.includes(currentUserId));
+  const otherPair = pairs.find((pair) => !pair.userIds.includes(currentUserId));
+  const buddy = ownPair?.users?.find((person) => person.id !== currentUserId)?.name ?? "your buddy";
+  const otherNames = otherPair?.names?.join(" + ") ?? otherPair?.users?.map((person) => person.name).join(" + ") ?? "another pair";
+  return `You + ${buddy} matched with ${otherNames}`;
+}
+
+function DoubleDatesSection({
+  matches,
+  currentUserId,
+  onOpen,
+}: {
+  matches: DoubleDateMatch[];
+  currentUserId: string;
+  onOpen: (chatId: string) => void;
+}) {
+  return (
+    <View style={styles.doubleWrap}>
+      <View style={styles.doubleHeader}>
+        <View>
+          <Text style={styles.sectionEyebrow}>Double Dates</Text>
+          <Text style={styles.doubleTitle}>Group chats unlocked</Text>
+        </View>
+        <Ionicons name="people" size={18} color={PINK} />
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.doubleList}>
+        {matches.map((match) => (
+          <DoubleDateConnectCard
+            key={match.id}
+            match={match}
+            currentUserId={currentUserId}
+            onOpen={() => onOpen(match.chatId)}
+          />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function DoubleDateConnectCard({
+  match,
+  currentUserId,
+  onOpen,
+}: {
+  match: DoubleDateMatch;
+  currentUserId: string;
+  onOpen: () => void;
+}) {
+  const title = doubleDateTitle(match, currentUserId);
+  const preview = match.lastMessage?.text ?? "It's a double date 🎉 Start planning something fun.";
+  const people = match.users ?? [];
+
+  return (
+    <View style={styles.doubleCard}>
+      <View style={styles.doubleAvatarRow}>
+        {people.slice(0, 4).map((person, index) => (
+          <View key={person.id} style={[styles.doubleAvatarWrap, { marginLeft: index === 0 ? 0 : -10 }]}>
+            {person.photoUrl ? (
+              <Image source={{ uri: person.photoUrl }} style={styles.doubleAvatar} contentFit="cover" />
+            ) : (
+              <View style={[styles.doubleAvatar, styles.storyEmojiWrap]}>
+                <Ionicons name="person" size={18} color="#fff" />
+              </View>
+            )}
+          </View>
+        ))}
+      </View>
+      <Text style={styles.doubleCardTitle} numberOfLines={2}>
+        {title}
+      </Text>
+      <Text style={styles.doublePreview} numberOfLines={2}>
+        {preview}
+      </Text>
+      <Pressable onPress={onOpen} style={({ pressed }) => [{ opacity: pressed ? 0.86 : 1 }]}>
+        <LinearGradient colors={[PINK, PURPLE]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.doubleOpenBtn}>
+          <Ionicons name="chatbubbles" size={15} color="#fff" />
+          <Text style={styles.doubleOpenText}>Open Group Chat</Text>
+        </LinearGradient>
+      </Pressable>
+    </View>
+  );
+}
+
+function FriendPlansSection({
+  plans,
+  onOpen,
+}: {
+  plans: any[];
+  onOpen: (chatId: string) => void;
+}) {
+  return (
+    <View style={styles.activePlansWrap}>
+      <View style={styles.activePlansHeader}>
+        <View>
+          <Text style={styles.sectionEyebrow}>Friend Plans</Text>
+          <Text style={styles.activePlansTitle}>Chats for plans you made</Text>
+        </View>
+        <Ionicons name="calendar" size={18} color={PINK} />
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.activePlansList}>
+        {plans.map((plan) => (
+          <Pressable
+            key={plan.id}
+            onPress={() => plan.chatId && onOpen(plan.chatId)}
+            style={styles.activePlanCard}
+            disabled={!plan.chatId}
+          >
+            <LinearGradient colors={[PINK, PURPLE]} style={styles.activePlanIcon}>
+              <Ionicons name="people" size={16} color="#FFF" />
+            </LinearGradient>
+            <Text style={styles.activePlanName} numberOfLines={1}>
+              {plan.type ?? "Plan"}
+            </Text>
+            <Text style={styles.activePlanTitle} numberOfLines={1}>
+              {plan.title ?? "Friend plan"}
+            </Text>
+            <Text style={styles.activePlanMeta} numberOfLines={1}>
+              {plan.time ?? "Soon"} - {plan.location ?? "Nearby"}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -939,7 +1231,7 @@ function RequestRow({
                 { opacity: pressed ? 0.85 : 1 },
               ]}
             >
-              <Text style={styles.reqPassText}>Pass</Text>
+              <Text style={styles.reqPassText}>{req.requestType === "plan_join" ? "Decline" : "Pass"}</Text>
             </Pressable>
           </View>
         </View>
@@ -1150,7 +1442,7 @@ function GlobalEmptyState() {
         Start discovering and your best matches will show up here.
       </Text>
       <Pressable
-        onPress={() => router.replace("/(tabs)/" as never)}
+        onPress={() => router.replace("/(tabs)" as never)}
         style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
       >
         <LinearGradient colors={[PINK, PURPLE]} style={styles.emptyBtn}>
@@ -1294,6 +1586,47 @@ const styles = StyleSheet.create({
   activePlanName: { color: PINK, fontSize: 11, fontFamily: "Inter_700Bold", textTransform: "uppercase", letterSpacing: 1 },
   activePlanTitle: { color: TEXT, fontSize: 15, fontFamily: "Inter_700Bold", marginTop: 4 },
   activePlanMeta: { color: MUTED, fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 4 },
+
+  doubleWrap: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 },
+  doubleHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  doubleTitle: { color: TEXT, fontSize: 16, fontFamily: "Inter_700Bold", marginTop: 2 },
+  doubleList: { gap: 10, paddingRight: 16 },
+  doubleCard: {
+    width: 264,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,45,168,0.30)",
+    backgroundColor: "rgba(255,255,255,0.055)",
+    padding: 14,
+    shadowColor: PINK,
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  doubleAvatarRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  doubleAvatarWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 2,
+    borderColor: BG,
+    overflow: "hidden",
+    backgroundColor: CARD,
+  },
+  doubleAvatar: { width: "100%", height: "100%", borderRadius: 21 },
+  doubleCardTitle: { color: TEXT, fontSize: 15, fontFamily: "Inter_700Bold", lineHeight: 20 },
+  doublePreview: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17, marginTop: 6 },
+  doubleOpenBtn: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  doubleOpenText: { color: "#fff", fontSize: 12, fontFamily: "Inter_700Bold" },
 
 
   tabBar: {
