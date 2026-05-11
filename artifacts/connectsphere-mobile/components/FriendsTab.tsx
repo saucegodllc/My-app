@@ -108,6 +108,14 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [storyReplyText, setStoryReplyText] = useState("");
 
   const friends = useMemo(() => people.filter((person) => person.relationshipStatus === "friends"), [people]);
+  const hubStats = useMemo(
+    () => [
+      { label: "People", value: String(people.length) },
+      { label: "Pending", value: String(requests.length) },
+      { label: "Plans", value: String(plans.length + planFeed.length) },
+    ],
+    [people.length, planFeed.length, plans.length, requests.length],
+  );
 
   const loadFriends = useCallback(async () => {
     setLoading(true);
@@ -571,14 +579,47 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         contentContainerStyle={[styles.content, { paddingBottom: bottomInset + 30 }]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
+        <View style={styles.topBar}>
           <View>
             <Text style={styles.title}>Friends</Text>
-            <Text style={styles.subtitle}>Find people. Make plans.</Text>
+            <Text style={styles.subtitle}>Discover here. Continue in Connect.</Text>
           </View>
-          <Pressable onPress={() => setPlusMenuOpen(true)} style={styles.headerButton}>
-            <Ionicons name="add" size={22} color="#0A0A0B" />
-          </Pressable>
+          <View style={styles.topBarActions}>
+            <Pressable onPress={handleInviteFriends} style={styles.topIconButton}>
+              <Ionicons name="share-social" size={18} color={FRIENDS_TEXT} />
+            </Pressable>
+            <Pressable onPress={() => setPlusMenuOpen(true)} style={styles.headerButton}>
+              <Ionicons name="add" size={22} color="#0A0A0B" />
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.heroPanel}>
+          <View style={styles.heroGlow} />
+          <View style={styles.heroHeaderRow}>
+            <Text style={styles.heroEyebrow}>Friends Discover</Text>
+            <View style={styles.livePill}>
+              <View style={styles.liveDot} />
+              <Text style={styles.livePillText}>Miami live</Text>
+            </View>
+          </View>
+          <Text style={styles.heroTitle}>Find the people. Build the plan.</Text>
+          <Text style={styles.heroCopy}>Stories, suggestions, requests, and plans stay here. Every real thread lands in Connect.</Text>
+          <View style={styles.heroActionRow}>
+            <Pressable onPress={() => openCreatePlan()} style={styles.heroPrimary}>
+              <Ionicons name="calendar" size={17} color="#0A0A0B" />
+              <Text style={styles.heroPrimaryText}>New Plan</Text>
+            </Pressable>
+            <Pressable onPress={() => setStoryComposerOpen(true)} style={styles.heroSecondary}>
+              <Ionicons name="add-circle" size={17} color={FRIENDS_PINK} />
+              <Text style={styles.heroSecondaryText}>Story</Text>
+            </Pressable>
+          </View>
+          <View style={styles.statsRow}>
+            {hubStats.map((stat) => (
+              <StatPill key={stat.label} label={stat.label} value={stat.value} />
+            ))}
+          </View>
         </View>
 
         <View style={styles.searchBox}>
@@ -592,29 +633,35 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
           />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyRow}>
-          <Pressable onPress={() => setStoryComposerOpen(true)} style={styles.storyPill}>
-            <View style={styles.storyAddCircle}>
-              <Ionicons name="add" size={18} color="#0A0A0B" />
-            </View>
-            <Text style={styles.storyLabel}>Your Story</Text>
-          </Pressable>
-          {stories.map((story) => (
-            <Pressable key={story.id} onPress={() => setViewingStory(story)} style={styles.storyPill}>
-              <Image source={{ uri: story.imageUrl || story.user.photoUrl || FALLBACK_PHOTO }} style={styles.storyPhoto} contentFit="cover" />
-              <View style={styles.storyTypeDot}>
-                <Ionicons
-                  name={story.type === "plan_invite" ? "calendar" : story.type === "photo" ? "camera" : "chatbubble"}
-                  size={10}
-                  color="#0A0A0B"
-                />
+        <View style={styles.storyBand}>
+          <View style={styles.storyBandHeader}>
+            <Text style={styles.storyBandTitle}>24h stories</Text>
+            <Text style={styles.storyBandMeta}>{stories.length} live</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyRow}>
+            <Pressable onPress={() => setStoryComposerOpen(true)} style={styles.storyPill}>
+              <View style={styles.storyAddCircle}>
+                <Ionicons name="add" size={18} color="#0A0A0B" />
               </View>
-              <Text style={styles.storyLabel} numberOfLines={1}>
-                {story.isOwn ? "You" : firstName(story.user.name)}
-              </Text>
+              <Text style={styles.storyLabel}>Your Story</Text>
             </Pressable>
-          ))}
-        </ScrollView>
+            {stories.map((story) => (
+              <Pressable key={story.id} onPress={() => setViewingStory(story)} style={styles.storyPill}>
+                <Image source={{ uri: story.imageUrl || story.user.photoUrl || FALLBACK_PHOTO }} style={styles.storyPhoto} contentFit="cover" />
+                <View style={styles.storyTypeDot}>
+                  <Ionicons
+                    name={story.type === "plan_invite" ? "calendar" : story.type === "photo" ? "camera" : "chatbubble"}
+                    size={10}
+                    color="#0A0A0B"
+                  />
+                </View>
+                <Text style={styles.storyLabel} numberOfLines={1}>
+                  {story.isOwn ? "You" : firstName(story.user.name)}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
 
         <View style={styles.tabs}>
           {(["all", "people", "requests", "plans"] as FriendsView[]).map((tab) => (
@@ -786,6 +833,15 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle: string })
   );
 }
 
+function StatPill({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.statPill}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
 function LoadingState() {
   return (
     <View style={styles.emptyState}>
@@ -863,11 +919,11 @@ const styles = StyleSheet.create({
     backgroundColor: FRIENDS_BLACK,
   },
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    gap: 16,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    gap: 18,
   },
-  header: {
+  topBar: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
@@ -880,8 +936,24 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: FRIENDS_MUTED,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: "700",
     marginTop: 3,
+  },
+  topBarActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  topIconButton: {
+    alignItems: "center",
+    backgroundColor: "#0f0f12",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 22,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
   headerButton: {
     alignItems: "center",
@@ -895,11 +967,144 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     width: 44,
   },
+  heroPanel: {
+    backgroundColor: "#060006",
+    borderColor: "rgba(255,45,168,0.42)",
+    borderRadius: 30,
+    borderWidth: 1,
+    gap: 14,
+    overflow: "hidden",
+    padding: 18,
+    position: "relative",
+    shadowColor: FRIENDS_PINK,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.28,
+    shadowRadius: 28,
+  },
+  heroGlow: {
+    backgroundColor: "rgba(255,45,168,0.18)",
+    borderRadius: 120,
+    height: 210,
+    position: "absolute",
+    right: -86,
+    top: -88,
+    width: 210,
+  },
+  heroHeaderRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  heroEyebrow: {
+    color: FRIENDS_PINK,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.8,
+    textTransform: "uppercase",
+  },
+  livePill: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  liveDot: {
+    backgroundColor: "#22c55e",
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  livePillText: {
+    color: FRIENDS_TEXT,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  heroTitle: {
+    color: FRIENDS_TEXT,
+    fontSize: 32,
+    fontWeight: "900",
+    letterSpacing: 0,
+    lineHeight: 36,
+    maxWidth: 290,
+  },
+  heroCopy: {
+    color: "#d4d4d8",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 21,
+    maxWidth: 310,
+  },
+  heroActionRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  heroPrimary: {
+    alignItems: "center",
+    backgroundColor: FRIENDS_PINK,
+    borderRadius: 18,
+    flex: 1,
+    flexDirection: "row",
+    gap: 7,
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  heroPrimaryText: {
+    color: "#0A0A0B",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  heroSecondary: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.14)",
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: "row",
+    gap: 7,
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  heroSecondaryText: {
+    color: FRIENDS_TEXT,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  statPill: {
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  statValue: {
+    color: FRIENDS_TEXT,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  statLabel: {
+    color: FRIENDS_MUTED,
+    fontSize: 11,
+    fontWeight: "900",
+    marginTop: 2,
+    textTransform: "uppercase",
+  },
   searchBox: {
     alignItems: "center",
-    backgroundColor: FRIENDS_SURFACE,
-    borderColor: "rgba(255,45,141,0.18)",
-    borderRadius: 18,
+    backgroundColor: "#050505",
+    borderColor: "rgba(255,45,168,0.3)",
+    borderRadius: 20,
     borderWidth: 1,
     flexDirection: "row",
     gap: 8,
@@ -910,6 +1115,29 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     minHeight: 48,
+  },
+  storyBand: {
+    backgroundColor: "#050505",
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 12,
+    padding: 14,
+  },
+  storyBandHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  storyBandTitle: {
+    color: FRIENDS_TEXT,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  storyBandMeta: {
+    color: FRIENDS_PINK,
+    fontSize: 12,
+    fontWeight: "900",
   },
   storyRow: {
     gap: 12,
@@ -972,10 +1200,12 @@ const styles = StyleSheet.create({
     width: 74,
   },
   tabs: {
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 18,
+    backgroundColor: "#050505",
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 22,
+    borderWidth: 1,
     flexDirection: "row",
-    padding: 4,
+    padding: 5,
   },
   tabButton: {
     alignItems: "center",
@@ -1004,28 +1234,34 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   personCard: {
-    backgroundColor: "rgba(255,255,255,0.075)",
-    borderColor: "rgba(255,255,255,0.09)",
-    borderRadius: 22,
+    backgroundColor: "#050505",
+    borderColor: "rgba(255,45,168,0.2)",
+    borderRadius: 28,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 12,
-    padding: 12,
+    gap: 14,
+    padding: 14,
+    shadowColor: FRIENDS_PINK,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
   },
   requestCard: {
-    backgroundColor: "rgba(255,255,255,0.075)",
-    borderColor: "rgba(255,45,141,0.16)",
-    borderRadius: 22,
+    backgroundColor: "#070707",
+    borderColor: "rgba(255,45,168,0.28)",
+    borderRadius: 28,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 12,
-    padding: 12,
+    gap: 14,
+    padding: 14,
   },
   avatar: {
     backgroundColor: "#141419",
-    borderRadius: 24,
-    height: 76,
-    width: 76,
+    borderColor: "rgba(255,45,168,0.55)",
+    borderRadius: 32,
+    borderWidth: 2,
+    height: 82,
+    width: 82,
   },
   personMain: {
     flex: 1,
@@ -1037,14 +1273,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   personName: {
-    color: "#FFFFFF",
+    color: FRIENDS_TEXT,
     flexShrink: 1,
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: "900",
     letterSpacing: 0,
   },
   personCity: {
-    color: "#A1A1AA",
+    color: "#d4d4d8",
     fontSize: 13,
     fontWeight: "600",
   },
@@ -1068,8 +1304,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   interestChip: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderColor: "rgba(255,255,255,0.09)",
     borderRadius: 999,
+    borderWidth: 1,
     paddingHorizontal: 9,
     paddingVertical: 5,
   },
@@ -1122,13 +1360,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   planCard: {
-    backgroundColor: "rgba(255,255,255,0.075)",
-    borderColor: "rgba(255,255,255,0.09)",
-    borderRadius: 22,
+    backgroundColor: "#050505",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 28,
     borderWidth: 1,
     flexDirection: "row",
     gap: 12,
-    padding: 14,
+    padding: 16,
   },
   planIcon: {
     alignItems: "center",
@@ -1171,9 +1409,9 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.055)",
-    borderColor: "rgba(255,255,255,0.08)",
-    borderRadius: 22,
+    backgroundColor: "#050505",
+    borderColor: "rgba(255,45,168,0.18)",
+    borderRadius: 28,
     borderWidth: 1,
     gap: 8,
     justifyContent: "center",
