@@ -83,6 +83,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [planInviteIds, setPlanInviteIds] = useState<string[]>([]);
   const [planInitialTitle, setPlanInitialTitle] = useState("");
   const [planTargetPerson, setPlanTargetPerson] = useState<FriendPerson | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<FriendPerson | null>(null);
 
   const friends = useMemo(() => people.filter((person) => person.relationshipStatus === "friends"), [people]);
 
@@ -285,7 +286,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     return (
       <View style={styles.stack}>
         {people.map((person) => (
-          <View key={person.id} style={styles.personCard}>
+          <Pressable key={person.id} onPress={() => setSelectedPerson(person)} style={styles.personCard}>
             <Image source={{ uri: person.photoUrl ?? FALLBACK_PHOTO }} style={styles.avatar} contentFit="cover" />
             <View style={styles.personMain}>
               <View style={styles.nameRow}>
@@ -307,18 +308,27 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
               </View>
               <View style={styles.buttonRow}>
                 <Pressable
-                  onPress={() => handleConnect(person)}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    handleConnect(person);
+                  }}
                   style={[styles.primaryButton, person.relationshipStatus === "requested" && styles.disabledButton]}
                   disabled={person.relationshipStatus === "requested"}
                 >
                   <Text style={styles.primaryButtonText}>{connectLabel(person)}</Text>
                 </Pressable>
-                <Pressable onPress={() => openPlanForPerson(person)} style={styles.secondaryButton}>
+                <Pressable
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    openPlanForPerson(person);
+                  }}
+                  style={styles.secondaryButton}
+                >
                   <Text style={styles.secondaryButtonText}>Plan</Text>
                 </Pressable>
               </View>
             </View>
-          </View>
+          </Pressable>
         ))}
       </View>
     );
@@ -546,6 +556,81 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         onClose={closePlanSheet}
         onCreated={handlePlanCreated}
       />
+
+      <Modal transparent visible={!!selectedPerson} animationType="fade" onRequestClose={() => setSelectedPerson(null)}>
+        <Pressable style={styles.profileOverlay} onPress={() => setSelectedPerson(null)}>
+          {selectedPerson ? (
+            <Pressable style={styles.profileCard} onPress={(event) => event.stopPropagation()}>
+              <View style={styles.profileImageWrap}>
+                <Image source={{ uri: selectedPerson.photoUrl ?? FALLBACK_PHOTO }} style={styles.profileImage} contentFit="cover" />
+                <Pressable onPress={() => setSelectedPerson(null)} style={styles.profileClose}>
+                  <Ionicons name="close" size={18} color="#FFFFFF" />
+                </Pressable>
+              </View>
+              <View style={styles.profileBody}>
+                <View style={styles.profileNameRow}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.profileName} numberOfLines={1}>
+                      {selectedPerson.name}
+                      {selectedPerson.age ? `, ${selectedPerson.age}` : ""}
+                    </Text>
+                    <Text style={styles.profileMeta} numberOfLines={1}>
+                      {selectedPerson.location ?? selectedPerson.neighborhood ?? selectedPerson.city ?? "Miami"}
+                    </Text>
+                  </View>
+                  <View style={styles.profileStatusBadge}>
+                    <Text style={styles.profileStatusText}>{selectedPerson.statusBadge ?? selectedPerson.energy ?? "Open to plans"}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.profileSection}>
+                  <Text style={styles.profileSectionTitle}>Interests</Text>
+                  <View style={styles.interestRow}>
+                    {(selectedPerson.interests?.length ? selectedPerson.interests : ["Plans", "Friends", "Miami"]).slice(0, 6).map((interest) => (
+                      <View key={interest} style={styles.interestChip}>
+                        <Text style={styles.interestText}>{interest}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                {selectedPerson.sharedInterests?.length ? (
+                  <View style={styles.profileSection}>
+                    <Text style={styles.profileSectionTitle}>Why they fit</Text>
+                    <Text style={styles.profileCopy}>{selectedPerson.sharedInterests.slice(0, 3).join(" · ")}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.profileCopy}>Send a request, then keep the conversation in Connect.</Text>
+                )}
+
+                <View style={styles.profileActions}>
+                  <Pressable
+                    onPress={() => {
+                      const person = selectedPerson;
+                      setSelectedPerson(null);
+                      handleConnect(person);
+                    }}
+                    style={[styles.primaryButton, selectedPerson.relationshipStatus === "requested" && styles.disabledButton]}
+                    disabled={selectedPerson.relationshipStatus === "requested"}
+                  >
+                    <Text style={styles.primaryButtonText}>{connectLabel(selectedPerson)}</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      const person = selectedPerson;
+                      setSelectedPerson(null);
+                      openPlanForPerson(person);
+                    }}
+                    style={styles.secondaryButton}
+                  >
+                    <Text style={styles.secondaryButtonText}>Make Plan</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </Pressable>
+          ) : null}
+        </Pressable>
+      </Modal>
 
     </View>
   );
@@ -943,6 +1028,92 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     textAlign: "center",
+  },
+  profileOverlay: {
+    backgroundColor: "rgba(0,0,0,0.76)",
+    flex: 1,
+    justifyContent: "flex-end",
+    padding: 16,
+  },
+  profileCard: {
+    backgroundColor: "#08080A",
+    borderColor: "rgba(255,45,168,0.26)",
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  profileImageWrap: {
+    backgroundColor: "#141419",
+    height: 220,
+    position: "relative",
+  },
+  profileImage: {
+    height: "100%",
+    width: "100%",
+  },
+  profileClose: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.52)",
+    borderRadius: 18,
+    height: 38,
+    justifyContent: "center",
+    position: "absolute",
+    right: 12,
+    top: 12,
+    width: 38,
+  },
+  profileBody: {
+    gap: 14,
+    padding: 16,
+  },
+  profileNameRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 12,
+  },
+  profileName: {
+    color: FRIENDS_TEXT,
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  profileMeta: {
+    color: FRIENDS_MUTED,
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 3,
+  },
+  profileStatusBadge: {
+    backgroundColor: "rgba(255,45,168,0.14)",
+    borderColor: "rgba(255,45,168,0.3)",
+    borderRadius: 999,
+    borderWidth: 1,
+    maxWidth: 130,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  profileStatusText: {
+    color: "#FF8BC4",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  profileSection: {
+    gap: 8,
+  },
+  profileSectionTitle: {
+    color: FRIENDS_TEXT,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  profileCopy: {
+    color: "#D7D7DE",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19,
+  },
+  profileActions: {
+    flexDirection: "row",
+    gap: 10,
   },
   plusOverlay: {
     backgroundColor: "rgba(0,0,0,0.72)",
