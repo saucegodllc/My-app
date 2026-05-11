@@ -2,6 +2,7 @@ import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -15,6 +16,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   createFriendPlan,
@@ -58,6 +60,31 @@ function openConnectThread(chatId?: string) {
 
 function shareOut(message: string, url = APP_SHARE_URL) {
   return Share.share({ message: `${message}\n${url}` });
+}
+
+function titleTag(value?: string) {
+  return (value ?? "")
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
+function uniqueTags(values: Array<string | undefined | false | null>) {
+  return Array.from(new Set(values.filter(Boolean).map((value) => titleTag(String(value)))));
+}
+
+function personLocation(person: FriendPerson) {
+  return person.location ?? person.neighborhood ?? person.city ?? "Miami";
+}
+
+function personProfileLine(person: FriendPerson) {
+  const interests = (person.interests ?? []).map(titleTag).filter(Boolean);
+  const topInterests = interests.slice(0, 3).join(", ");
+  if (topInterests) {
+    return `${firstName(person.name)} is ${person.energy?.toLowerCase() ?? "ready for plans"} around ${personLocation(person)}. Into ${topInterests}.`;
+  }
+  return `${firstName(person.name)} is ${person.energy?.toLowerCase() ?? "ready for plans"} around ${personLocation(person)}.`;
 }
 
 function successHaptic() {
@@ -557,7 +584,28 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         onCreated={handlePlanCreated}
       />
 
-      <Modal transparent visible={!!selectedPerson} animationType="fade" onRequestClose={() => setSelectedPerson(null)}>
+      <Modal visible={!!selectedPerson} animationType="slide" onRequestClose={() => setSelectedPerson(null)}>
+        {selectedPerson ? (
+          <FriendProfileSheet
+            person={selectedPerson}
+            bottomInset={bottomInset}
+            connectLabel={connectLabel(selectedPerson)}
+            onClose={() => setSelectedPerson(null)}
+            onConnect={() => {
+              const person = selectedPerson;
+              setSelectedPerson(null);
+              handleConnect(person);
+            }}
+            onPlan={() => {
+              const person = selectedPerson;
+              setSelectedPerson(null);
+              openPlanForPerson(person);
+            }}
+          />
+        ) : null}
+      </Modal>
+
+      <Modal transparent visible={false} animationType="fade" onRequestClose={() => setSelectedPerson(null)}>
         <Pressable style={styles.profileOverlay} onPress={() => setSelectedPerson(null)}>
           {selectedPerson ? (
             <Pressable style={styles.profileCard} onPress={(event) => event.stopPropagation()}>
@@ -632,6 +680,167 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         </Pressable>
       </Modal>
 
+    </View>
+  );
+}
+
+function FriendProfileSheet({
+  person,
+  bottomInset,
+  connectLabel,
+  onClose,
+  onConnect,
+  onPlan,
+}: {
+  person: FriendPerson;
+  bottomInset: number;
+  connectLabel: string;
+  onClose: () => void;
+  onConnect: () => void;
+  onPlan: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(bottomInset, insets.bottom) + 16;
+  const location = personLocation(person);
+  const interests = uniqueTags(person.interests?.length ? person.interests : ["plans", "friends", "miami"]);
+  const sharedInterests = uniqueTags(person.sharedInterests ?? []);
+  const planStyle = uniqueTags(person.activityStyle?.length ? person.activityStyle : [person.energy ?? "ready for plans"]);
+  const comfort = uniqueTags([
+    ...(person.safety ?? []),
+    ...(person.accessibility ?? []),
+    person.familyFriendly ? "family friendly" : null,
+    person.lgbtqFriendly ? "lgbtq friendly" : null,
+  ]);
+  const mutualConnections = uniqueTags(person.mutualConnections ?? []);
+  const primaryDisabled = person.relationshipStatus === "requested";
+
+  return (
+    <View style={styles.profileScreen}>
+      <ScrollView
+        style={styles.profileScroll}
+        contentContainerStyle={[styles.profileScrollContent, { paddingBottom: bottomPad + 112 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.profileHero}>
+          <Image source={{ uri: person.photoUrl ?? FALLBACK_PHOTO }} style={styles.profileHeroImage} contentFit="cover" />
+          <LinearGradient
+            colors={["rgba(0,0,0,0.04)", "rgba(0,0,0,0.34)", FRIENDS_BLACK]}
+            locations={[0, 0.56, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={[styles.profileTopButtons, { top: insets.top + 12 }]}>
+            <Pressable onPress={onClose} style={styles.profileIconButton}>
+              <Ionicons name="close" size={25} color="#FFFFFF" />
+            </Pressable>
+            <View style={styles.profileHeroPill}>
+              <Ionicons name="people" size={14} color="#FF8BC4" />
+              <Text style={styles.profileHeroPillText}>Friends</Text>
+            </View>
+          </View>
+
+          <View style={styles.profileHeroBottom}>
+            <View style={styles.profileBadgeRow}>
+              <View style={styles.profileStatusBadge}>
+                <Text style={styles.profileStatusText}>{person.statusBadge ?? person.energy ?? "Open to plans"}</Text>
+              </View>
+              {person.activeTonight ? (
+                <View style={styles.profileLiveBadge}>
+                  <View style={styles.profileLiveDot} />
+                  <Text style={styles.profileLiveText}>Active tonight</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={styles.profileHeroName}>
+              {person.name}
+              {person.age ? `, ${person.age}` : ""}
+            </Text>
+            <View style={styles.profileLocationRow}>
+              <Ionicons name="location-outline" size={15} color="#E4E4E7" />
+              <Text style={styles.profileLocationText}>{location}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.profileContent}>
+          <Text style={styles.profileBio}>{personProfileLine(person)}</Text>
+
+          <View style={styles.profileStatsRow}>
+            <ProfileStat icon="sparkles" label="Energy" value={person.energy ?? "Ready for plans"} />
+            <ProfileStat icon="navigate" label="Area" value={location} />
+          </View>
+
+          {sharedInterests.length ? (
+            <View style={styles.profileHighlightCard}>
+              <View style={styles.profileHighlightIcon}>
+                <Ionicons name="checkmark" size={16} color="#0A0A0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.profileHighlightTitle}>Why they fit</Text>
+                <Text style={styles.profileHighlightText}>You both like {sharedInterests.slice(0, 4).join(", ")}.</Text>
+              </View>
+            </View>
+          ) : null}
+
+          <ProfileTagGroup title="Interests" icon="heart-outline" tags={interests} />
+          <ProfileTagGroup title="Plan Style" icon="calendar-outline" tags={planStyle} />
+          {comfort.length ? <ProfileTagGroup title="Comfort" icon="shield-checkmark-outline" tags={comfort} /> : null}
+          {mutualConnections.length ? (
+            <ProfileTagGroup title="Mutuals" icon="people-outline" tags={mutualConnections} />
+          ) : null}
+        </View>
+      </ScrollView>
+
+      <View style={[styles.profileBottomBar, { paddingBottom: bottomPad }]}>
+        <Pressable
+          onPress={onConnect}
+          style={[styles.profilePrimaryAction, primaryDisabled && styles.disabledButton]}
+          disabled={primaryDisabled}
+        >
+          <Ionicons name={person.relationshipStatus === "friends" ? "chatbubble" : "person-add"} size={18} color="#0A0A0B" />
+          <Text style={styles.profilePrimaryActionText}>{connectLabel}</Text>
+        </Pressable>
+        <Pressable onPress={onPlan} style={styles.profileSecondaryAction}>
+          <Ionicons name="calendar" size={18} color="#FFFFFF" />
+          <Text style={styles.profileSecondaryActionText}>Make Plan</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function ProfileStat({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  return (
+    <View style={styles.profileStat}>
+      <Ionicons name={icon} size={17} color="#FF8BC4" />
+      <Text style={styles.profileStatLabel}>{label}</Text>
+      <Text style={styles.profileStatValue} numberOfLines={1}>{titleTag(value)}</Text>
+    </View>
+  );
+}
+
+function ProfileTagGroup({
+  title,
+  icon,
+  tags,
+}: {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  tags: string[];
+}) {
+  if (!tags.length) return null;
+  return (
+    <View style={styles.profileSectionCard}>
+      <View style={styles.profileSectionHeader}>
+        <Ionicons name={icon} size={16} color="#FF8BC4" />
+        <Text style={styles.profileSectionTitle}>{title}</Text>
+      </View>
+      <View style={styles.profileTagWrap}>
+        {tags.map((tag) => (
+          <View key={tag} style={styles.profileTag}>
+            <Text style={styles.profileTagText}>{tag}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -1028,6 +1237,255 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     textAlign: "center",
+  },
+  profileScreen: {
+    backgroundColor: FRIENDS_BLACK,
+    flex: 1,
+  },
+  profileScroll: {
+    flex: 1,
+  },
+  profileScrollContent: {
+    backgroundColor: FRIENDS_BLACK,
+  },
+  profileHero: {
+    backgroundColor: "#111114",
+    height: 500,
+    overflow: "hidden",
+    position: "relative",
+  },
+  profileHeroImage: {
+    height: "100%",
+    width: "100%",
+  },
+  profileTopButtons: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    left: 16,
+    position: "absolute",
+    right: 16,
+  },
+  profileIconButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.48)",
+    borderColor: "rgba(255,255,255,0.16)",
+    borderRadius: 24,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  profileHeroPill: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderColor: "rgba(255,255,255,0.16)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    minHeight: 40,
+    paddingHorizontal: 13,
+  },
+  profileHeroPillText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  profileHeroBottom: {
+    bottom: 0,
+    left: 0,
+    padding: 20,
+    position: "absolute",
+    right: 0,
+  },
+  profileBadgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  profileLiveBadge: {
+    alignItems: "center",
+    backgroundColor: "rgba(52,211,153,0.14)",
+    borderColor: "rgba(52,211,153,0.28)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  profileLiveDot: {
+    backgroundColor: "#34D399",
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  profileLiveText: {
+    color: "#D1FAE5",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  profileHeroName: {
+    color: "#FFFFFF",
+    fontSize: 38,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  profileLocationRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 8,
+  },
+  profileLocationText: {
+    color: "#E4E4E7",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  profileContent: {
+    gap: 16,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+  },
+  profileBio: {
+    color: FRIENDS_TEXT,
+    fontSize: 15,
+    fontWeight: "700",
+    lineHeight: 23,
+  },
+  profileStatsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  profileStat: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    gap: 6,
+    minHeight: 92,
+    padding: 12,
+  },
+  profileStatLabel: {
+    color: "#A1A1AA",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
+  profileStatValue: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  profileHighlightCard: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,45,168,0.11)",
+    borderColor: "rgba(255,45,168,0.28)",
+    borderRadius: 22,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    padding: 14,
+  },
+  profileHighlightIcon: {
+    alignItems: "center",
+    backgroundColor: FRIENDS_PINK,
+    borderRadius: 16,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
+  profileHighlightTitle: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  profileHighlightText: {
+    color: "#EDEDF2",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19,
+    marginTop: 3,
+  },
+  profileSectionCard: {
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 22,
+    borderWidth: 1,
+    gap: 12,
+    padding: 14,
+  },
+  profileSectionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  profileTagWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  profileTag: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  profileTagText: {
+    color: "#F4F4F5",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  profileBottomBar: {
+    backgroundColor: "rgba(0,0,0,0.92)",
+    borderTopColor: "rgba(255,255,255,0.1)",
+    borderTopWidth: 1,
+    bottom: 0,
+    flexDirection: "row",
+    gap: 10,
+    left: 0,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    position: "absolute",
+    right: 0,
+  },
+  profilePrimaryAction: {
+    alignItems: "center",
+    backgroundColor: FRIENDS_PINK,
+    borderRadius: 18,
+    flex: 1,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 54,
+  },
+  profilePrimaryActionText: {
+    color: "#0A0A0B",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  profileSecondaryAction: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.09)",
+    borderColor: "rgba(255,255,255,0.14)",
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 54,
+  },
+  profileSecondaryActionText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
   },
   profileOverlay: {
     backgroundColor: "rgba(0,0,0,0.76)",

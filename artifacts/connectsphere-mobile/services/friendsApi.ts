@@ -11,7 +11,14 @@ export type FriendPerson = {
   location?: string;
   photoUrl?: string;
   interests?: string[];
+  activityStyle?: string[];
   energy?: string;
+  activeTonight?: boolean;
+  accessibility?: string[];
+  safety?: string[];
+  familyFriendly?: boolean;
+  lgbtqFriendly?: boolean;
+  mutualConnections?: string[];
   statusBadge?: string;
   relationshipStatus: RelationshipStatus;
   requestId?: string;
