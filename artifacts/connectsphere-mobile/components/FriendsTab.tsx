@@ -18,22 +18,17 @@ import {
 
 import {
   createFriendPlan,
-  createFriendStory,
   getFriendPeople,
   getFriendPlans,
   getFriendPlansFeed,
   getFriendRequests,
-  getFriendStories,
   requestJoinFriendPlan,
-  reactToFriendStory,
-  replyToFriendStory,
   respondPlanJoinRequest,
   respondFriendRequest,
   sendFriendRequest,
   type FriendPerson,
   type FriendPlan,
   type FriendRequest,
-  type FriendStory,
 } from "@/services/friendsApi";
 import CreateFriendPlanSheet from "@/components/CreateFriendPlanSheet";
 
@@ -42,15 +37,7 @@ type FriendsTabProps = {
 };
 
 type FriendsView = "all" | "people" | "requests" | "plans";
-type StoryType = "status" | "photo" | "plan_invite";
 type PlanSourceTab = "map" | "event";
-
-const PLAN_TYPES = ["Coffee", "Gym", "Walk", "Brunch", "Study", "Night Out", "Movie", "Custom"];
-const STORY_TYPES: Array<{ id: StoryType; label: string }> = [
-  { id: "status", label: "Status" },
-  { id: "photo", label: "Photo" },
-  { id: "plan_invite", label: "Plan Invite" },
-];
 const FRIENDS_PINK = "#ff2da8";
 const FRIENDS_BLACK = "#000000";
 const FRIENDS_SURFACE = "#0a0a0a";
@@ -88,7 +75,6 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [plans, setPlans] = useState<FriendPlan[]>([]);
   const [planFeed, setPlanFeed] = useState<FriendPlan[]>([]);
-  const [stories, setStories] = useState<FriendStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
 
@@ -98,14 +84,6 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [planInviteIds, setPlanInviteIds] = useState<string[]>([]);
   const [planInitialTitle, setPlanInitialTitle] = useState("");
   const [planTargetPerson, setPlanTargetPerson] = useState<FriendPerson | null>(null);
-  const [storyComposerOpen, setStoryComposerOpen] = useState(false);
-  const [viewingStory, setViewingStory] = useState<FriendStory | null>(null);
-
-  const [storyType, setStoryType] = useState<StoryType>("status");
-  const [storyText, setStoryText] = useState("");
-  const [storyImageUrl, setStoryImageUrl] = useState("");
-  const [storyPlanType, setStoryPlanType] = useState("Coffee");
-  const [storyReplyText, setStoryReplyText] = useState("");
 
   const friends = useMemo(() => people.filter((person) => person.relationshipStatus === "friends"), [people]);
   const hubStats = useMemo(
@@ -120,18 +98,16 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const loadFriends = useCallback(async () => {
     setLoading(true);
     try {
-      const [peopleResult, requestResult, planResult, feedResult, storyResult] = await Promise.all([
+      const [peopleResult, requestResult, planResult, feedResult] = await Promise.all([
         getFriendPeople(userId, search),
         getFriendRequests(userId),
         getFriendPlans(userId),
         getFriendPlansFeed(userId),
-        getFriendStories(userId),
       ]);
       setPeople(peopleResult.people ?? []);
       setRequests(requestResult.requests ?? []);
       setPlans(planResult.plans ?? []);
       setPlanFeed(feedResult.plans ?? []);
-      setStories(storyResult.stories ?? []);
     } catch {
       setNotice("Friends could not load. Check the API server and try again.");
     } finally {
@@ -272,93 +248,6 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     }
   }, [showNotice]);
 
-  const handleCreateStory = useCallback(async () => {
-    try {
-      await createFriendStory({
-        userId,
-        type: storyType,
-        text: storyText.trim() || (storyType === "plan_invite" ? `${storyPlanType} later?` : "Going out tonight"),
-        imageUrl: storyType === "photo" ? storyImageUrl.trim() : undefined,
-        planType: storyType === "plan_invite" ? storyPlanType : undefined,
-      });
-      setStoryComposerOpen(false);
-      setStoryText("");
-      setStoryImageUrl("");
-      setStoryType("status");
-      successHaptic();
-      showNotice("Story's live for 24 hours.");
-      await loadFriends();
-    } catch {
-      showNotice("Could not post story.");
-    }
-  }, [loadFriends, showNotice, storyImageUrl, storyPlanType, storyText, storyType, userId]);
-
-  const handleStoryReply = useCallback(async () => {
-    if (!viewingStory) return;
-    if (viewingStory.isOwn) {
-      showNotice("This is your story.");
-      return;
-    }
-    try {
-      const result = await replyToFriendStory(userId, viewingStory.id, storyReplyText.trim() || "I am interested.");
-      setStoryReplyText("");
-      setViewingStory(null);
-      if (result.mode === "chat" && result.chat?.id) {
-        showNotice("Reply is in Connect.");
-        openConnectThread(result.chat.id);
-      } else {
-        showNotice("Reply sent as a connection request.");
-      }
-      await loadFriends();
-    } catch {
-      showNotice("Could not send reply.");
-    }
-  }, [loadFriends, showNotice, storyReplyText, userId, viewingStory]);
-
-  const handleStoryConnect = useCallback(async () => {
-    if (!viewingStory) return;
-    if (viewingStory.isOwn) {
-      showNotice("This is your story.");
-      return;
-    }
-    try {
-      const result = await sendFriendRequest(userId, viewingStory.userId, { storyId: viewingStory.id });
-      setViewingStory(null);
-      if (result.chat?.id) openConnectThread(result.chat.id);
-      else showNotice("Connection request sent.");
-      await loadFriends();
-    } catch {
-      showNotice("Could not send request.");
-    }
-  }, [loadFriends, showNotice, userId, viewingStory]);
-
-  const handleStoryPlan = useCallback(() => {
-    if (!viewingStory) return;
-    setViewingStory(null);
-    if (viewingStory.isOwn) {
-      openCreatePlan("event");
-      return;
-    }
-    openPlanForPerson({ ...viewingStory.user, relationshipStatus: viewingStory.relationshipStatus });
-  }, [openCreatePlan, openPlanForPerson, viewingStory]);
-
-  const handleJoinStoryPlan = useCallback(async () => {
-    if (!viewingStory?.planId) {
-      handleStoryPlan();
-      return;
-    }
-    try {
-      const result = await requestJoinFriendPlan(userId, viewingStory.planId);
-      setViewingStory(null);
-      if (result.status === "joined") successHaptic();
-      showNotice(result.status === "joined" ? "You're in. Plan thread is in Connect." : "Request sent to join.");
-      await loadFriends();
-      if (result.chat?.id) openConnectThread(result.chat.id);
-    } catch {
-      showNotice("Could not join that plan.");
-    }
-  }, [handleStoryPlan, loadFriends, showNotice, userId, viewingStory]);
-
   const handleRequestJoinPlan = useCallback(
     async (plan: FriendPlan) => {
       if (plan.joinRequestStatus === "pending") return;
@@ -447,7 +336,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const renderRequests = (showEmpty = true) => {
     if (loading) return <LoadingState />;
     if (!requests.length) {
-      return showEmpty ? <EmptyState title="No requests" text="New friend requests and story replies will show here." /> : null;
+      return showEmpty ? <EmptyState title="No requests" text="Friend requests and plan joins will show here." /> : null;
     }
     return (
       <View style={styles.stack}>
@@ -597,22 +486,22 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         <View style={styles.heroPanel}>
           <View style={styles.heroGlow} />
           <View style={styles.heroHeaderRow}>
-            <Text style={styles.heroEyebrow}>Friends Discover</Text>
+            <Text style={styles.heroEyebrow}>Friends Hub</Text>
             <View style={styles.livePill}>
               <View style={styles.liveDot} />
-              <Text style={styles.livePillText}>Miami live</Text>
+              <Text style={styles.livePillText}>Ready</Text>
             </View>
           </View>
-          <Text style={styles.heroTitle}>Find the people. Build the plan.</Text>
-          <Text style={styles.heroCopy}>Stories, suggestions, requests, and plans stay here. Every real thread lands in Connect.</Text>
+          <Text style={styles.heroTitle}>Invite. Connect. Make plans.</Text>
+          <Text style={styles.heroCopy}>Bring friends in from outside the app, send requests, and keep every thread organized in Connect.</Text>
           <View style={styles.heroActionRow}>
-            <Pressable onPress={() => openCreatePlan()} style={styles.heroPrimary}>
-              <Ionicons name="calendar" size={17} color="#0A0A0B" />
-              <Text style={styles.heroPrimaryText}>New Plan</Text>
+            <Pressable onPress={handleInviteFriends} style={styles.heroPrimary}>
+              <Ionicons name="share-social" size={17} color="#0A0A0B" />
+              <Text style={styles.heroPrimaryText}>Invite People</Text>
             </Pressable>
-            <Pressable onPress={() => setStoryComposerOpen(true)} style={styles.heroSecondary}>
-              <Ionicons name="add-circle" size={17} color={FRIENDS_PINK} />
-              <Text style={styles.heroSecondaryText}>Story</Text>
+            <Pressable onPress={() => openCreatePlan()} style={styles.heroSecondary}>
+              <Ionicons name="calendar" size={17} color={FRIENDS_PINK} />
+              <Text style={styles.heroSecondaryText}>New Plan</Text>
             </Pressable>
           </View>
           <View style={styles.statsRow}>
@@ -633,34 +522,17 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
           />
         </View>
 
-        <View style={styles.storyBand}>
-          <View style={styles.storyBandHeader}>
-            <Text style={styles.storyBandTitle}>24h stories</Text>
-            <Text style={styles.storyBandMeta}>{stories.length} live</Text>
+        <View style={styles.inviteStrip}>
+          <View style={styles.inviteIcon}>
+            <Ionicons name="person-add" size={18} color={FRIENDS_PINK} />
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyRow}>
-            <Pressable onPress={() => setStoryComposerOpen(true)} style={styles.storyPill}>
-              <View style={styles.storyAddCircle}>
-                <Ionicons name="add" size={18} color="#0A0A0B" />
-              </View>
-              <Text style={styles.storyLabel}>Your Story</Text>
-            </Pressable>
-            {stories.map((story) => (
-              <Pressable key={story.id} onPress={() => setViewingStory(story)} style={styles.storyPill}>
-                <Image source={{ uri: story.imageUrl || story.user.photoUrl || FALLBACK_PHOTO }} style={styles.storyPhoto} contentFit="cover" />
-                <View style={styles.storyTypeDot}>
-                  <Ionicons
-                    name={story.type === "plan_invite" ? "calendar" : story.type === "photo" ? "camera" : "chatbubble"}
-                    size={10}
-                    color="#0A0A0B"
-                  />
-                </View>
-                <Text style={styles.storyLabel} numberOfLines={1}>
-                  {story.isOwn ? "You" : firstName(story.user.name)}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <View style={styles.inviteCopy}>
+            <Text style={styles.inviteTitle}>Invite anyone</Text>
+            <Text style={styles.inviteText}>Share a simple link, then continue the conversation in Connect.</Text>
+          </View>
+          <Pressable onPress={handleInviteFriends} style={styles.inviteButton}>
+            <Text style={styles.inviteButtonText}>Invite</Text>
+          </Pressable>
         </View>
 
         <View style={styles.tabs}>
@@ -705,7 +577,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
             <View style={styles.plusMenuHeader}>
               <View>
                 <Text style={styles.plusTitle}>Make something happen</Text>
-                <Text style={styles.plusSubtitle}>Plans, invites, and stories from Friends.</Text>
+                <Text style={styles.plusSubtitle}>Invite people or create a plan.</Text>
               </View>
               <Pressable onPress={() => setPlusMenuOpen(false)} style={styles.plusClose}>
                 <Ionicons name="close" size={18} color="#FFFFFF" />
@@ -715,15 +587,6 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
             <PlusAction icon="map" title="Plan from Map Spot" text="Build around a nearby venue or place." onPress={() => openCreatePlan("map")} />
             <PlusAction icon="calendar" title="Plan from Ticketmaster Event" text="Turn a live event into a group plan." onPress={() => openCreatePlan("event")} />
             <PlusAction icon="share-social" title="Invite Friends" text="Share ConnectSphere like a link." onPress={handleInviteFriends} />
-            <PlusAction
-              icon="add-circle"
-              title="Post Story"
-              text="Share a people-only story that starts action."
-              onPress={() => {
-                setPlusMenuOpen(false);
-                setStoryComposerOpen(true);
-              }}
-            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -739,87 +602,6 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         onCreated={handlePlanCreated}
       />
 
-      <Modal transparent visible={storyComposerOpen} animationType="slide" onRequestClose={() => setStoryComposerOpen(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.sheet}>
-            <SheetHeader title="Add Story" onClose={() => setStoryComposerOpen(false)} />
-            <View style={styles.storyTypeRow}>
-              {STORY_TYPES.map((item) => (
-                <Pressable key={item.id} onPress={() => setStoryType(item.id)} style={[styles.storyTypeButton, storyType === item.id && styles.storyTypeButtonActive]}>
-                  <Text style={[styles.storyTypeText, storyType === item.id && styles.storyTypeTextActive]}>{item.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <TextInput
-              value={storyText}
-              onChangeText={setStoryText}
-              placeholder={storyType === "plan_invite" ? "Who wants to join?" : "Going out tonight"}
-              placeholderTextColor="#777783"
-              style={styles.field}
-            />
-            {storyType === "photo" ? (
-              <TextInput value={storyImageUrl} onChangeText={setStoryImageUrl} placeholder="Photo URL" placeholderTextColor="#777783" style={styles.field} />
-            ) : null}
-            {storyType === "plan_invite" ? <ChipGrid values={PLAN_TYPES} selected={storyPlanType} onSelect={setStoryPlanType} /> : null}
-            <Pressable onPress={handleCreateStory} style={styles.sheetPrimary}>
-              <Text style={styles.sheetPrimaryText}>Post Story</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={!!viewingStory} animationType="fade" onRequestClose={() => setViewingStory(null)}>
-        {viewingStory ? (
-          <View style={styles.storyViewer}>
-            <Pressable onPress={() => setViewingStory(null)} style={styles.closeViewer}>
-              <Ionicons name="close" size={22} color="#FFFFFF" />
-            </Pressable>
-            <Image source={{ uri: viewingStory.imageUrl || viewingStory.user.photoUrl || FALLBACK_PHOTO }} style={styles.viewerImage} contentFit="cover" />
-            <View style={styles.viewerOverlay} />
-            <View style={styles.viewerBody}>
-              <Text style={styles.viewerKicker}>
-                {viewingStory.type === "plan_invite" ? `${viewingStory.planType ?? "Plan"} invite` : firstName(viewingStory.user.name)}
-              </Text>
-              <Text style={styles.viewerText}>{viewingStory.text || "Ready to make plans."}</Text>
-              <View style={styles.viewerActions}>
-                <Pressable onPress={() => reactToFriendStory(userId, viewingStory.id).then(() => showNotice("Reaction sent."))} style={styles.viewerAction}>
-                  <Ionicons name="heart" size={18} color="#FF2D8D" />
-                  <Text style={styles.viewerActionText}>React</Text>
-                </Pressable>
-                <Pressable onPress={handleStoryReply} style={styles.viewerAction}>
-                  <Ionicons name="chatbubble" size={18} color="#FF2D8D" />
-                  <Text style={styles.viewerActionText}>Reply</Text>
-                </Pressable>
-                <Pressable onPress={handleStoryConnect} style={styles.viewerAction}>
-                  <Ionicons name={viewingStory.relationshipStatus === "friends" ? "checkmark-circle" : "person-add"} size={18} color="#FF2D8D" />
-                  <Text style={styles.viewerActionText}>{viewingStory.relationshipStatus === "friends" ? "Friends" : "Connect"}</Text>
-                </Pressable>
-                <Pressable onPress={handleStoryPlan} style={styles.viewerAction}>
-                  <Ionicons name="calendar" size={18} color="#FF2D8D" />
-                  <Text style={styles.viewerActionText}>Plan</Text>
-                </Pressable>
-              </View>
-              {viewingStory.type === "plan_invite" ? (
-                <Pressable onPress={handleJoinStoryPlan} style={styles.joinPlanButton}>
-                  <Text style={styles.joinPlanText}>Join Plan</Text>
-                </Pressable>
-              ) : null}
-              <View style={styles.replyBox}>
-                <TextInput
-                  value={storyReplyText}
-                  onChangeText={setStoryReplyText}
-                  placeholder="Reply..."
-                  placeholderTextColor="#777783"
-                  style={styles.replyInput}
-                />
-                <Pressable onPress={handleStoryReply} style={styles.replyButton}>
-                  <Ionicons name="send" size={17} color="#0A0A0B" />
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        ) : null}
-      </Modal>
     </View>
   );
 }
@@ -872,18 +654,6 @@ function SheetHeader({ title, onClose }: { title: string; onClose: () => void })
       <Pressable onPress={onClose} style={styles.sheetClose}>
         <Ionicons name="close" size={19} color="#FFFFFF" />
       </Pressable>
-    </View>
-  );
-}
-
-function ChipGrid({ values, selected, onSelect }: { values: string[]; selected: string; onSelect: (value: string) => void }) {
-  return (
-    <View style={styles.chipGrid}>
-      {values.map((value) => (
-        <Pressable key={value} onPress={() => onSelect(value)} style={[styles.typeChip, selected === value && styles.typeChipActive]}>
-          <Text style={[styles.typeChipText, selected === value && styles.typeChipTextActive]}>{value}</Text>
-        </Pressable>
-      ))}
     </View>
   );
 }
@@ -1116,88 +886,52 @@ const styles = StyleSheet.create({
     fontSize: 15,
     minHeight: 48,
   },
-  storyBand: {
+  inviteStrip: {
+    alignItems: "center",
     backgroundColor: "#050505",
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,45,168,0.22)",
     borderRadius: 24,
     borderWidth: 1,
+    flexDirection: "row",
     gap: 12,
     padding: 14,
   },
-  storyBandHeader: {
+  inviteIcon: {
     alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
+    backgroundColor: "rgba(255,45,168,0.12)",
+    borderRadius: 18,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
   },
-  storyBandTitle: {
+  inviteCopy: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  inviteTitle: {
     color: FRIENDS_TEXT,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900",
   },
-  storyBandMeta: {
-    color: FRIENDS_PINK,
+  inviteText: {
+    color: FRIENDS_MUTED,
     fontSize: 12,
-    fontWeight: "900",
-  },
-  storyRow: {
-    gap: 12,
-    paddingRight: 4,
-  },
-  storyPill: {
-    alignItems: "center",
-    gap: 7,
-    position: "relative",
-    width: 74,
-  },
-  storyAddCircle: {
-    alignItems: "center",
-    backgroundColor: FRIENDS_PINK,
-    borderRadius: 28,
-    height: 56,
-    justifyContent: "center",
-    width: 56,
-  },
-  storyPhoto: {
-    borderColor: FRIENDS_PINK,
-    borderRadius: 28,
-    borderWidth: 2,
-    height: 56,
-    width: 56,
-  },
-  storyTypeDot: {
-    alignItems: "center",
-    backgroundColor: FRIENDS_PINK,
-    borderColor: FRIENDS_BLACK,
-    borderRadius: 10,
-    borderWidth: 2,
-    height: 20,
-    justifyContent: "center",
-    position: "absolute",
-    right: 7,
-    top: 36,
-    width: 20,
-  },
-  storyPromptCircle: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,45,141,0.14)",
-    borderColor: "rgba(255,45,141,0.34)",
-    borderRadius: 28,
-    borderWidth: 1,
-    height: 56,
-    justifyContent: "center",
-    width: 56,
-  },
-  storyPromptInitial: {
-    color: "#FF8BC4",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  storyLabel: {
-    color: FRIENDS_TEXT,
-    fontSize: 11,
     fontWeight: "700",
-    textAlign: "center",
-    width: 74,
+    lineHeight: 17,
+  },
+  inviteButton: {
+    alignItems: "center",
+    backgroundColor: FRIENDS_PINK,
+    borderRadius: 15,
+    justifyContent: "center",
+    minHeight: 42,
+    paddingHorizontal: 14,
+  },
+  inviteButtonText: {
+    color: "#0A0A0B",
+    fontSize: 13,
+    fontWeight: "900",
   },
   tabs: {
     backgroundColor: "#050505",
@@ -1617,175 +1351,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "900",
-  },
-  inviteList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  inviteChip: {
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderColor: "rgba(255,255,255,0.1)",
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  inviteChipActive: {
-    backgroundColor: "#FF2D8D",
-    borderColor: "#FF2D8D",
-  },
-  inviteText: {
-    color: "#EDEDF2",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  inviteTextActive: {
-    color: "#0A0A0B",
-  },
-  mutedText: {
-    color: "#A1A1AA",
-    fontSize: 13,
-  },
-  sheetPrimary: {
-    alignItems: "center",
-    backgroundColor: "#FF2D8D",
-    borderRadius: 17,
-    justifyContent: "center",
-    minHeight: 50,
-  },
-  sheetPrimaryText: {
-    color: "#0A0A0B",
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  storyTypeRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  storyTypeButton: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 15,
-    flex: 1,
-    paddingVertical: 10,
-  },
-  storyTypeButtonActive: {
-    backgroundColor: "#FF2D8D",
-  },
-  storyTypeText: {
-    color: "#EDEDF2",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  storyTypeTextActive: {
-    color: "#0A0A0B",
-  },
-  storyViewer: {
-    backgroundColor: "#050506",
-    flex: 1,
-  },
-  closeViewer: {
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.35)",
-    borderRadius: 18,
-    height: 38,
-    justifyContent: "center",
-    position: "absolute",
-    right: 18,
-    top: 54,
-    width: 38,
-    zIndex: 3,
-  },
-  viewerImage: {
-    height: "100%",
-    position: "absolute",
-    width: "100%",
-  },
-  viewerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.48)",
-  },
-  viewerBody: {
-    flex: 1,
-    justifyContent: "flex-end",
-    padding: 20,
-    paddingBottom: 34,
-  },
-  viewerKicker: {
-    color: "#FF8BC4",
-    fontSize: 13,
-    fontWeight: "900",
-    marginBottom: 8,
-    textTransform: "uppercase",
-  },
-  viewerText: {
-    color: "#FFFFFF",
-    fontSize: 34,
-    fontWeight: "900",
-    letterSpacing: 0,
-    lineHeight: 40,
-    marginBottom: 18,
-  },
-  viewerActions: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 12,
-  },
-  viewerAction: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.11)",
-    borderColor: "rgba(255,255,255,0.14)",
-    borderRadius: 16,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: "row",
-    gap: 6,
-    justifyContent: "center",
-    minHeight: 44,
-  },
-  viewerActionText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  joinPlanButton: {
-    alignItems: "center",
-    backgroundColor: "#FF2D8D",
-    borderRadius: 17,
-    justifyContent: "center",
-    marginBottom: 12,
-    minHeight: 48,
-  },
-  joinPlanText: {
-    color: "#0A0A0B",
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  replyBox: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderColor: "rgba(255,255,255,0.16)",
-    borderRadius: 20,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  replyInput: {
-    color: "#FFFFFF",
-    flex: 1,
-    fontSize: 15,
-    minHeight: 36,
-  },
-  replyButton: {
-    alignItems: "center",
-    backgroundColor: "#FF2D8D",
-    borderRadius: 16,
-    height: 34,
-    justifyContent: "center",
-    width: 34,
   },
   sectionHeader: {
     gap: 3,
