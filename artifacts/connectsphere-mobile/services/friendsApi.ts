@@ -31,6 +31,7 @@ export type FriendRequest = {
   id: string;
   fromUserId: string;
   toUserId: string;
+  direction?: "incoming" | "outgoing";
   status: "pending" | "accepted" | "ignored" | "declined";
   message?: string;
   kind?: "friend" | "story_reply" | "plan_invite" | "plan_join";
@@ -38,6 +39,7 @@ export type FriendRequest = {
   storyId?: string;
   createdAt: string;
   fromUser: FriendPerson;
+  toUser?: FriendPerson;
   plan?: FriendPlan | null;
   sharedInterests?: string[];
 };

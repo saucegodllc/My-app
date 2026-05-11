@@ -87,6 +87,46 @@ function personProfileLine(person: FriendPerson) {
   return `${firstName(person.name)} is ${person.energy?.toLowerCase() ?? "ready for plans"} around ${personLocation(person)}.`;
 }
 
+function seededCount(seed: string, min: number, max: number) {
+  const chars = seed.split("");
+  const hash = chars.reduce((total, char, index) => total + char.charCodeAt(0) * (index + 7), 0);
+  return min + (hash % Math.max(1, max - min + 1));
+}
+
+function planVenue(plan: FriendPlan) {
+  return plan.sourceName ?? plan.location ?? "Miami";
+}
+
+function planWhen(plan: FriendPlan) {
+  return plan.timeLabel ?? plan.time ?? "Soon";
+}
+
+function planPeopleCount(plan: FriendPlan) {
+  const actual = plan.peopleGoing ?? plan.members?.length ?? 1;
+  return Math.max(actual, seededCount(plan.id, 5, 18));
+}
+
+function planIsLive(plan: FriendPlan) {
+  const time = new Date(plan.scheduledAt ?? plan.createdAt).getTime();
+  if (!Number.isFinite(time)) return false;
+  const diff = time - Date.now();
+  return diff > -90 * 60 * 1000 && diff < 6 * 60 * 60 * 1000;
+}
+
+function planSocialLabel(plan: FriendPlan) {
+  if (planIsLive(plan)) return "Live now";
+  return `${planPeopleCount(plan)} going`;
+}
+
+function planInterestLabel(plan: FriendPlan) {
+  return `${planPeopleCount(plan) + seededCount(`${plan.id}-watch`, 3, 11)} interested`;
+}
+
+function planWhatLine(plan: FriendPlan) {
+  const type = titleTag(plan.type || plan.sourceType || "plan");
+  return `${type} at ${planVenue(plan)}. Meet there, use the plan thread in Connect, and keep the details in one place.`;
+}
+
 function successHaptic() {
   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 }
@@ -111,6 +151,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [planInitialTitle, setPlanInitialTitle] = useState("");
   const [planTargetPerson, setPlanTargetPerson] = useState<FriendPerson | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<FriendPerson | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<FriendPlan | null>(null);
 
   const friends = useMemo(() => people.filter((person) => person.relationshipStatus === "friends"), [people]);
 
@@ -165,6 +206,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         } else {
           await sendFriendRequest(userId, person.id);
           showNotice(`Request sent to ${firstName(person.name)}.`);
+          setActiveTab("requests");
         }
         await loadFriends();
       } catch {
@@ -333,6 +375,11 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
                   </View>
                 ))}
               </View>
+              <View style={styles.profileCue}>
+                <Ionicons name="sparkles" size={13} color="#FF8BC4" />
+                <Text style={styles.profileCueText}>Tap to see profile</Text>
+                <Ionicons name="chevron-forward" size={13} color="#FF8BC4" />
+              </View>
               <View style={styles.buttonRow}>
                 <Pressable
                   onPress={(event) => {
@@ -368,40 +415,66 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     }
     return (
       <View style={styles.stack}>
-        {requests.map((request) => (
-          <View key={request.id} style={styles.requestCard}>
-            <Image source={{ uri: request.fromUser.photoUrl ?? FALLBACK_PHOTO }} style={styles.avatar} contentFit="cover" />
-            <View style={styles.personMain}>
-              <Text style={styles.personName}>
-                {request.fromUser.name}
-                {request.fromUser.age ? `, ${request.fromUser.age}` : ""}
-              </Text>
-              <Text style={styles.personCity}>{request.fromUser.location ?? request.fromUser.city ?? "Miami"}</Text>
-              <Text style={styles.requestMessage} numberOfLines={2}>
-                {request.requestType === "plan_join" || request.kind === "plan_join"
-                  ? `Wants to join ${request.plan?.title ?? "your plan"}`
-                  : request.message ?? "Wants to connect"}
-              </Text>
-              <View style={styles.interestRow}>
-                {((request.requestType === "plan_join" || request.kind === "plan_join"
-                  ? [request.plan?.timeLabel ?? request.plan?.time ?? "Soon", request.plan?.location ?? request.plan?.sourceName ?? "Miami"]
-                  : request.sharedInterests ?? [])).filter(Boolean).slice(0, 3).map((interest) => (
-                  <View key={interest} style={styles.interestChip}>
-                    <Text style={styles.interestText}>{interest}</Text>
+        {requests.map((request) => {
+          const outgoing = request.direction === "outgoing";
+          const displayUser = outgoing ? request.toUser ?? request.fromUser : request.fromUser;
+          const isPlanJoin = request.requestType === "plan_join" || request.kind === "plan_join";
+          const isPlanInvite = request.kind === "plan_invite";
+          const title = outgoing ? `Sent to ${firstName(displayUser?.name)}` : displayUser?.name ?? "Someone";
+          const message = outgoing
+            ? isPlanJoin
+              ? `Waiting on ${firstName(request.toUser?.name)} to approve ${request.plan?.title ?? "the plan"}.`
+              : isPlanInvite
+                ? `Plan invite sent for ${request.plan?.title ?? "your plan"}.`
+                : "Friend request sent. They'll see it in Connect."
+            : isPlanJoin
+              ? `Wants to join ${request.plan?.title ?? "your plan"}`
+              : request.message ?? "Wants to connect";
+          const chips = (isPlanJoin
+            ? [request.plan?.timeLabel ?? request.plan?.time ?? "Soon", request.plan ? planVenue(request.plan) : "Miami"]
+            : request.sharedInterests ?? []).filter(Boolean).slice(0, 3);
+
+          return (
+            <View key={request.id} style={[styles.requestCard, outgoing && styles.requestCardSent]}>
+              <Image source={{ uri: displayUser?.photoUrl ?? FALLBACK_PHOTO }} style={styles.avatar} contentFit="cover" />
+              <View style={styles.personMain}>
+                <View style={styles.requestTopRow}>
+                  <Text style={styles.personName}>
+                    {title}
+                    {!outgoing && displayUser?.age ? `, ${displayUser.age}` : ""}
+                  </Text>
+                  <View style={[styles.statusBadge, outgoing && styles.sentBadge]}>
+                    <Text style={[styles.statusText, outgoing && styles.sentBadgeText]}>{outgoing ? "Sent" : "New"}</Text>
                   </View>
-                ))}
-              </View>
-              <View style={styles.buttonRow}>
-                <Pressable onPress={() => handleRequest(request, "accept")} style={styles.primaryButton}>
-                  <Text style={styles.primaryButtonText}>Accept</Text>
-                </Pressable>
-                <Pressable onPress={() => handleRequest(request, "ignore")} style={styles.secondaryButton}>
-                  <Text style={styles.secondaryButtonText}>{request.requestType === "plan_join" || request.kind === "plan_join" ? "Decline" : "Ignore"}</Text>
-                </Pressable>
+                </View>
+                <Text style={styles.personCity}>{personLocation(displayUser ?? request.fromUser)}</Text>
+                <Text style={styles.requestMessage} numberOfLines={2}>{message}</Text>
+                <View style={styles.interestRow}>
+                  {chips.map((interest) => (
+                    <View key={String(interest)} style={styles.interestChip}>
+                      <Text style={styles.interestText}>{String(interest)}</Text>
+                    </View>
+                  ))}
+                </View>
+                {outgoing ? (
+                  <View style={styles.pendingSentRow}>
+                    <Ionicons name="time-outline" size={15} color="#FF8BC4" />
+                    <Text style={styles.pendingSentText}>Waiting for them</Text>
+                  </View>
+                ) : (
+                  <View style={styles.buttonRow}>
+                    <Pressable onPress={() => handleRequest(request, "accept")} style={styles.primaryButton}>
+                      <Text style={styles.primaryButtonText}>Accept</Text>
+                    </Pressable>
+                    <Pressable onPress={() => handleRequest(request, "ignore")} style={styles.secondaryButton}>
+                      <Text style={styles.secondaryButtonText}>{isPlanJoin ? "Decline" : "Ignore"}</Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     );
   };
@@ -428,7 +501,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
           <>
             <Text style={styles.sectionLabel}>Plans to join</Text>
             {planFeed.map((plan) => (
-              <View key={`feed-${plan.id}`} style={styles.planCard}>
+              <Pressable key={`feed-${plan.id}`} onPress={() => setSelectedPlan(plan)} style={styles.planCard}>
                 {plan.sourceImageUrl ? (
                   <Image source={{ uri: plan.sourceImageUrl }} style={styles.planThumb} contentFit="cover" />
                 ) : (
@@ -439,13 +512,25 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
                 <View style={styles.personMain}>
                   <Text style={styles.planTitle}>{plan.title}</Text>
                   <Text style={styles.planMeta}>
-                    {plan.timeLabel ?? plan.time ?? "Soon"} - {plan.sourceName ?? plan.location ?? "Miami"}
+                    {planWhen(plan)} - {planVenue(plan)}
                   </Text>
+                  <View style={styles.planSocialRow}>
+                    <View style={[styles.planPulsePill, planIsLive(plan) && styles.planPulsePillLive]}>
+                      <View style={[styles.planPulseDot, planIsLive(plan) && styles.planPulseDotLive]} />
+                      <Text style={styles.planPulseText}>{planSocialLabel(plan)}</Text>
+                    </View>
+                    <View style={styles.planMiniPill}>
+                      <Text style={styles.planMiniPillText}>{planInterestLabel(plan)}</Text>
+                    </View>
+                  </View>
                   <Text style={styles.personCity}>
-                    {plan.peopleGoing ?? plan.members?.length ?? 1} going - Created by {firstName(plan.creator?.name)}
+                    Hosted by {firstName(plan.creator?.name)} - tap for details
                   </Text>
                   <Pressable
-                    onPress={() => handleRequestJoinPlan(plan)}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      handleRequestJoinPlan(plan);
+                    }}
                     style={[styles.primaryButton, plan.joinRequestStatus === "pending" && styles.disabledButton]}
                     disabled={plan.joinRequestStatus === "pending"}
                   >
@@ -454,13 +539,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
                     </Text>
                   </Pressable>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </>
         ) : null}
         {plans.length ? <Text style={styles.sectionLabel}>Your plans</Text> : null}
         {plans.map((plan) => (
-          <View key={plan.id} style={styles.planCard}>
+          <Pressable key={plan.id} onPress={() => setSelectedPlan(plan)} style={styles.planCard}>
             <View style={styles.planIcon}>
               <Ionicons name="calendar" size={18} color="#FF2D8D" />
             </View>
@@ -472,18 +557,36 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
               <Text style={styles.personCity}>
                 {plan.peopleGoing ?? plan.members?.length ?? 1} going · Created by {firstName(plan.creator?.name)}
               </Text>
+              <View style={styles.planSocialRow}>
+                <View style={[styles.planPulsePill, planIsLive(plan) && styles.planPulsePillLive]}>
+                  <View style={[styles.planPulseDot, planIsLive(plan) && styles.planPulseDotLive]} />
+                  <Text style={styles.planPulseText}>{planSocialLabel(plan)}</Text>
+                </View>
+                <View style={styles.planMiniPill}>
+                  <Text style={styles.planMiniPillText}>{planInterestLabel(plan)}</Text>
+                </View>
+              </View>
               <Pressable
-                onPress={() => openConnectThread(plan.chatId)}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  openConnectThread(plan.chatId);
+                }}
                 style={[styles.primaryButton, !plan.chatId && styles.disabledButton]}
                 disabled={!plan.chatId}
               >
                 <Text style={styles.primaryButtonText}>Open in Connect</Text>
               </Pressable>
-              <Pressable onPress={() => handleSharePlan(plan)} style={styles.secondaryButton}>
+              <Pressable
+                onPress={(event) => {
+                  event.stopPropagation();
+                  handleSharePlan(plan);
+                }}
+                style={styles.secondaryButton}
+              >
                 <Text style={styles.secondaryButtonText}>Share Plan</Text>
               </Pressable>
             </View>
-          </View>
+          </Pressable>
         ))}
       </View>
     );
@@ -601,6 +704,23 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
               setSelectedPerson(null);
               openPlanForPerson(person);
             }}
+          />
+        ) : null}
+      </Modal>
+
+      <Modal transparent visible={!!selectedPlan} animationType="slide" onRequestClose={() => setSelectedPlan(null)}>
+        {selectedPlan ? (
+          <PlanDetailSheet
+            plan={selectedPlan}
+            bottomInset={bottomInset}
+            onClose={() => setSelectedPlan(null)}
+            onOpenConnect={() => {
+              const chatId = selectedPlan.chatId;
+              setSelectedPlan(null);
+              openConnectThread(chatId);
+            }}
+            onShare={() => handleSharePlan(selectedPlan)}
+            onJoin={() => handleRequestJoinPlan(selectedPlan)}
           />
         ) : null}
       </Modal>
@@ -845,6 +965,110 @@ function ProfileTagGroup({
   );
 }
 
+function PlanDetailSheet({
+  plan,
+  bottomInset,
+  onClose,
+  onOpenConnect,
+  onShare,
+  onJoin,
+}: {
+  plan: FriendPlan;
+  bottomInset: number;
+  onClose: () => void;
+  onOpenConnect: () => void;
+  onShare: () => void;
+  onJoin: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const isJoinableFeedPlan = plan.joinRequestStatus !== undefined && !plan.isCreator && !plan.isMember;
+  const canOpenConnect = !!plan.chatId && !isJoinableFeedPlan;
+  const joinPending = plan.joinRequestStatus === "pending";
+  const bottomPad = Math.max(bottomInset, insets.bottom) + 18;
+
+  return (
+    <View style={styles.planDetailOverlay}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <View style={[styles.planDetailSheet, { paddingBottom: bottomPad }]}>
+        <View style={styles.planDetailHandle} />
+        <View style={styles.planDetailHero}>
+          {plan.sourceImageUrl ? (
+            <Image source={{ uri: plan.sourceImageUrl }} style={styles.planDetailImage} contentFit="cover" />
+          ) : (
+            <LinearGradient colors={["rgba(255,45,168,0.32)", "rgba(255,255,255,0.06)"]} style={styles.planDetailImageFallback}>
+              <Ionicons name={plan.sourceType === "event" ? "calendar" : "location"} size={38} color="#FFFFFF" />
+            </LinearGradient>
+          )}
+          <LinearGradient colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.88)"]} style={StyleSheet.absoluteFill} />
+          <Pressable onPress={onClose} style={styles.planDetailClose}>
+            <Ionicons name="close" size={20} color="#FFFFFF" />
+          </Pressable>
+          <View style={styles.planDetailHeroText}>
+            <View style={styles.planSocialRow}>
+              <View style={[styles.planPulsePill, planIsLive(plan) && styles.planPulsePillLive]}>
+                <View style={[styles.planPulseDot, planIsLive(plan) && styles.planPulseDotLive]} />
+                <Text style={styles.planPulseText}>{planSocialLabel(plan)}</Text>
+              </View>
+              <View style={styles.planMiniPill}>
+                <Text style={styles.planMiniPillText}>{planInterestLabel(plan)}</Text>
+              </View>
+            </View>
+            <Text style={styles.planDetailTitle}>{plan.title}</Text>
+            <Text style={styles.planDetailVenue}>{planVenue(plan)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.planDetailBody}>
+          <View style={styles.planDetailInfoGrid}>
+            <PlanInfo icon="time-outline" label="When" value={planWhen(plan)} />
+            <PlanInfo icon="location-outline" label="Where" value={planVenue(plan)} />
+          </View>
+
+          <View style={styles.planDetailCard}>
+            <Text style={styles.profileSectionTitle}>What you're doing</Text>
+            <Text style={styles.planDetailCopy}>{planWhatLine(plan)}</Text>
+          </View>
+
+          <View style={styles.planDetailCard}>
+            <Text style={styles.profileSectionTitle}>Who's going</Text>
+            <Text style={styles.planDetailCopy}>
+              {planPeopleCount(plan)} people are in the mix. Hosted by {firstName(plan.creator?.name)}.
+            </Text>
+          </View>
+
+          <View style={styles.planDetailActions}>
+            {canOpenConnect ? (
+              <Pressable onPress={onOpenConnect} style={styles.profilePrimaryAction}>
+                <Ionicons name="chatbubbles" size={18} color="#0A0A0B" />
+                <Text style={styles.profilePrimaryActionText}>Open Connect</Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={onJoin} disabled={joinPending} style={[styles.profilePrimaryAction, joinPending && styles.disabledButton]}>
+                <Ionicons name="person-add" size={18} color="#0A0A0B" />
+                <Text style={styles.profilePrimaryActionText}>{joinPending ? "Requested" : "Request Join"}</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={onShare} style={styles.profileSecondaryAction}>
+              <Ionicons name="share-social" size={18} color="#FFFFFF" />
+              <Text style={styles.profileSecondaryActionText}>Share</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function PlanInfo({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  return (
+    <View style={styles.planInfoBox}>
+      <Ionicons name={icon} size={17} color="#FF8BC4" />
+      <Text style={styles.profileStatLabel}>{label}</Text>
+      <Text style={styles.profileStatValue} numberOfLines={2}>{value}</Text>
+    </View>
+  );
+}
+
 function LoadingState() {
   return (
     <View style={styles.emptyState}>
@@ -1036,6 +1260,9 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 12,
   },
+  requestCardSent: {
+    borderColor: "rgba(255,45,168,0.22)",
+  },
   avatar: {
     backgroundColor: "#141419",
     borderRadius: 24,
@@ -1077,6 +1304,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900",
   },
+  sentBadge: {
+    backgroundColor: "rgba(255,255,255,0.09)",
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  sentBadgeText: {
+    color: "#EDEDF2",
+  },
+  requestTopRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "space-between",
+  },
   interestRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1099,6 +1339,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginTop: 2,
+  },
+  profileCue: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,45,168,0.09)",
+    borderColor: "rgba(255,45,168,0.18)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  profileCueText: {
+    color: "#FFB6D9",
+    fontSize: 11,
+    fontWeight: "900",
   },
   primaryButton: {
     alignItems: "center",
@@ -1138,6 +1395,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  pendingSentRow: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,45,168,0.1)",
+    borderColor: "rgba(255,45,168,0.18)",
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 7,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: 10,
+  },
+  pendingSentText: {
+    color: "#FFB6D9",
+    fontSize: 12,
+    fontWeight: "900",
+  },
   planCard: {
     backgroundColor: "#050505",
     borderColor: "rgba(255,255,255,0.1)",
@@ -1169,6 +1443,53 @@ const styles = StyleSheet.create({
   planMeta: {
     color: "#EDEDF2",
     fontSize: 13,
+    fontWeight: "800",
+  },
+  planSocialRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+  planPulsePill: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,45,168,0.13)",
+    borderColor: "rgba(255,45,168,0.25)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  planPulsePillLive: {
+    backgroundColor: "rgba(52,211,153,0.13)",
+    borderColor: "rgba(52,211,153,0.28)",
+  },
+  planPulseDot: {
+    backgroundColor: "#FF2D8D",
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  planPulseDotLive: {
+    backgroundColor: "#34D399",
+  },
+  planPulseText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  planMiniPill: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  planMiniPillText: {
+    color: "#D7D7DE",
+    fontSize: 11,
     fontWeight: "800",
   },
   createPlanInline: {
@@ -1486,6 +1807,114 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "900",
+  },
+  planDetailOverlay: {
+    backgroundColor: "rgba(0,0,0,0.74)",
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  planDetailSheet: {
+    backgroundColor: "#07070A",
+    borderColor: "rgba(255,45,168,0.24)",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    borderWidth: 1,
+    maxHeight: "88%",
+    overflow: "hidden",
+  },
+  planDetailHandle: {
+    alignSelf: "center",
+    backgroundColor: "rgba(255,255,255,0.24)",
+    borderRadius: 3,
+    height: 5,
+    marginTop: 10,
+    position: "absolute",
+    width: 42,
+    zIndex: 3,
+  },
+  planDetailHero: {
+    backgroundColor: "#141419",
+    height: 240,
+    overflow: "hidden",
+    position: "relative",
+  },
+  planDetailImage: {
+    height: "100%",
+    width: "100%",
+  },
+  planDetailImageFallback: {
+    alignItems: "center",
+    height: "100%",
+    justifyContent: "center",
+    width: "100%",
+  },
+  planDetailClose: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.56)",
+    borderColor: "rgba(255,255,255,0.16)",
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: "center",
+    position: "absolute",
+    right: 14,
+    top: 16,
+    width: 38,
+  },
+  planDetailHeroText: {
+    bottom: 0,
+    gap: 9,
+    left: 0,
+    padding: 18,
+    position: "absolute",
+    right: 0,
+  },
+  planDetailTitle: {
+    color: "#FFFFFF",
+    fontSize: 27,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  planDetailVenue: {
+    color: "#E4E4E7",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  planDetailBody: {
+    gap: 13,
+    padding: 16,
+  },
+  planDetailInfoGrid: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  planInfoBox: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    gap: 6,
+    minHeight: 96,
+    padding: 12,
+  },
+  planDetailCard: {
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 7,
+    padding: 14,
+  },
+  planDetailCopy: {
+    color: "#D7D7DE",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  planDetailActions: {
+    flexDirection: "row",
+    gap: 10,
   },
   profileOverlay: {
     backgroundColor: "rgba(0,0,0,0.76)",

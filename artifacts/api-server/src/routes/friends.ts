@@ -703,16 +703,22 @@ function joinPlanAsMember(db: FriendsDb, plan: Plan, userId: string) {
 
 function requestSummary(db: FriendsDb, viewerId: string, request: ConnectionRequest) {
   const fromUser = userProfile(db, request.fromUserId);
+  const toUser = userProfile(db, request.toUserId);
+  const otherUser = request.fromUserId === viewerId ? toUser : fromUser;
   const viewer = userProfile(db, viewerId);
+  const plan = request.planId ? db.plans.find((item) => item.id === request.planId) : undefined;
   return {
     requestType: "friend",
     ...request,
+    direction: request.fromUserId === viewerId ? "outgoing" : "incoming",
     fromUser,
-    sharedInterests: arrayOverlap(viewer.interests, fromUser.interests),
+    toUser,
+    plan: plan ? planSummary(db, plan) : null,
+    sharedInterests: arrayOverlap(viewer.interests, otherUser.interests),
   };
 }
 
-function planJoinRequestSummary(db: FriendsDb, request: PlanJoinRequest) {
+function planJoinRequestSummary(db: FriendsDb, viewerId: string, request: PlanJoinRequest) {
   const plan = db.plans.find((item) => item.id === request.planId);
   return {
     requestType: "plan_join",
@@ -721,8 +727,10 @@ function planJoinRequestSummary(db: FriendsDb, request: PlanJoinRequest) {
     toUserId: request.creatorId,
     status: request.status,
     kind: "plan_join",
+    direction: request.fromUserId === viewerId ? "outgoing" : "incoming",
     createdAt: request.createdAt,
     fromUser: userProfile(db, request.fromUserId),
+    toUser: userProfile(db, request.creatorId),
     plan: plan ? planSummary(db, plan) : null,
   };
 }
@@ -797,11 +805,11 @@ router.get("/friends/requests/:userId", (req, res) => {
   const db = readDb();
   const userId = req.params.userId;
   const friendRequests = db.connectionRequests
-    .filter((request) => request.toUserId === userId && request.status === "pending")
+    .filter((request) => request.status === "pending" && (request.toUserId === userId || request.fromUserId === userId))
     .map((request) => requestSummary(db, userId, request));
   const planRequests = (db.planJoinRequests ?? [])
-    .filter((request) => request.creatorId === userId && request.status === "pending")
-    .map((request) => planJoinRequestSummary(db, request));
+    .filter((request) => request.status === "pending" && (request.creatorId === userId || request.fromUserId === userId))
+    .map((request) => planJoinRequestSummary(db, userId, request));
   const requests = [...planRequests, ...friendRequests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   res.json({ requests });
 });
