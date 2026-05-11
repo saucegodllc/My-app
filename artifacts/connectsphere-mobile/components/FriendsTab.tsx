@@ -36,11 +36,10 @@ type FriendsTabProps = {
   bottomInset?: number;
 };
 
-type FriendsView = "all" | "people" | "requests" | "plans";
+type FriendsView = "people" | "requests" | "plans";
 type PlanSourceTab = "map" | "event";
 const FRIENDS_PINK = "#ff2da8";
 const FRIENDS_BLACK = "#000000";
-const FRIENDS_SURFACE = "#0a0a0a";
 const FRIENDS_TEXT = "#f4f4f5";
 const FRIENDS_MUTED = "#a1a1aa";
 const APP_SHARE_URL = "https://connectsphere.app";
@@ -69,7 +68,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const { user } = useUser();
   const userId = user?.id ?? "user_self";
 
-  const [activeTab, setActiveTab] = useState<FriendsView>("all");
+  const [activeTab, setActiveTab] = useState<FriendsView>("people");
   const [search, setSearch] = useState("");
   const [people, setPeople] = useState<FriendPerson[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
@@ -86,14 +85,6 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [planTargetPerson, setPlanTargetPerson] = useState<FriendPerson | null>(null);
 
   const friends = useMemo(() => people.filter((person) => person.relationshipStatus === "friends"), [people]);
-  const hubStats = useMemo(
-    () => [
-      { label: "People", value: String(people.length) },
-      { label: "Pending", value: String(requests.length) },
-      { label: "Plans", value: String(plans.length + planFeed.length) },
-    ],
-    [people.length, planFeed.length, plans.length, requests.length],
-  );
 
   const loadFriends = useCallback(async () => {
     setLoading(true);
@@ -471,44 +462,22 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         <View style={styles.topBar}>
           <View>
             <Text style={styles.title}>Friends</Text>
-            <Text style={styles.subtitle}>Discover here. Continue in Connect.</Text>
+            <Text style={styles.subtitle}>Invite, connect, plan.</Text>
           </View>
-          <View style={styles.topBarActions}>
-            <Pressable onPress={handleInviteFriends} style={styles.topIconButton}>
-              <Ionicons name="share-social" size={18} color={FRIENDS_TEXT} />
-            </Pressable>
-            <Pressable onPress={() => setPlusMenuOpen(true)} style={styles.headerButton}>
-              <Ionicons name="add" size={22} color="#0A0A0B" />
-            </Pressable>
-          </View>
+          <Pressable onPress={() => setPlusMenuOpen(true)} style={styles.headerButton}>
+            <Ionicons name="add" size={22} color="#0A0A0B" />
+          </Pressable>
         </View>
 
-        <View style={styles.heroPanel}>
-          <View style={styles.heroGlow} />
-          <View style={styles.heroHeaderRow}>
-            <Text style={styles.heroEyebrow}>Friends Hub</Text>
-            <View style={styles.livePill}>
-              <View style={styles.liveDot} />
-              <Text style={styles.livePillText}>Ready</Text>
-            </View>
-          </View>
-          <Text style={styles.heroTitle}>Invite. Connect. Make plans.</Text>
-          <Text style={styles.heroCopy}>Bring friends in from outside the app, send requests, and keep every thread organized in Connect.</Text>
-          <View style={styles.heroActionRow}>
-            <Pressable onPress={handleInviteFriends} style={styles.heroPrimary}>
-              <Ionicons name="share-social" size={17} color="#0A0A0B" />
-              <Text style={styles.heroPrimaryText}>Invite People</Text>
-            </Pressable>
-            <Pressable onPress={() => openCreatePlan()} style={styles.heroSecondary}>
-              <Ionicons name="calendar" size={17} color={FRIENDS_PINK} />
-              <Text style={styles.heroSecondaryText}>New Plan</Text>
-            </Pressable>
-          </View>
-          <View style={styles.statsRow}>
-            {hubStats.map((stat) => (
-              <StatPill key={stat.label} label={stat.label} value={stat.value} />
-            ))}
-          </View>
+        <View style={styles.actionRow}>
+          <Pressable onPress={handleInviteFriends} style={styles.actionPrimary}>
+            <Ionicons name="share-social" size={17} color="#0A0A0B" />
+            <Text style={styles.actionPrimaryText}>Invite People</Text>
+          </Pressable>
+          <Pressable onPress={() => openCreatePlan()} style={styles.actionSecondary}>
+            <Ionicons name="calendar" size={17} color={FRIENDS_PINK} />
+            <Text style={styles.actionSecondaryText}>New Plan</Text>
+          </Pressable>
         </View>
 
         <View style={styles.searchBox}>
@@ -522,24 +491,11 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
           />
         </View>
 
-        <View style={styles.inviteStrip}>
-          <View style={styles.inviteIcon}>
-            <Ionicons name="person-add" size={18} color={FRIENDS_PINK} />
-          </View>
-          <View style={styles.inviteCopy}>
-            <Text style={styles.inviteTitle}>Invite anyone</Text>
-            <Text style={styles.inviteText}>Share a simple link, then continue the conversation in Connect.</Text>
-          </View>
-          <Pressable onPress={handleInviteFriends} style={styles.inviteButton}>
-            <Text style={styles.inviteButtonText}>Invite</Text>
-          </Pressable>
-        </View>
-
         <View style={styles.tabs}>
-          {(["all", "people", "requests", "plans"] as FriendsView[]).map((tab) => (
+          {(["people", "requests", "plans"] as FriendsView[]).map((tab) => (
             <Pressable key={tab} onPress={() => setActiveTab(tab)} style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}>
               <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab === "all" ? "Discover" : tab === "people" ? "People" : tab === "requests" ? "Pending" : "Plans"}
+                {tab === "people" ? "People" : tab === "requests" ? "Pending" : "Plans"}
               </Text>
             </Pressable>
           ))}
@@ -547,15 +503,6 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
 
         {loading ? (
           <LoadingState />
-        ) : activeTab === "all" ? (
-          <View style={styles.stack}>
-            <SectionHeader title="Suggested people" subtitle="Send requests here. Threads continue in Connect." />
-            {renderPeople(false) ?? <EmptyState title="No people yet" text="Try another interest or check back soon." actionLabel="Find people" onAction={() => setActiveTab("people")} />}
-            <SectionHeader title="Pending" subtitle="Friend requests and plan joins that need an answer." />
-            {renderRequests(false) ?? <EmptyState title="No pending requests" text="New requests will show here." />}
-            <SectionHeader title="Your plans" subtitle="Plan chats live in Connect after they are created." />
-            {renderPlans(false) ?? <EmptyState title="No plans yet" text="Create one and keep the group thread in Connect." actionLabel="Create plan" onAction={() => openCreatePlan()} />}
-          </View>
         ) : activeTab === "people" ? (
           renderPeople()
         ) : activeTab === "requests" ? (
@@ -583,10 +530,8 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
                 <Ionicons name="close" size={18} color="#FFFFFF" />
               </Pressable>
             </View>
+            <PlusAction icon="share-social" title="Invite People" text="Share ConnectSphere outside the app." onPress={handleInviteFriends} />
             <PlusAction icon="calendar" title="Create Plan" text="Pick a place, time, and invite people." onPress={() => openCreatePlan("event")} />
-            <PlusAction icon="map" title="Plan from Map Spot" text="Build around a nearby venue or place." onPress={() => openCreatePlan("map")} />
-            <PlusAction icon="calendar" title="Plan from Ticketmaster Event" text="Turn a live event into a group plan." onPress={() => openCreatePlan("event")} />
-            <PlusAction icon="share-social" title="Invite Friends" text="Share ConnectSphere like a link." onPress={handleInviteFriends} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -602,24 +547,6 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         onCreated={handlePlanCreated}
       />
 
-    </View>
-  );
-}
-
-function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionSubtitle}>{subtitle}</Text>
-    </View>
-  );
-}
-
-function StatPill({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statPill}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -643,17 +570,6 @@ function EmptyState({ title, text, actionLabel, onAction }: { title: string; tex
           <Text style={styles.emptyActionText}>{actionLabel}</Text>
         </Pressable>
       ) : null}
-    </View>
-  );
-}
-
-function SheetHeader({ title, onClose }: { title: string; onClose: () => void }) {
-  return (
-    <View style={styles.sheetHeader}>
-      <Text style={styles.sheetTitle}>{title}</Text>
-      <Pressable onPress={onClose} style={styles.sheetClose}>
-        <Ionicons name="close" size={19} color="#FFFFFF" />
-      </Pressable>
     </View>
   );
 }
@@ -710,21 +626,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 3,
   },
-  topBarActions: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-  },
-  topIconButton: {
-    alignItems: "center",
-    backgroundColor: "#0f0f12",
-    borderColor: "rgba(255,255,255,0.1)",
-    borderRadius: 22,
-    borderWidth: 1,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
-  },
   headerButton: {
     alignItems: "center",
     backgroundColor: FRIENDS_PINK,
@@ -737,138 +638,41 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     width: 44,
   },
-  heroPanel: {
-    backgroundColor: "#060006",
-    borderColor: "rgba(255,45,168,0.42)",
-    borderRadius: 30,
-    borderWidth: 1,
-    gap: 14,
-    overflow: "hidden",
-    padding: 18,
-    position: "relative",
-    shadowColor: FRIENDS_PINK,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.28,
-    shadowRadius: 28,
-  },
-  heroGlow: {
-    backgroundColor: "rgba(255,45,168,0.18)",
-    borderRadius: 120,
-    height: 210,
-    position: "absolute",
-    right: -86,
-    top: -88,
-    width: 210,
-  },
-  heroHeaderRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  heroEyebrow: {
-    color: FRIENDS_PINK,
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 1.8,
-    textTransform: "uppercase",
-  },
-  livePill: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderColor: "rgba(255,255,255,0.12)",
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  liveDot: {
-    backgroundColor: "#22c55e",
-    borderRadius: 4,
-    height: 8,
-    width: 8,
-  },
-  livePillText: {
-    color: FRIENDS_TEXT,
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  heroTitle: {
-    color: FRIENDS_TEXT,
-    fontSize: 32,
-    fontWeight: "900",
-    letterSpacing: 0,
-    lineHeight: 36,
-    maxWidth: 290,
-  },
-  heroCopy: {
-    color: "#d4d4d8",
-    fontSize: 14,
-    fontWeight: "700",
-    lineHeight: 21,
-    maxWidth: 310,
-  },
-  heroActionRow: {
+  actionRow: {
     flexDirection: "row",
     gap: 10,
   },
-  heroPrimary: {
+  actionPrimary: {
     alignItems: "center",
     backgroundColor: FRIENDS_PINK,
-    borderRadius: 18,
+    borderRadius: 16,
     flex: 1,
     flexDirection: "row",
     gap: 7,
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 46,
   },
-  heroPrimaryText: {
+  actionPrimaryText: {
     color: "#0A0A0B",
     fontSize: 14,
     fontWeight: "900",
   },
-  heroSecondary: {
+  actionSecondary: {
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.08)",
     borderColor: "rgba(255,255,255,0.14)",
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     flex: 1,
     flexDirection: "row",
     gap: 7,
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 46,
   },
-  heroSecondaryText: {
+  actionSecondaryText: {
     color: FRIENDS_TEXT,
     fontSize: 14,
     fontWeight: "900",
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  statPill: {
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderColor: "rgba(255,255,255,0.1)",
-    borderRadius: 18,
-    borderWidth: 1,
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  statValue: {
-    color: FRIENDS_TEXT,
-    fontSize: 20,
-    fontWeight: "900",
-  },
-  statLabel: {
-    color: FRIENDS_MUTED,
-    fontSize: 11,
-    fontWeight: "900",
-    marginTop: 2,
-    textTransform: "uppercase",
   },
   searchBox: {
     alignItems: "center",
@@ -885,53 +689,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     minHeight: 48,
-  },
-  inviteStrip: {
-    alignItems: "center",
-    backgroundColor: "#050505",
-    borderColor: "rgba(255,45,168,0.22)",
-    borderRadius: 24,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    padding: 14,
-  },
-  inviteIcon: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,45,168,0.12)",
-    borderRadius: 18,
-    height: 40,
-    justifyContent: "center",
-    width: 40,
-  },
-  inviteCopy: {
-    flex: 1,
-    gap: 2,
-    minWidth: 0,
-  },
-  inviteTitle: {
-    color: FRIENDS_TEXT,
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  inviteText: {
-    color: FRIENDS_MUTED,
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 17,
-  },
-  inviteButton: {
-    alignItems: "center",
-    backgroundColor: FRIENDS_PINK,
-    borderRadius: 15,
-    justifyContent: "center",
-    minHeight: 42,
-    paddingHorizontal: 14,
-  },
-  inviteButtonText: {
-    color: "#0A0A0B",
-    fontSize: 13,
-    fontWeight: "900",
   },
   tabs: {
     backgroundColor: "#050505",
@@ -969,33 +726,27 @@ const styles = StyleSheet.create({
   },
   personCard: {
     backgroundColor: "#050505",
-    borderColor: "rgba(255,45,168,0.2)",
-    borderRadius: 28,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 18,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 14,
-    padding: 14,
-    shadowColor: FRIENDS_PINK,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
+    gap: 12,
+    padding: 12,
   },
   requestCard: {
     backgroundColor: "#070707",
-    borderColor: "rgba(255,45,168,0.28)",
-    borderRadius: 28,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 18,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 14,
-    padding: 14,
+    gap: 12,
+    padding: 12,
   },
   avatar: {
     backgroundColor: "#141419",
-    borderColor: "rgba(255,45,168,0.55)",
-    borderRadius: 32,
-    borderWidth: 2,
-    height: 82,
-    width: 82,
+    borderRadius: 24,
+    height: 64,
+    width: 64,
   },
   personMain: {
     flex: 1,
@@ -1009,7 +760,7 @@ const styles = StyleSheet.create({
   personName: {
     color: FRIENDS_TEXT,
     flexShrink: 1,
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: "900",
     letterSpacing: 0,
   },
@@ -1096,11 +847,11 @@ const styles = StyleSheet.create({
   planCard: {
     backgroundColor: "#050505",
     borderColor: "rgba(255,255,255,0.1)",
-    borderRadius: 28,
+    borderRadius: 18,
     borderWidth: 1,
     flexDirection: "row",
     gap: 12,
-    padding: 16,
+    padding: 12,
   },
   planIcon: {
     alignItems: "center",
@@ -1273,98 +1024,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     lineHeight: 16,
-  },
-  modalOverlay: {
-    backgroundColor: "rgba(0,0,0,0.68)",
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: "#101014",
-    borderColor: "rgba(255,45,141,0.22)",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    gap: 12,
-    padding: 18,
-    paddingBottom: 26,
-  },
-  sheetHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  sheetTitle: {
-    color: "#FFFFFF",
-    fontSize: 21,
-    fontWeight: "900",
-  },
-  sheetClose: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 16,
-    height: 34,
-    justifyContent: "center",
-    width: 34,
-  },
-  sheetSubtitle: {
-    color: "#A1A1AA",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  field: {
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderColor: "rgba(255,255,255,0.1)",
-    borderRadius: 16,
-    borderWidth: 1,
-    color: "#FFFFFF",
-    fontSize: 15,
-    minHeight: 48,
-    paddingHorizontal: 14,
-  },
-  chipGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  typeChip: {
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderColor: "rgba(255,255,255,0.1)",
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-  },
-  typeChipActive: {
-    backgroundColor: "#FF2D8D",
-    borderColor: "#FF2D8D",
-  },
-  typeChipText: {
-    color: "#EDEDF2",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  typeChipTextActive: {
-    color: "#0A0A0B",
-  },
-  sheetLabel: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  sectionHeader: {
-    gap: 3,
-    marginTop: 4,
-  },
-  sectionTitle: {
-    color: FRIENDS_TEXT,
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  sectionSubtitle: {
-    color: FRIENDS_MUTED,
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 17,
   },
 });
