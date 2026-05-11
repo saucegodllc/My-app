@@ -53,6 +53,21 @@ function dateKey(date: Date) {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
+function dateFromKey(key: string) {
+  const [year, month, day] = key.split("-").map(Number);
+  const date = new Date();
+  date.setFullYear(year, (month || 1) - 1, day || 1);
+  date.setHours(12, 0, 0, 0);
+  return date;
+}
+
+function dateKeyFromValue(value?: string) {
+  const stableKey = value?.match(/^(\d{4})-(\d{2})-(\d{2})/)?.[0];
+  if (stableKey) return stableKey;
+  const parsed = parseValidDate(value);
+  return parsed ? dateKey(parsed) : null;
+}
+
 function formatDateChip(date: Date) {
   const today = dateKey(new Date());
   const tomorrowDate = new Date();
@@ -70,9 +85,10 @@ function parseValidDate(value?: string) {
 }
 
 function buildDateOptions(initialStartDate?: string, lockToEventDate = false) {
-  const initial = parseValidDate(initialStartDate);
+  const initialKey = dateKeyFromValue(initialStartDate);
+  const initial = initialKey ? dateFromKey(initialKey) : null;
   if (lockToEventDate && initial) {
-    return [{ key: dateKey(initial), label: formatDateChip(initial) }];
+    return [{ key: initialKey!, label: formatDateChip(initial) }];
   }
 
   const dates: Date[] = [];
@@ -84,12 +100,16 @@ function buildDateOptions(initialStartDate?: string, lockToEventDate = false) {
     dates.push(date);
   }
 
-  if (initial && !dates.some((date) => dateKey(date) === dateKey(initial))) {
-    initial.setHours(12, 0, 0, 0);
+  if (initial && initialKey && !dates.some((date) => dateKey(date) === initialKey)) {
     dates.unshift(initial);
   }
 
   return dates.map((date) => ({ key: dateKey(date), label: formatDateChip(date) }));
+}
+
+function optionDateKey(option?: PlanLocationOption | null) {
+  if (option?.sourceType !== "event") return null;
+  return dateKeyFromValue(option.startDate);
 }
 
 function timeLabelFromDate(value?: string) {
@@ -189,7 +209,8 @@ export default function CreateFriendPlanSheet({
     setSelectedSource(initialSource);
     setSourceTab(initialSource?.sourceType === "map" ? "map" : initialSourceTab);
     const eventStart = initialSource?.sourceType === "event" ? parseValidDate(initialSource.startDate) : null;
-    setSelectedDate(eventStart ? dateKey(eventStart) : dateKey(new Date()));
+    const eventDateKey = initialSource?.sourceType === "event" ? dateKeyFromValue(initialSource.startDate) : null;
+    setSelectedDate(eventDateKey ?? (eventStart ? dateKey(eventStart) : dateKey(new Date())));
     setSelectedTime(eventStart ? defaultTimeForEvent(initialSource?.startDate) : "7:00 PM");
   }, [initialInviteIds, initialSource, initialSourceTab, initialTitle, visible]);
 
@@ -252,12 +273,28 @@ export default function CreateFriendPlanSheet({
     [eventTimeLocked, selectedEventStart],
   );
   const inviteFriends = friends.length ? friends : loadedFriends;
-  const selectedTimeText = `${dateOptions.find((date) => date.key === selectedDate)?.label ?? "Selected day"} at ${selectedTime}`;
+  const selectedDateLabel = useMemo(
+    () => dateOptions.find((date) => date.key === selectedDate)?.label ?? formatDateChip(dateFromKey(selectedDate)),
+    [dateOptions, selectedDate],
+  );
+  const visibleEvents = useMemo(() => {
+    const matchingEvents = events.filter((event) => optionDateKey(event) === selectedDate);
+    if (
+      selectedSource?.sourceType === "event" &&
+      optionDateKey(selectedSource) === selectedDate &&
+      !matchingEvents.some((event) => event.id === selectedSource.id && event.sourceType === selectedSource.sourceType)
+    ) {
+      return [selectedSource, ...matchingEvents].slice(0, 12);
+    }
+    return matchingEvents.slice(0, 12);
+  }, [events, selectedDate, selectedSource]);
+  const selectedSourceMatchesDate = selectedSource?.sourceType !== "event" || optionDateKey(selectedSource) === selectedDate;
+  const selectedTimeText = `${selectedDateLabel} at ${selectedTime}`;
   const locationName = useMemo(() => {
     if (selectedSource) return selectedSource.name;
     return "Pick a Maps spot or event";
   }, [selectedSource]);
-  const canCreate = !!selectedSource && !saving;
+  const canCreate = !!selectedSource && selectedSourceMatchesDate && !saving;
   const sourcePlanType = selectedSource?.sourceType === "event" ? "Ticketmaster Event" : "Map Spot";
 
   const toggleInvite = useCallback((personId: string) => {
@@ -270,16 +307,18 @@ export default function CreateFriendPlanSheet({
     setSelectedSource(option);
     if (option.sourceType !== "event") return;
     const eventStart = parseValidDate(option.startDate);
-    if (!eventStart) return;
-    setSelectedDate(dateKey(eventStart));
+    const eventDateKey = dateKeyFromValue(option.startDate);
+    if (!eventStart || !eventDateKey) return;
+    setSelectedDate(eventDateKey);
     setSelectedTime(defaultTimeForEvent(option.startDate));
   }, []);
 
   useEffect(() => {
     if (!eventTimeLocked) return;
     const eventStart = parseValidDate(selectedEventStart);
-    if (eventStart && selectedDate !== dateKey(eventStart)) {
-      setSelectedDate(dateKey(eventStart));
+    const eventDateKey = dateKeyFromValue(selectedEventStart);
+    if (eventStart && eventDateKey && selectedDate !== eventDateKey) {
+      setSelectedDate(eventDateKey);
     }
     if (!timeOptions.some((option) => option.value === selectedTime)) {
       setSelectedTime(defaultTimeForEvent(selectedEventStart));
@@ -287,7 +326,7 @@ export default function CreateFriendPlanSheet({
   }, [eventTimeLocked, selectedDate, selectedEventStart, selectedTime, timeOptions]);
 
   const handleCreate = useCallback(async (shareAfterCreate = false) => {
-    if (!selectedSource) return;
+    if (!selectedSource || !selectedSourceMatchesDate) return;
     setSaving(true);
     try {
       const planTitle = title.trim() || locationName;
@@ -317,9 +356,13 @@ export default function CreateFriendPlanSheet({
     } finally {
       setSaving(false);
     }
-  }, [locationName, onClose, onCreated, selectedDate, selectedInviteIds, selectedSource, selectedTime, selectedTimeText, sourcePlanType, title, userId]);
+  }, [locationName, onClose, onCreated, selectedDate, selectedInviteIds, selectedSource, selectedSourceMatchesDate, selectedTime, selectedTimeText, sourcePlanType, title, userId]);
 
-  const locationOptions = sourceTab === "map" ? venues : events;
+  const locationOptions = sourceTab === "map" ? venues : visibleEvents;
+  const emptyLocationText =
+    sourceTab === "event"
+      ? `No events on ${selectedDateLabel}. Pick another day or use a Map Spot.`
+      : "No map spots loaded yet.";
 
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -390,6 +433,9 @@ export default function CreateFriendPlanSheet({
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locationRow}>
                 {locationOptions.length ? locationOptions.map((option) => {
                   const active = selectedSource?.id === option.id && selectedSource?.sourceType === option.sourceType;
+                  const optionMeta = option.sourceType === "event" && option.startDate
+                    ? `${timeLabelFromDate(option.startDate)} - ${option.subtitle ?? "Miami"}`
+                    : option.subtitle ?? "Miami";
                   return (
                     <Pressable key={`${option.sourceType}-${option.id}`} onPress={() => selectSource(option)} style={[styles.locationCard, active && styles.locationCardActive]}>
                       {option.imageUrl ? (
@@ -400,13 +446,13 @@ export default function CreateFriendPlanSheet({
                         </View>
                       )}
                       <Text style={styles.locationName} numberOfLines={2}>{option.name}</Text>
-                      <Text style={styles.locationSub} numberOfLines={1}>{option.subtitle ?? "Miami"}</Text>
+                      <Text style={styles.locationSub} numberOfLines={1}>{optionMeta}</Text>
                     </Pressable>
                   );
                 }) : (
                   <View style={styles.emptyLocationCard}>
                     <Ionicons name={sourceTab === "event" ? "calendar-outline" : "map-outline"} size={22} color="#FF8BC4" />
-                    <Text style={styles.muted}>{sourceTab === "event" ? "No event locations loaded yet." : "No map spots loaded yet."}</Text>
+                    <Text style={[styles.muted, styles.emptyLocationText]}>{emptyLocationText}</Text>
                   </View>
                 )}
               </ScrollView>
@@ -682,6 +728,9 @@ const styles = StyleSheet.create({
     minHeight: 112,
     padding: 16,
     width: 220,
+  },
+  emptyLocationText: {
+    textAlign: "center",
   },
   locationImage: {
     backgroundColor: "#17171D",

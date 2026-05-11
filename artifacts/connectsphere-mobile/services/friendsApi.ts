@@ -184,7 +184,7 @@ export async function getPlanLocationOptions() {
       : [];
   const events =
     eventsResult.status === "fulfilled"
-      ? (eventsResult.value.events ?? []).slice(0, 12).map((event: any) => ({
+      ? (eventsResult.value.events ?? []).slice(0, 80).map((event: any) => ({
           id: String(event.id),
           sourceType: "event" as const,
           name: String(event.name ?? "Event"),
