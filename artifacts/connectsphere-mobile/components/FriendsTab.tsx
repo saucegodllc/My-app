@@ -691,7 +691,6 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         {selectedPerson ? (
           <FriendProfileSheet
             person={selectedPerson}
-            bottomInset={bottomInset}
             connectLabel={connectLabel(selectedPerson)}
             onClose={() => setSelectedPerson(null)}
             onConnect={() => {
@@ -806,21 +805,19 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
 
 function FriendProfileSheet({
   person,
-  bottomInset,
   connectLabel,
   onClose,
   onConnect,
   onPlan,
 }: {
   person: FriendPerson;
-  bottomInset: number;
   connectLabel: string;
   onClose: () => void;
   onConnect: () => void;
   onPlan: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(bottomInset, insets.bottom) + 16;
+  const bottomPad = Math.max(insets.bottom, 8) + 8;
   const location = personLocation(person);
   const interests = uniqueTags(person.interests?.length ? person.interests : ["plans", "friends", "miami"]);
   const sharedInterests = uniqueTags(person.sharedInterests ?? []);
