@@ -157,7 +157,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         getFriendRequests(userId),
         getFriendPlans(userId),
         getFriendPlansFeed(userId),
-        getFriendStories(userId),
+        getFriendStories(userId).catch(() => ({ stories: [] })),
       ]);
       setPeople(peopleResult.people ?? []);
       setRequests(requestResult.requests ?? []);

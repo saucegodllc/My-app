@@ -18,7 +18,8 @@ function incomingRequest(request: FriendRequest) {
 
 function isLiveishPlan(plan: FriendPlan) {
   const time = new Date(plan.scheduledAt ?? plan.createdAt).getTime();
-  return Number.isFinite(time) && time >= Date.now() - 90 * 60 * 1000;
+  const now = Date.now();
+  return Number.isFinite(time) && time >= now - 90 * 60 * 1000 && time <= now + 36 * 60 * 60 * 1000;
 }
 
 function isJoinablePlan(plan: FriendPlan) {
@@ -63,7 +64,7 @@ export function selectTodayCommand(input: {
   if (smartPerson) {
     const reason =
       smartPerson.smartReason ??
-      smartPerson.compatibility?.signals?.slice(0, 2).join(" • ") ??
+      smartPerson.compatibility?.signals?.slice(0, 2).join(", ") ??
       "Good local fit.";
     return {
       kind: "person",
