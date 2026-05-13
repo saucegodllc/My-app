@@ -19,6 +19,16 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
+  connectLabel,
+  firstName,
+  personLocation,
+  planVenue,
+  planWhen,
+  requestKindLabel,
+  titleTag,
+} from "@/components/friends/friendsLabels";
+
+import {
   createFriendPlan,
   getFriendPeople,
   getFriendPlans,
@@ -49,10 +59,6 @@ const APP_SHARE_URL = "https://connectsphere.app";
 const FALLBACK_PHOTO =
   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=85";
 
-function firstName(name?: string) {
-  return (name ?? "Someone").split(" ")[0] || "Someone";
-}
-
 function openConnectThread(chatId?: string) {
   if (!chatId) return;
   router.push({ pathname: "/(tabs)/matches", params: { openChatId: chatId } } as never);
@@ -62,20 +68,8 @@ function shareOut(message: string, url = APP_SHARE_URL) {
   return Share.share({ message: `${message}\n${url}` });
 }
 
-function titleTag(value?: string) {
-  return (value ?? "")
-    .split(/[\s_-]+/)
-    .filter(Boolean)
-    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
-    .join(" ");
-}
-
 function uniqueTags(values: Array<string | undefined | false | null>) {
   return Array.from(new Set(values.filter(Boolean).map((value) => titleTag(String(value)))));
-}
-
-function personLocation(person: FriendPerson) {
-  return person.location ?? person.neighborhood ?? person.city ?? "Miami";
 }
 
 function personProfileLine(person: FriendPerson) {
@@ -91,14 +85,6 @@ function seededCount(seed: string, min: number, max: number) {
   const chars = seed.split("");
   const hash = chars.reduce((total, char, index) => total + char.charCodeAt(0) * (index + 7), 0);
   return min + (hash % Math.max(1, max - min + 1));
-}
-
-function planVenue(plan: FriendPlan) {
-  return plan.sourceName ?? plan.location ?? "Miami";
-}
-
-function planWhen(plan: FriendPlan) {
-  return plan.timeLabel ?? plan.time ?? "Soon";
 }
 
 function planPeopleCount(plan: FriendPlan) {
@@ -339,13 +325,6 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     },
     [showNotice],
   );
-
-  const connectLabel = (person: FriendPerson) => {
-    if (person.relationshipStatus === "friends") return "Message";
-    if (person.relationshipStatus === "requested") return "Requested";
-    if (person.relationshipStatus === "incoming") return "Accept";
-    return "Connect";
-  };
 
   const renderPeople = (showEmpty = true) => {
     if (loading) return <LoadingState />;
