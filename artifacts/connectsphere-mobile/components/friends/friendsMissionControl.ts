@@ -13,7 +13,16 @@ function isPlanJoin(request: FriendRequest) {
 }
 
 function incomingRequest(request: FriendRequest) {
-  return request.direction !== "outgoing";
+  return request.direction === "incoming";
+}
+
+function isLiveishPlan(plan: FriendPlan) {
+  const time = new Date(plan.scheduledAt ?? plan.createdAt).getTime();
+  return Number.isFinite(time) && time >= Date.now() - 90 * 60 * 1000;
+}
+
+function isJoinablePlan(plan: FriendPlan) {
+  return plan.joinRequestStatus == null && plan.isMember !== true && plan.isCreator !== true && isLiveishPlan(plan);
 }
 
 export function selectTodayCommand(input: {
@@ -36,7 +45,7 @@ export function selectTodayCommand(input: {
     };
   }
 
-  const upcomingPlan = input.plans.find((plan) => !!plan.chatId);
+  const upcomingPlan = input.plans.find((plan) => !!plan.chatId && isLiveishPlan(plan));
   if (upcomingPlan) {
     return {
       kind: "plan",
@@ -50,8 +59,7 @@ export function selectTodayCommand(input: {
 
   const smartPerson =
     input.people.find((person) => person.relationshipStatus === "incoming") ??
-    input.people.find((person) => person.relationshipStatus === "none") ??
-    input.people[0];
+    input.people.find((person) => person.relationshipStatus === "none");
   if (smartPerson) {
     const reason =
       smartPerson.smartReason ??
@@ -67,7 +75,7 @@ export function selectTodayCommand(input: {
     };
   }
 
-  const joinablePlan = input.planFeed.find((plan) => plan.joinRequestStatus !== "pending");
+  const joinablePlan = input.planFeed.find((plan) => isJoinablePlan(plan));
   if (joinablePlan) {
     return {
       kind: "plan",
