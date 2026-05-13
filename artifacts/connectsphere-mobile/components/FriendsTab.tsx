@@ -28,6 +28,7 @@ import {
 } from "@/components/friends/friendsLabels";
 import FriendSignalsRow from "@/components/friends/FriendSignalsRow";
 import PendingInboxSection from "@/components/friends/PendingInboxSection";
+import PlansHubSection from "@/components/friends/PlansHubSection";
 import TodayCommandCenter from "@/components/friends/TodayCommandCenter";
 import { selectTodayCommand, type TodayCommand } from "@/components/friends/friendsMissionControl";
 import {
@@ -757,114 +758,18 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
 
   const renderPlans = (showEmpty = true) => {
     if (loading) return <LoadingState />;
-    if (!plans.length && !planFeed.length) {
-      return showEmpty ? (
-        <EmptyState
-          title="No plans yet"
-          text="Create something easy, or join a nearby plan when one pops up."
-          actionLabel="Create Plan"
-          onAction={() => openCreatePlan()}
-        />
-      ) : null;
-    }
+    if (!showEmpty && !plans.length && !planFeed.length) return null;
     return (
-      <View style={styles.stack}>
-        <Pressable onPress={() => openCreatePlan()} style={styles.createPlanInline}>
-          <Ionicons name="add" size={18} color="#0A0A0B" />
-          <Text style={styles.createPlanInlineText}>Create Plan</Text>
-        </Pressable>
-        {planFeed.length ? (
-          <>
-            <Text style={styles.sectionLabel}>Plans to join</Text>
-            {planFeed.map((plan) => (
-              <Pressable key={`feed-${plan.id}`} onPress={() => setSelectedPlan(plan)} style={styles.planCard}>
-                {plan.sourceImageUrl ? (
-                  <Image source={{ uri: plan.sourceImageUrl }} style={styles.planThumb} contentFit="cover" />
-                ) : (
-                  <View style={styles.planIcon}>
-                    <Ionicons name={plan.sourceType === "event" ? "calendar" : "location"} size={18} color="#FF2D8D" />
-                  </View>
-                )}
-                <View style={styles.personMain}>
-                  <Text style={styles.planTitle}>{plan.title}</Text>
-                  <Text style={styles.planMeta}>
-                    {planWhen(plan)} - {planVenue(plan)}
-                  </Text>
-                  <View style={styles.planSocialRow}>
-                    <View style={[styles.planPulsePill, planIsLive(plan) && styles.planPulsePillLive]}>
-                      <View style={[styles.planPulseDot, planIsLive(plan) && styles.planPulseDotLive]} />
-                      <Text style={styles.planPulseText}>{planSocialLabel(plan)}</Text>
-                    </View>
-                    <View style={styles.planMiniPill}>
-                      <Text style={styles.planMiniPillText}>{planInterestLabel(plan)}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.personCity}>
-                    Hosted by {firstName(plan.creator?.name)} - tap for details
-                  </Text>
-                  <Pressable
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      handleRequestJoinPlan(plan);
-                    }}
-                    style={[styles.primaryButton, (plan.joinRequestStatus === "pending" || isActing(`join:${plan.id}`)) && styles.disabledButton]}
-                    disabled={plan.joinRequestStatus === "pending" || isActing(`join:${plan.id}`)}
-                  >
-                    <Text style={styles.primaryButtonText}>
-                      {buttonLabel(plan.joinRequestStatus === "pending" ? "Requested" : "Request to Join", isActing(`join:${plan.id}`))}
-                    </Text>
-                  </Pressable>
-                </View>
-              </Pressable>
-            ))}
-          </>
-        ) : null}
-        {plans.length ? <Text style={styles.sectionLabel}>Your plans</Text> : null}
-        {plans.map((plan) => (
-          <Pressable key={plan.id} onPress={() => setSelectedPlan(plan)} style={styles.planCard}>
-            <View style={styles.planIcon}>
-              <Ionicons name="calendar" size={18} color="#FF2D8D" />
-            </View>
-            <View style={styles.personMain}>
-              <Text style={styles.planTitle}>{plan.title}</Text>
-              <Text style={styles.planMeta}>
-                {plan.time ?? "Soon"} · {plan.location ?? "Miami"}
-              </Text>
-              <Text style={styles.personCity}>
-                {plan.peopleGoing ?? plan.members?.length ?? 1} going · Created by {firstName(plan.creator?.name)}
-              </Text>
-              <View style={styles.planSocialRow}>
-                <View style={[styles.planPulsePill, planIsLive(plan) && styles.planPulsePillLive]}>
-                  <View style={[styles.planPulseDot, planIsLive(plan) && styles.planPulseDotLive]} />
-                  <Text style={styles.planPulseText}>{planSocialLabel(plan)}</Text>
-                </View>
-                <View style={styles.planMiniPill}>
-                  <Text style={styles.planMiniPillText}>{planInterestLabel(plan)}</Text>
-                </View>
-              </View>
-              <Pressable
-                onPress={(event) => {
-                  event.stopPropagation();
-                  openConnectThread(plan.chatId);
-                }}
-                style={[styles.primaryButton, !plan.chatId && styles.disabledButton]}
-                disabled={!plan.chatId}
-              >
-                <Text style={styles.primaryButtonText}>Open in Connect</Text>
-              </Pressable>
-              <Pressable
-                onPress={(event) => {
-                  event.stopPropagation();
-                  handleSharePlan(plan);
-                }}
-                style={styles.secondaryButton}
-              >
-                <Text style={styles.secondaryButtonText}>Share Plan</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        ))}
-      </View>
+      <PlansHubSection
+        plans={plans}
+        planFeed={planFeed}
+        isActing={isActing}
+        onCreatePlan={() => openCreatePlan()}
+        onOpenPlan={setSelectedPlan}
+        onJoinPlan={handleRequestJoinPlan}
+        onOpenConnect={(plan) => openConnectThread(plan.chatId)}
+        onSharePlan={handleSharePlan}
+      />
     );
   };
 
