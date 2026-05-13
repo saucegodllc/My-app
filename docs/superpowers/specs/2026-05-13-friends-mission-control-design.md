@@ -8,6 +8,8 @@ Make the Friends tab feel like a complete, launch-ready friend-making product in
 
 Use a Mission Control structure rather than a feed-first structure. The top of the screen should guide the user toward the strongest next action, while the rest of the tab organizes people, moments, requests, and plans into clear sections.
 
+The tab is for discovery, decisions, and lightweight social momentum. Connect is the permanent home for chat, plan coordination, and relationship follow-through. Every successful friend or plan action should either create, reveal, or open a Connect thread.
+
 The final experience should feel like:
 
 - Here are your best friend opportunities.
@@ -15,6 +17,19 @@ The final experience should feel like:
 - Here is what needs your response.
 - Here is how to turn a person or moment into a real plan.
 - Here is where to continue in Connect.
+
+## Engagement Model For Ages 18-50
+
+The tab should feel useful for a broad 18-50 audience by avoiding overly young, trend-heavy social mechanics. The hook should come from clarity, relevance, and momentum:
+
+- One best next move at the top so users do not have to think.
+- Clear reasons for every suggested person.
+- Low-pressure plan prompts that work for coffee, walks, gym, brunch, family-friendly outings, nightlife, events, and professional-adjacent hangouts.
+- Lightweight live signals instead of a full stories product.
+- Visible progress from stranger to request to friend to plan to Connect thread.
+- Strong feedback after every action so the app feels responsive.
+
+The product should not depend on users posting constantly. It should still feel active through suggested actions, nearby plans, incoming requests, and Connect handoffs.
 
 ## Existing Foundation
 
@@ -75,7 +90,7 @@ Each signal should support:
 - Connect or request, depending on relationship status.
 - Turn into a plan when appropriate.
 
-The section should never feel like a full social feed. It is a lightweight radar of who is open to doing something.
+The section should never feel like a full social feed. It is a lightweight radar of who is open to doing something. User-facing copy should call these `signals`, `moments`, or `open to plans`, not `stories`.
 
 ### 3. People To Meet
 
@@ -197,6 +212,21 @@ Derived UI state:
 
 Existing API methods should be reused where possible. New endpoints should only be added if the current story/request/plan APIs cannot support a needed state.
 
+## Connect Relay Contract
+
+Friends must consistently relay completed relationship actions into Connect:
+
+- Existing friend + `Message` opens the direct Connect thread.
+- Accepted friend request creates or opens a direct Connect thread.
+- Story reply from an existing friend writes to the direct Connect thread and opens it.
+- Story reply to a non-friend creates a pending request; once accepted, the resulting chat opens in Connect.
+- Created plan creates a plan Connect thread.
+- Joined plan opens the plan Connect thread.
+- Accepted plan join opens the plan Connect thread for both sides.
+- Today Command Center should prefer `Open Connect` when the highest-value action already has a chat.
+
+Connect should be the only place for ongoing conversation. Friends should not introduce a separate chat surface.
+
 ## Error Handling
 
 Actions should be optimistic only where rollback is already safe:
@@ -244,6 +274,8 @@ The Friends tab is launch-ready when:
 - People, requests, plans, stories, profile, and plan detail states all have useful empty and error states.
 - Accepting a friend request opens or creates a Connect thread.
 - Creating or joining a plan opens or creates a plan thread.
+- Every accepted friendship and joined plan is visible in Connect without requiring a manual refresh.
+- Friend, signal, request, and plan success messages clearly tell the user when the next step is in Connect.
 - Blocking removes the user from people, requests, plans, and plan feed.
 - Reporting confirms submission without breaking the profile sheet.
 - Stories can be reacted to, replied to, or converted into a request/plan flow.
