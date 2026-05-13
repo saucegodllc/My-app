@@ -27,6 +27,7 @@ import {
   titleTag,
 } from "@/components/friends/friendsLabels";
 import FriendSignalsRow from "@/components/friends/FriendSignalsRow";
+import PendingInboxSection from "@/components/friends/PendingInboxSection";
 import TodayCommandCenter from "@/components/friends/TodayCommandCenter";
 import { selectTodayCommand, type TodayCommand } from "@/components/friends/friendsMissionControl";
 import {
@@ -736,123 +737,21 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
 
   const renderRequests = (showEmpty = true) => {
     if (loading) return <LoadingState />;
-    if (!requests.length) {
-      return showEmpty ? (
-        <EmptyState
-          title="All clear"
-          text="Sent requests, incoming friends, and plan joins will show here."
-          actionLabel="Find People"
-          onAction={() => setActiveTab("people")}
-        />
-      ) : null;
-    }
+    if (!requests.length && !showEmpty) return null;
     return (
-      <View style={styles.stack}>
-        {requests.map((request) => {
+      <PendingInboxSection
+        requests={requests}
+        isActing={isActing}
+        onOpenProfile={(request) => {
           const outgoing = request.direction === "outgoing";
           const displayUser = outgoing ? request.toUser ?? request.fromUser : request.fromUser;
-          const isPlanJoin = request.requestType === "plan_join" || request.kind === "plan_join";
-          const isPlanInvite = request.kind === "plan_invite";
-          const title = outgoing ? `Sent to ${firstName(displayUser?.name)}` : displayUser?.name ?? "Someone";
-          const message = outgoing
-            ? isPlanJoin
-              ? `Waiting on ${firstName(request.toUser?.name)} to approve ${request.plan?.title ?? "the plan"}.`
-              : isPlanInvite
-                ? `Plan invite sent for ${request.plan?.title ?? "your plan"}.`
-                : "Friend request sent. They'll see it in Connect."
-            : isPlanJoin
-              ? `Wants to join ${request.plan?.title ?? "your plan"}`
-              : request.message ?? "Wants to connect";
-          const chips = (isPlanJoin
-            ? [request.plan?.timeLabel ?? request.plan?.time ?? "Soon", request.plan ? planVenue(request.plan) : "Miami"]
-            : request.sharedInterests ?? []).filter(Boolean).slice(0, 3);
-          const acceptKey = `request:accept:${request.id}`;
-          const ignoreKey = `request:ignore:${request.id}`;
-          const cancelKey = `cancel:${request.id}`;
-
-          return (
-            <Pressable
-              key={request.id}
-              onPress={() => {
-                if (displayUser) setSelectedPerson(displayUser);
-              }}
-              style={[styles.requestCard, outgoing && styles.requestCardSent]}
-            >
-              <Image source={{ uri: displayUser?.photoUrl ?? FALLBACK_PHOTO }} style={styles.avatar} contentFit="cover" />
-              <View style={styles.personMain}>
-                <View style={styles.requestTopRow}>
-                  <Text style={styles.personName}>
-                    {title}
-                    {!outgoing && displayUser?.age ? `, ${displayUser.age}` : ""}
-                  </Text>
-                  <View style={[styles.statusBadge, outgoing && styles.sentBadge]}>
-                    <Text style={[styles.statusText, outgoing && styles.sentBadgeText]}>{outgoing ? "Sent" : "New"}</Text>
-                  </View>
-                </View>
-                <Text style={styles.personCity}>{personLocation(displayUser ?? request.fromUser)}</Text>
-                <Text style={styles.requestMessage} numberOfLines={2}>{message}</Text>
-                <View style={styles.interestRow}>
-                  {chips.map((interest) => (
-                    <View key={String(interest)} style={styles.interestChip}>
-                      <Text style={styles.interestText}>{String(interest)}</Text>
-                    </View>
-                  ))}
-                </View>
-                {displayUser ? (
-                  <View style={styles.profileCue}>
-                    <Ionicons name="sparkles" size={13} color="#FF8BC4" />
-                    <Text style={styles.profileCueText}>Tap to see profile</Text>
-                    <Ionicons name="chevron-forward" size={13} color="#FF8BC4" />
-                  </View>
-                ) : null}
-                {outgoing ? (
-                  <View style={styles.buttonRow}>
-                    <View style={styles.pendingSentRow}>
-                      <Ionicons name="time-outline" size={15} color="#FF8BC4" />
-                      <Text style={styles.pendingSentText}>Waiting</Text>
-                    </View>
-                    <Pressable
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        handleCancelRequest(request);
-                      }}
-                      style={[styles.secondaryButton, isActing(cancelKey) && styles.disabledButton]}
-                      disabled={isActing(cancelKey)}
-                    >
-                      <Text style={styles.secondaryButtonText}>
-                        {buttonLabel(isPlanJoin ? "Cancel Join" : "Cancel Request", isActing(cancelKey))}
-                      </Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <View style={styles.buttonRow}>
-                    <Pressable
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        handleRequest(request, "accept");
-                      }}
-                      style={[styles.primaryButton, isActing(acceptKey) && styles.disabledButton]}
-                      disabled={isActing(acceptKey) || isActing(ignoreKey)}
-                    >
-                      <Text style={styles.primaryButtonText}>{buttonLabel("Accept", isActing(acceptKey))}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        handleRequest(request, "ignore");
-                      }}
-                      style={[styles.secondaryButton, isActing(ignoreKey) && styles.disabledButton]}
-                      disabled={isActing(acceptKey) || isActing(ignoreKey)}
-                    >
-                      <Text style={styles.secondaryButtonText}>{buttonLabel(isPlanJoin ? "Decline" : "Ignore", isActing(ignoreKey))}</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
+          if (displayUser) setSelectedPerson(displayUser);
+        }}
+        onAccept={(request) => handleRequest(request, "accept")}
+        onIgnore={(request) => handleRequest(request, "ignore")}
+        onCancel={handleCancelRequest}
+        onFindPeople={() => setActiveTab("people")}
+      />
     );
   };
 
