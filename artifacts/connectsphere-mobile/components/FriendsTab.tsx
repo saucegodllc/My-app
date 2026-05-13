@@ -27,6 +27,7 @@ import {
   requestKindLabel,
   titleTag,
 } from "@/components/friends/friendsLabels";
+import { selectTodayCommand, type TodayCommand } from "@/components/friends/friendsMissionControl";
 
 import {
   createFriendPlan,
@@ -34,6 +35,7 @@ import {
   getFriendPlans,
   getFriendPlansFeed,
   getFriendRequests,
+  getFriendStories,
   requestJoinFriendPlan,
   respondPlanJoinRequest,
   respondFriendRequest,
@@ -41,6 +43,7 @@ import {
   type FriendPerson,
   type FriendPlan,
   type FriendRequest,
+  type FriendStory,
 } from "@/services/friendsApi";
 import CreateFriendPlanSheet from "@/components/CreateFriendPlanSheet";
 
@@ -127,6 +130,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [plans, setPlans] = useState<FriendPlan[]>([]);
   const [planFeed, setPlanFeed] = useState<FriendPlan[]>([]);
+  const [stories, setStories] = useState<FriendStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
 
@@ -140,20 +144,26 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [selectedPlan, setSelectedPlan] = useState<FriendPlan | null>(null);
 
   const friends = useMemo(() => people.filter((person) => person.relationshipStatus === "friends"), [people]);
+  const todayCommand: TodayCommand = useMemo(
+    () => selectTodayCommand({ people, requests, plans, planFeed, stories }),
+    [people, requests, plans, planFeed, stories],
+  );
 
   const loadFriends = useCallback(async () => {
     setLoading(true);
     try {
-      const [peopleResult, requestResult, planResult, feedResult] = await Promise.all([
+      const [peopleResult, requestResult, planResult, feedResult, storiesResult] = await Promise.all([
         getFriendPeople(userId, search),
         getFriendRequests(userId),
         getFriendPlans(userId),
         getFriendPlansFeed(userId),
+        getFriendStories(userId),
       ]);
       setPeople(peopleResult.people ?? []);
       setRequests(requestResult.requests ?? []);
       setPlans(planResult.plans ?? []);
       setPlanFeed(feedResult.plans ?? []);
+      setStories(storiesResult.stories ?? []);
     } catch {
       setNotice("Friends could not load. Check the API server and try again.");
     } finally {
