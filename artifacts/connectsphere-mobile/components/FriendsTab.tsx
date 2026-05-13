@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -165,6 +165,8 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
   const [activeActions, setActiveActions] = useState<string[]>([]);
+  const activeActionsRef = useRef(new Set<string>());
+  const loadSeqRef = useRef(0);
 
   const [planSheetOpen, setPlanSheetOpen] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
@@ -186,15 +188,21 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   );
   const pendingCount = requests.length;
 
-  const isActing = useCallback((key: string) => activeActions.includes(key), [activeActions]);
+  const isActing = useCallback((key: string) => activeActionsRef.current.has(key) || activeActions.includes(key), [activeActions]);
   const beginAction = useCallback((key: string) => {
+    if (activeActionsRef.current.has(key)) return false;
+    activeActionsRef.current.add(key);
     setActiveActions((current) => (current.includes(key) ? current : [...current, key]));
+    return true;
   }, []);
   const endAction = useCallback((key: string) => {
+    activeActionsRef.current.delete(key);
     setActiveActions((current) => current.filter((item) => item !== key));
   }, []);
 
   const loadFriends = useCallback(async () => {
+    const sequence = loadSeqRef.current + 1;
+    loadSeqRef.current = sequence;
     setLoading(true);
     setLoadError("");
     try {
@@ -205,15 +213,19 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         getFriendPlansFeed(userId),
         getFriendStories(userId).catch(() => ({ stories: [] })),
       ]);
+      if (sequence !== loadSeqRef.current) return;
       setPeople(peopleResult.people ?? []);
       setRequests(requestResult.requests ?? []);
       setPlans(planResult.plans ?? []);
       setPlanFeed(feedResult.plans ?? []);
       setStories(storiesResult.stories ?? []);
     } catch {
+      if (sequence !== loadSeqRef.current) return;
       setLoadError("Friends could not load. Check the API server and try again.");
     } finally {
-      setLoading(false);
+      if (sequence === loadSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [search, userId]);
 
@@ -236,8 +248,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     async (person: FriendPerson) => {
       if (person.relationshipStatus === "requested") return;
       const key = `connect:${person.id}`;
-      if (isActing(key)) return;
-      beginAction(key);
+      if (!beginAction(key)) return;
       const previousPeople = people;
       const previousRequests = requests;
       try {
@@ -286,14 +297,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         endAction(key);
       }
     },
-    [beginAction, endAction, isActing, loadFriends, people, requests, showNotice, user, userId],
+    [beginAction, endAction, loadFriends, people, requests, showNotice, user, userId],
   );
 
   const handleRequest = useCallback(
     async (request: FriendRequest, action: "accept" | "ignore") => {
       const key = `request:${action}:${request.id}`;
-      if (isActing(key)) return;
-      beginAction(key);
+      if (!beginAction(key)) return;
       const previousPeople = people;
       const previousRequests = requests;
       const previousPlans = plans;
@@ -333,14 +343,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         endAction(key);
       }
     },
-    [beginAction, endAction, isActing, loadFriends, people, plans, requests, showNotice, userId],
+    [beginAction, endAction, loadFriends, people, plans, requests, showNotice, userId],
   );
 
   const handleCancelRequest = useCallback(
     async (request: FriendRequest) => {
       const key = `cancel:${request.id}`;
-      if (isActing(key)) return;
-      beginAction(key);
+      if (!beginAction(key)) return;
       const previousPeople = people;
       const previousRequests = requests;
       const previousPlanFeed = planFeed;
@@ -375,7 +384,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         endAction(key);
       }
     },
-    [beginAction, endAction, isActing, loadFriends, people, planFeed, requests, showNotice, userId],
+    [beginAction, endAction, loadFriends, people, planFeed, requests, showNotice, userId],
   );
 
   const openCreatePlan = useCallback((sourceTab: PlanSourceTab = "event") => {
@@ -446,8 +455,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     async (plan: FriendPlan) => {
       if (plan.joinRequestStatus === "pending") return;
       const key = `join:${plan.id}`;
-      if (isActing(key)) return;
-      beginAction(key);
+      if (!beginAction(key)) return;
       const previousPlanFeed = planFeed;
       try {
         setPlanFeed((current) =>
@@ -467,14 +475,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         endAction(key);
       }
     },
-    [beginAction, endAction, isActing, loadFriends, planFeed, showNotice, userId],
+    [beginAction, endAction, loadFriends, planFeed, showNotice, userId],
   );
 
   const handleBlockPerson = useCallback(
     async (person: FriendPerson) => {
       const key = `block:${person.id}`;
-      if (isActing(key)) return;
-      beginAction(key);
+      if (!beginAction(key)) return;
       const previousPeople = people;
       const previousRequests = requests;
       const previousPlans = plans;
@@ -498,14 +505,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         endAction(key);
       }
     },
-    [beginAction, endAction, isActing, loadFriends, people, planFeed, plans, requests, showNotice, userId],
+    [beginAction, endAction, loadFriends, people, planFeed, plans, requests, showNotice, userId],
   );
 
   const handleReportPerson = useCallback(
     async (person: FriendPerson) => {
       const key = `report:${person.id}`;
-      if (isActing(key)) return;
-      beginAction(key);
+      if (!beginAction(key)) return;
       try {
         await reportFriendUser(userId, person.id, { reason: "profile_review", context: "friends_profile" });
         showNotice("Thanks. We saved your report.");
@@ -515,7 +521,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         endAction(key);
       }
     },
-    [beginAction, endAction, isActing, showNotice, userId],
+    [beginAction, endAction, showNotice, userId],
   );
 
   const handleSharePlan = useCallback(
@@ -575,8 +581,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const handleSignalReact = useCallback(
     async (story: FriendStory) => {
       const key = `signal:react:${story.id}`;
-      if (isActing(key)) return;
-      beginAction(key);
+      if (!beginAction(key)) return;
       try {
         await reactToFriendStory(userId, story.id, "spark");
         successHaptic();
@@ -588,14 +593,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         endAction(key);
       }
     },
-    [beginAction, endAction, isActing, loadFriends, showNotice, userId],
+    [beginAction, endAction, loadFriends, showNotice, userId],
   );
 
   const handleSignalReply = useCallback(
     async (story: FriendStory) => {
       const key = `signal:reply:${story.id}`;
-      if (isActing(key)) return;
-      beginAction(key);
+      if (!beginAction(key)) return;
       try {
         const result = await replyToFriendStory(userId, story.id, "I'm down. Want to make a plan?");
         await loadFriends();
@@ -613,18 +617,21 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         endAction(key);
       }
     },
-    [beginAction, endAction, isActing, loadFriends, showNotice, userId],
+    [beginAction, endAction, loadFriends, showNotice, userId],
   );
 
   const handleSignalPlan = useCallback(
     (story: FriendStory) => {
+      const key = `signal:plan:${story.id}`;
+      if (!beginAction(key)) return;
       if (story.user) {
         openPlanForPerson(story.user);
-        return;
+      } else {
+        openCreatePlan();
       }
-      openCreatePlan();
+      setTimeout(() => endAction(key), 300);
     },
-    [openCreatePlan, openPlanForPerson],
+    [beginAction, endAction, openCreatePlan, openPlanForPerson],
   );
 
   const renderPeople = (showEmpty = true) => {
@@ -995,7 +1002,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         ) : null}
 
         {!loading ? (
-          <FriendSignalsRow stories={stories} onReact={handleSignalReact} onReply={handleSignalReply} onPlan={handleSignalPlan} />
+          <FriendSignalsRow
+            stories={stories}
+            onReact={handleSignalReact}
+            onReply={handleSignalReply}
+            onPlan={handleSignalPlan}
+            isBusy={(story, action) => isActing(`signal:${action}:${story.id}`)}
+          />
         ) : null}
 
         <View style={styles.searchBox}>

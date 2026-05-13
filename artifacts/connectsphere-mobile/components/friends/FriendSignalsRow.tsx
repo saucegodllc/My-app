@@ -13,9 +13,10 @@ type Props = {
   onReact: (story: FriendStory) => void;
   onReply: (story: FriendStory) => void;
   onPlan: (story: FriendStory) => void;
+  isBusy?: (story: FriendStory, action: "react" | "reply" | "plan") => boolean;
 };
 
-export default function FriendSignalsRow({ stories, onReact, onReply, onPlan }: Props) {
+export default function FriendSignalsRow({ stories, onReact, onReply, onPlan, isBusy }: Props) {
   if (!stories.length) {
     return (
       <View style={styles.empty}>
@@ -32,29 +33,49 @@ export default function FriendSignalsRow({ stories, onReact, onReply, onPlan }: 
         <Text style={styles.subtitle}>Moments and open-to-plans pings</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-        {stories.slice(0, 8).map((story) => (
-          <View key={story.id} style={styles.card}>
-            <Image source={{ uri: story.imageUrl ?? story.user?.photoUrl ?? FALLBACK_PHOTO }} style={styles.image} contentFit="cover" />
-            <Text style={styles.cardLabel}>{signalTitle(story)}</Text>
-            <Text style={styles.cardText} numberOfLines={2}>
-              {story.text ?? `${firstName(story.user?.name)} is open to plans.`}
-            </Text>
-            <Text style={styles.cardMeta} numberOfLines={1}>
-              {firstName(story.user?.name)}
-            </Text>
-            <View style={styles.actions}>
-              <Pressable onPress={() => onReact(story)} style={styles.iconButton} hitSlop={8}>
-                <Ionicons name="sparkles" size={14} color="#FFB6D9" />
-              </Pressable>
-              <Pressable onPress={() => onReply(story)} style={styles.actionButton}>
-                <Text style={styles.actionText}>Reply</Text>
-              </Pressable>
-              <Pressable onPress={() => onPlan(story)} style={styles.iconButton} hitSlop={8}>
-                <Ionicons name="calendar-outline" size={14} color="#FFB6D9" />
-              </Pressable>
+        {stories.slice(0, 8).map((story) => {
+          const reacting = isBusy?.(story, "react") ?? false;
+          const replying = isBusy?.(story, "reply") ?? false;
+          const planning = isBusy?.(story, "plan") ?? false;
+
+          return (
+            <View key={story.id} style={styles.card}>
+              <Image source={{ uri: story.imageUrl ?? story.user?.photoUrl ?? FALLBACK_PHOTO }} style={styles.image} contentFit="cover" />
+              <Text style={styles.cardLabel}>{signalTitle(story)}</Text>
+              <Text style={styles.cardText} numberOfLines={2}>
+                {story.text ?? `${firstName(story.user?.name)} is open to plans.`}
+              </Text>
+              <Text style={styles.cardMeta} numberOfLines={1}>
+                {firstName(story.user?.name)}
+              </Text>
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={() => onReact(story)}
+                  disabled={reacting}
+                  style={[styles.iconButton, reacting && styles.disabledButton]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="sparkles" size={14} color="#FFB6D9" />
+                </Pressable>
+                <Pressable
+                  onPress={() => onReply(story)}
+                  disabled={replying}
+                  style={[styles.actionButton, replying && styles.disabledButton]}
+                >
+                  <Text style={styles.actionText}>{replying ? "..." : "Reply"}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => onPlan(story)}
+                  disabled={planning}
+                  style={[styles.iconButton, planning && styles.disabledButton]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="calendar-outline" size={14} color="#FFB6D9" />
+                </Pressable>
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -99,6 +120,7 @@ const styles = StyleSheet.create({
     minHeight: 30,
   },
   actionText: { color: "#0A0A0B", fontSize: 12, fontWeight: "900" },
+  disabledButton: { opacity: 0.55 },
   empty: {
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.045)",
