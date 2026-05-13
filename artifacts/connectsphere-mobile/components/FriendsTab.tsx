@@ -24,9 +24,9 @@ import {
   personLocation,
   planVenue,
   planWhen,
-  requestKindLabel,
   titleTag,
 } from "@/components/friends/friendsLabels";
+import TodayCommandCenter from "@/components/friends/TodayCommandCenter";
 import { selectTodayCommand, type TodayCommand } from "@/components/friends/friendsMissionControl";
 
 import {
@@ -336,6 +336,45 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     [showNotice],
   );
 
+  const handleTodayPrimary = useCallback(
+    (command: TodayCommand) => {
+      if (command.kind === "request") {
+        setActiveTab("requests");
+        return;
+      }
+      if (command.kind === "plan") {
+        if (command.plan.chatId && (command.plan.isMember || command.plan.isCreator)) {
+          openConnectThread(command.plan.chatId);
+        } else {
+          setSelectedPlan(command.plan);
+        }
+        return;
+      }
+      if (command.kind === "person") {
+        handleConnect(command.person);
+        return;
+      }
+      if (command.kind === "signal") {
+        setActiveTab("people");
+        return;
+      }
+      openCreatePlan();
+    },
+    [handleConnect, openCreatePlan],
+  );
+
+  const handleTodaySecondary = useCallback(
+    (command: TodayCommand) => {
+      if (command.kind === "person") {
+        openPlanForPerson(command.person);
+      }
+      if (command.kind === "plan") {
+        handleSharePlan(command.plan);
+      }
+    },
+    [handleSharePlan, openPlanForPerson],
+  );
+
   const renderPeople = (showEmpty = true) => {
     if (loading) return <LoadingState />;
     if (!people.length) {
@@ -608,6 +647,8 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
             <Text style={styles.actionSecondaryText}>New Plan</Text>
           </Pressable>
         </View>
+
+        <TodayCommandCenter command={todayCommand} onPrimary={handleTodayPrimary} onSecondary={handleTodaySecondary} />
 
         <View style={styles.searchBox}>
           <Ionicons name="search" size={17} color="#8E8E99" />
