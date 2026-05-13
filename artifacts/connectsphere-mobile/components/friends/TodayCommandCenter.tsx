@@ -13,6 +13,14 @@ type Props = {
 export default function TodayCommandCenter({ command, onPrimary, onSecondary }: Props) {
   const showSecondary = command.kind === "person" || command.kind === "plan";
   const secondaryLabel = command.kind === "person" ? "Make Plan" : "Share";
+  const primaryLabel =
+    command.kind === "request"
+      ? "Review"
+      : command.kind === "signal"
+        ? "View People"
+        : command.kind === "plan" && !(command.plan.chatId && (command.plan.isMember || command.plan.isCreator))
+          ? "View Plan"
+          : command.primaryLabel;
 
   return (
     <LinearGradient colors={["rgba(255,45,168,0.22)", "rgba(255,255,255,0.055)"]} style={styles.card}>
@@ -35,7 +43,7 @@ export default function TodayCommandCenter({ command, onPrimary, onSecondary }: 
       <View style={styles.actions}>
         <Pressable onPress={() => onPrimary(command)} style={styles.primary}>
           <Text style={styles.primaryText} numberOfLines={1}>
-            {command.primaryLabel}
+            {primaryLabel}
           </Text>
         </Pressable>
         {showSecondary && onSecondary ? (

@@ -648,7 +648,9 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
           </Pressable>
         </View>
 
-        <TodayCommandCenter command={todayCommand} onPrimary={handleTodayPrimary} onSecondary={handleTodaySecondary} />
+        {!loading ? (
+          <TodayCommandCenter command={todayCommand} onPrimary={handleTodayPrimary} onSecondary={handleTodaySecondary} />
+        ) : null}
 
         <View style={styles.searchBox}>
           <Ionicons name="search" size={17} color="#8E8E99" />
