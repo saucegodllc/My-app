@@ -24,6 +24,73 @@ The main action model is:
 
 This keeps the tab immediate and useful while preserving the ConnectSphere advantage: people and real-world openings are connected.
 
+## Onboarding Personalization
+
+Opportunities should be relayed into onboarding so the tab feels personal the first time a user opens it. The existing onboarding intent step already has `Opportunities` as an intent and stores networking preferences in profile `modeData`, so the first implementation should extend that step rather than add a separate long questionnaire.
+
+When the user chooses `Opportunities`, onboarding should ask two friendly questions.
+
+### 1. Opportunity Preference
+
+Prompt:
+
+`What kind of opportunities do you want?`
+
+Choices:
+
+- `Hiring`
+- `Side Hustles`
+- `Pop-Ups`
+- `Events`
+- `People`
+- `Groups`
+
+This should support multiple selections. A user might want `Side Hustles`, `Events`, and `People`, while another user might only want `Hiring`.
+
+### 2. Circle Role
+
+Prompt:
+
+`How do you want to show up?`
+
+Choices:
+
+- `Looking`
+- `Hiring`
+- `Mentor`
+- `Collaborator`
+- `Professional`
+- `Local Plug`
+
+This should also support multiple selections, with a small limit such as three choices so the profile stays focused.
+
+The copy should not use the phrase `what kind of doors do you want` in onboarding. `Open doors` remains useful as a tab metaphor, but onboarding should use direct human language: `opportunities`, `show up`, `looking`, `hiring`, and `connect`.
+
+### Profile Storage
+
+The onboarding payload should preserve these answers in `modeData`:
+
+- `opportunityPreferences`: array of selected opportunity categories.
+- `opportunityRoles`: array of selected circle roles.
+- `networkingGoals`: keep for compatibility, derived from opportunity preferences.
+- `opportunityType`: keep for compatibility, using the first selected opportunity preference.
+- `networkingSubtype`: keep for compatibility, using the first selected circle role or first opportunity preference.
+
+This keeps the current backend contract usable while making the client data richer for the revamped tab.
+
+### Personalization Behavior
+
+The Opportunities tab should use onboarding answers to:
+
+- Set the initial `For You` ordering.
+- Highlight matching filters after first launch.
+- Explain relevance on cards, such as `Matches your Side Hustles interest` or `Good fit for mentors`.
+- Prefer people whose labels match the user's circle role.
+- Prefer groups and events connected to the user's opportunity preferences.
+- Make mock profile suggestions feel intentional instead of random.
+
+The user should still be able to explore every filter. Onboarding preferences should personalize ranking and copy, not lock content away.
+
 ## Audience Fit For Ages 18-50
 
 The tab must work for a wide age range without feeling childish or corporate.
