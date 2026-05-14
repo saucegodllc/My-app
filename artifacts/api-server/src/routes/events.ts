@@ -1,3 +1,6 @@
+import { randomUUID } from "crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { dirname, join } from "path";
 import { Router, type IRouter } from "express";
 
 const router: IRouter = Router();
@@ -10,6 +13,7 @@ interface TicketmasterEvent {
   dates?: {
     start?: { localDate?: string; localTime?: string; dateTime?: string };
     end?: { localDate?: string; localTime?: string };
+    status?: { code?: string };
   };
   priceRanges?: Array<{ min?: number; max?: number; currency?: string; type?: string }>;
   classifications?: Array<{
@@ -32,6 +36,69 @@ interface TicketmasterEvent {
   description?: string;
 }
 
+interface EventbriteEvent {
+  id: string;
+  name?: { text?: string; html?: string };
+  description?: { text?: string; html?: string };
+  url?: string;
+  start?: { local?: string; utc?: string };
+  end?: { local?: string; utc?: string };
+  logo?: { url?: string; original?: { url?: string } };
+  is_free?: boolean;
+  category_id?: string;
+  status?: string;
+  ticket_availability?: {
+    has_available_tickets?: boolean;
+    minimum_ticket_price?: { major_value?: string; currency?: string };
+  };
+  venue?: {
+    name?: string;
+    address?: {
+      city?: string;
+      region?: string;
+      postal_code?: string;
+      localized_address_display?: string;
+      latitude?: string;
+      longitude?: string;
+    };
+  };
+}
+
+interface EventbriteOrganization {
+  id: string;
+  name?: string;
+}
+
+interface MlbScheduleResponse {
+  dates?: Array<{
+    games?: Array<{
+      gamePk?: number;
+      gameDate?: string;
+      officialDate?: string;
+      link?: string;
+      status?: { detailedState?: string; abstractGameState?: string; statusCode?: string };
+      teams?: {
+        away?: { team?: { id?: number; name?: string; teamName?: string } };
+        home?: { team?: { id?: number; name?: string; teamName?: string } };
+      };
+      venue?: {
+        id?: number;
+        name?: string;
+        location?: {
+          address1?: string;
+          city?: string;
+          state?: string;
+          stateAbbrev?: string;
+          latitude?: string;
+          longitude?: string;
+        };
+      };
+    }>;
+  }>;
+}
+
+type EventSource = "ticketmaster" | "eventbrite" | "posh" | "mlb" | "mock";
+
 export interface MappedEvent {
   id: string;
   name: string;
@@ -48,17 +115,86 @@ export interface MappedEvent {
   isFree: boolean;
   price: string;
   category: string;
+  source?: EventSource;
+  sourceId?: string;
+  sourceLabel?: string;
+  status?: string;
+  updatedAt?: string;
+  lastSeenAt?: string;
+}
+
+interface EventProviderStatus {
+  name: EventSource;
+  label: string;
+  configured: boolean;
+  status: "live" | "disabled" | "error" | "stale";
+  count: number;
+  message?: string;
 }
 
 interface CachedData {
   events: MappedEvent[];
   total: number;
   hasMore: boolean;
+  providers: EventProviderStatus[];
+  configured: boolean;
   timestamp: number;
 }
 
+interface EventInterest {
+  id: string;
+  userId: string;
+  sourceType: EventSource;
+  sourceId: string;
+  eventName: string;
+  eventStartDate: string;
+  status: "interested" | "saved";
+  createdAt: string;
+}
+
+interface SocialDb {
+  users?: Array<{ id: string; name?: string; photoUrl?: string; city?: string; neighborhood?: string }>;
+  connections?: Array<{ id: string; userAId?: string; userBId?: string; userIds?: string[]; chatId?: string; createdAt: string }>;
+  plans?: Array<{
+    id: string;
+    creatorId?: string;
+    creatorUserId?: string;
+    title: string;
+    type?: string;
+    time?: string;
+    timeLabel?: string;
+    scheduledAt?: string;
+    location?: string;
+    sourceType?: "map" | "event" | "custom";
+    sourceId?: string;
+    sourceName?: string;
+    sourceImageUrl?: string;
+    chatId?: string;
+    createdAt: string;
+  }>;
+  planMembers?: Array<{ id: string; planId: string; userId: string; role: string }>;
+  planJoinRequests?: Array<{ id: string; planId: string; fromUserId: string; creatorId: string; status: "pending" | "accepted" | "declined"; createdAt: string }>;
+  messages?: Array<{ id: string; chatId: string; text: string; createdAt: string; system?: boolean }>;
+  eventInterests?: EventInterest[];
+}
+
 const cache = new Map<string, CachedData>();
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = Number(process.env.EVENTS_CACHE_TTL_MS ?? 60 * 1000);
+const DEFAULT_LOOKAHEAD_DAYS = Number(process.env.EVENTS_LOOKAHEAD_DAYS ?? 7);
+const SOUTH_FLORIDA_LATLONG = "25.7617,-80.1918";
+const SOUTH_FLORIDA_RADIUS_MILES = process.env.EVENTS_RADIUS_MILES ?? "60";
+const MARLINS_TEAM_ID = 146;
+const LOANDEPOT_PARK = {
+  name: "loanDepot park",
+  address: "501 Marlins Way, Miami, FL",
+  latitude: 25.7781,
+  longitude: -80.2196,
+};
+const workspaceRoot = process.cwd().endsWith(join("artifacts", "api-server"))
+  ? join(process.cwd(), "..", "..")
+  : process.cwd();
+const dbPath = join(workspaceRoot, "artifacts", "api-server", "db.json");
+const PROVIDER_TIMEOUT_MS = Number(process.env.EVENTS_PROVIDER_TIMEOUT_MS ?? 4500);
 
 const MIAMI_DADE_CITIES = new Set([
   "Miami", "Miami Beach", "Coral Gables", "Hialeah", "Doral", "Homestead",
@@ -113,16 +249,24 @@ function getNeighborhood(city?: string): string {
   return city;
 }
 
-function mapCategory(segment?: string, genre?: string): string {
-  const s = (segment ?? "").toLowerCase();
-  const g = (genre ?? "").toLowerCase();
-  if (g.includes("nightlife") || g.includes("club") || g.includes("dj")) return "Nightlife";
-  if (s.includes("music") || g.includes("music") || g.includes("concert")) return "Music";
-  if (s.includes("sport") || g.includes("sport")) return "Sports";
-  if (g.includes("art") || g.includes("film") || g.includes("theatre") || g.includes("comedy") || s.includes("art")) return "Arts";
-  if (g.includes("food") || g.includes("drink") || g.includes("culinar")) return "Food";
-  if (s.includes("music")) return "Music";
-  if (s.includes("art")) return "Arts";
+function stripHtml(value?: string): string {
+  return (value ?? "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function mapCategory(...values: Array<string | undefined>): string {
+  const text = values.filter(Boolean).join(" ").toLowerCase();
+  if (/(nightlife|club|dj|party|lounge|latin night|dance)/.test(text)) return "Nightlife";
+  if (/(music|concert|festival|singer|band|hip-hop|rap|reggaeton|latin|jazz|edm)/.test(text)) return "Music";
+  if (/(sport|basketball|baseball|football|soccer|hockey|boxing|mma|race|run|yoga|fitness|workout|pilates)/.test(text)) return "Sports";
+  if (/(art|film|theatre|theater|comedy|museum|gallery|fashion|paint|poetry|performing)/.test(text)) return "Arts";
+  if (/(food|drink|culinar|brunch|wine|beer|cocktail|restaurant|tasting|dinner)/.test(text)) return "Food";
+  if (/(business|network|conference|startup|career|workshop|tech|entrepreneur)/.test(text)) return "Business";
+  if (/(community|family|charity|fundraiser|market|meetup|wellness)/.test(text)) return "Community";
   return "Other";
 }
 
@@ -137,9 +281,19 @@ function toISONoMs(date: Date): string {
   return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
+async function fetchWithTimeout(url: string, init?: RequestInit) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function getDateRange(timeframe?: string): { startDateTime: string; endDateTime: string } {
   const now = new Date();
-  const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const lookahead = new Date(now.getTime() + DEFAULT_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000);
 
   if (timeframe === "weekend") {
     const dayOfWeek = now.getDay();
@@ -161,7 +315,155 @@ function getDateRange(timeframe?: string): { startDateTime: string; endDateTime:
     return { startDateTime: toISONoMs(now), endDateTime: toISONoMs(endOfWeek) };
   }
 
-  return { startDateTime: toISONoMs(now), endDateTime: toISONoMs(twoWeeksFromNow) };
+  return { startDateTime: toISONoMs(now), endDateTime: toISONoMs(lookahead) };
+}
+
+function safeNumber(value?: string | number): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function readSocialDb(): SocialDb {
+  if (!existsSync(dbPath)) return {};
+  try {
+    return JSON.parse(readFileSync(dbPath, "utf-8")) as SocialDb;
+  } catch {
+    return {};
+  }
+}
+
+function writeSocialDb(db: SocialDb) {
+  mkdirSync(dirname(dbPath), { recursive: true });
+  writeFileSync(dbPath, `${JSON.stringify(db, null, 2)}\n`);
+}
+
+function userProfile(db: SocialDb, userId: string) {
+  return db.users?.find((user) => user.id === userId) ?? { id: userId, name: "Someone" };
+}
+
+function friendIdsFor(db: SocialDb, userId: string) {
+  return new Set(
+    (db.connections ?? [])
+      .map((connection) => connection.userIds ?? [connection.userAId, connection.userBId].filter(Boolean))
+      .filter((ids): ids is string[] => Array.isArray(ids) && ids.includes(userId))
+      .map((ids) => ids.find((id) => id !== userId))
+      .filter((id): id is string => Boolean(id)),
+  );
+}
+
+function lastMessageForChat(db: SocialDb, chatId?: string) {
+  if (!chatId) return undefined;
+  return (db.messages ?? [])
+    .filter((message) => message.chatId === chatId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+}
+
+function toLocalDateTime(local?: string, utc?: string): string {
+  return local ?? utc ?? "";
+}
+
+function eventStartMs(event: MappedEvent): number {
+  const value = new Date(event.startDate).getTime();
+  return Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER;
+}
+
+function isFutureOrLiveEvent(event: MappedEvent): boolean {
+  const start = eventStartMs(event);
+  const end = event.endDate ? new Date(event.endDate).getTime() : Number.NaN;
+  const now = Date.now();
+  if (Number.isFinite(end)) return end >= now - 60 * 60 * 1000;
+  return start >= now - 60 * 60 * 1000;
+}
+
+function applyRequestFilters(
+  events: MappedEvent[],
+  options: { category?: unknown; freeOnly?: unknown; timeframe?: unknown; q?: unknown; area?: unknown },
+): MappedEvent[] {
+  let filtered = events.filter(isFutureOrLiveEvent);
+
+  if (typeof options.timeframe === "string" && (options.timeframe === "week" || options.timeframe === "weekend")) {
+    const { startDateTime, endDateTime } = getDateRange(options.timeframe);
+    const start = new Date(startDateTime).getTime();
+    const end = new Date(endDateTime).getTime();
+    filtered = filtered.filter((event) => {
+      const eventTime = eventStartMs(event);
+      return eventTime >= start && eventTime <= end;
+    });
+  }
+
+  if (options.category && options.category !== "All") {
+    filtered = filtered.filter((event) => event.category === String(options.category));
+  }
+
+  if (options.freeOnly === "true" || options.freeOnly === true) {
+    filtered = filtered.filter((event) => event.isFree);
+  }
+
+  const query = typeof options.q === "string" ? options.q.trim().toLowerCase() : "";
+  if (query) {
+    filtered = filtered.filter((event) =>
+      [event.name, event.venueName, event.venueAddress, event.neighborhood, event.category, event.description]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query)),
+    );
+  }
+
+  const area = typeof options.area === "string" ? options.area.trim().toLowerCase() : "";
+  if (area && area !== "all" && area !== "near me") {
+    filtered = filtered.filter((event) =>
+      [event.venueName, event.venueAddress, event.neighborhood]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(area)),
+    );
+  }
+
+  return filtered.sort((a, b) => eventStartMs(a) - eventStartMs(b));
+}
+
+function dedupeEvents(events: MappedEvent[]): MappedEvent[] {
+  const seen = new Map<string, MappedEvent>();
+  const sourceRank: Record<EventSource, number> = {
+    ticketmaster: 1,
+    mlb: 2,
+    eventbrite: 3,
+    posh: 4,
+    mock: 5,
+  };
+
+  for (const event of events) {
+    const startDay = event.startDate.slice(0, 10);
+    const key = [
+      event.name.toLowerCase().replace(/[^a-z0-9]+/g, ""),
+      (event.venueName || event.neighborhood).toLowerCase().replace(/[^a-z0-9]+/g, ""),
+      startDay,
+    ].join(":");
+
+    const current = seen.get(key);
+    if (!current) {
+      seen.set(key, event);
+      continue;
+    }
+
+    const currentRank = sourceRank[current.source ?? "mock"];
+    const nextRank = sourceRank[event.source ?? "mock"];
+    if (nextRank < currentRank || (!current.imageUrl && event.imageUrl)) {
+      seen.set(key, event);
+    }
+  }
+
+  return Array.from(seen.values());
+}
+
+function providerStatus(
+  name: EventSource,
+  label: string,
+  configured: boolean,
+  status: EventProviderStatus["status"],
+  count = 0,
+  message?: string,
+): EventProviderStatus {
+  return { name, label, configured, status, count, message };
 }
 
 const MOCK_EVENTS: MappedEvent[] = [
@@ -303,152 +605,653 @@ const MOCK_EVENTS: MappedEvent[] = [
   },
 ];
 
-router.get("/events", async (req, res) => {
-  const apiKey = process.env.TICKETMASTER_API_KEY;
+async function fetchTicketmasterEvents(apiKey: string, page: number, timeframe?: string, q?: string): Promise<{
+  events: MappedEvent[];
+  hasMore: boolean;
+}> {
+  const { startDateTime, endDateTime } = getDateRange(timeframe);
+  const params = new URLSearchParams({
+    apikey: apiKey,
+    latlong: SOUTH_FLORIDA_LATLONG,
+    radius: SOUTH_FLORIDA_RADIUS_MILES,
+    unit: "miles",
+    startDateTime,
+    endDateTime,
+    sort: "date,asc",
+    size: "100",
+    page: String(Math.max(page - 1, 0)),
+    countryCode: "US",
+  });
+  if (q?.trim()) params.set("keyword", q.trim());
 
-  if (!apiKey) {
-    const { category, freeOnly, timeframe } = req.query;
-    let events = [...MOCK_EVENTS];
-    if (typeof timeframe === "string" && (timeframe === "week" || timeframe === "weekend")) {
-      const { startDateTime, endDateTime } = getDateRange(timeframe);
-      const start = new Date(startDateTime).getTime();
-      const end = new Date(endDateTime).getTime();
-      events = events.filter((e) => {
-        const eventTime = new Date(e.startDate).getTime();
-        return eventTime >= start && eventTime <= end;
-      });
-    }
-    if (category && category !== "All") {
-      events = events.filter((e) => e.category === String(category));
-    }
-    if (freeOnly === "true") {
-      events = events.filter((e) => e.isFree);
-    }
-    return res.json({ events, total: events.length, hasMore: false, configured: true });
+  const response = await fetchWithTimeout(`https://app.ticketmaster.com/discovery/v2/events.json?${params.toString()}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Ticketmaster ${response.status}: ${body.slice(0, 200)}`);
   }
 
-  const { page = "1", category, freeOnly, timeframe } = req.query;
-  const cacheKey = `${page}-${category ?? ""}-${freeOnly ?? ""}-${timeframe ?? ""}`;
+  const data = await response.json() as {
+    _embedded?: { events?: TicketmasterEvent[] };
+    page?: { totalPages?: number; number?: number };
+  };
 
-  const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return res.json({ events: cached.events, total: cached.total, hasMore: cached.hasMore, configured: true });
-  }
+  const rawEvents: TicketmasterEvent[] = data._embedded?.events ?? [];
+  const now = new Date().toISOString();
 
-  try {
-    const { startDateTime, endDateTime } = getDateRange(typeof timeframe === "string" ? timeframe : undefined);
+  const events = rawEvents
+    .filter((event) => {
+      const status = event.dates?.status?.code?.toLowerCase();
+      if (status === "cancelled" || status === "canceled" || status === "offsale") return false;
+      const venue = event._embedded?.venues?.[0];
+      return isInSouthFlorida(venue?.city?.name, venue?.state?.stateCode, venue?.postalCode);
+    })
+    .map((event) => {
+      const venue = event._embedded?.venues?.[0];
+      const classification = event.classifications?.[0];
+      const segment = classification?.segment?.name;
+      const genre = classification?.genre?.name;
+      const subGenre = classification?.subGenre?.name;
+      const priceRange = event.priceRanges?.[0];
+      const isFree = priceRange ? priceRange.min === 0 && priceRange.max === 0 : false;
+      const price = isFree
+        ? "Free"
+        : priceRange?.min !== undefined
+          ? `From $${priceRange.min.toFixed(0)}`
+          : "Check tickets";
 
-    const params = new URLSearchParams({
-      apikey: apiKey,
-      geoPoint: "25.7617,-80.1918",
-      radius: "60",
-      unit: "miles",
-      startDateTime,
-      endDateTime,
-      sort: "date,asc",
-      size: "50",
-      page: String(Number(page) - 1),
-      countryCode: "US",
+      const startLocal = event.dates?.start?.localDate
+        ? `${event.dates.start.localDate}T${event.dates.start.localTime ?? "00:00:00"}`
+        : event.dates?.start?.dateTime ?? "";
+
+      const endLocal = event.dates?.end?.localDate
+        ? `${event.dates.end.localDate}T${event.dates.end.localTime ?? "00:00:00"}`
+        : "";
+
+      const venueCity = venue?.city?.name ?? "";
+      const venueAddress = [venue?.address?.line1, venueCity, "FL"].filter(Boolean).join(", ");
+
+      return {
+        id: `ticketmaster-${event.id}`,
+        sourceId: event.id,
+        source: "ticketmaster" as const,
+        sourceLabel: "Ticketmaster",
+        name: event.name,
+        description: stripHtml(event.description ?? event.info ?? event.pleaseNote ?? ""),
+        startDate: startLocal,
+        endDate: endLocal,
+        url: event.url,
+        imageUrl: getBestImage(event.images),
+        venueName: venue?.name ?? "",
+        venueAddress,
+        neighborhood: getNeighborhood(venueCity),
+        latitude: safeNumber(venue?.location?.latitude),
+        longitude: safeNumber(venue?.location?.longitude),
+        isFree,
+        price,
+        category: mapCategory(segment, genre, subGenre, event.name),
+        status: event.dates?.status?.code ?? "scheduled",
+        lastSeenAt: now,
+      };
     });
 
-    const categoryMap: Record<string, string> = {
-      Music: "KZFzniwnSyZfZ7v7nJ",
-      Sports: "KZFzniwnSyZfZ7v7nE",
-      Arts: "KZFzniwnSyZfZ7v7na",
-      Nightlife: "KZFzniwnSyZfZ7v7n1",
-      Food: "KZFzniwnSyZfZ7v7nP",
-    };
+  return {
+    events,
+    hasMore: (data.page?.number ?? 0) < (data.page?.totalPages ?? 1) - 1,
+  };
+}
 
-    if (category && category !== "All" && categoryMap[String(category)]) {
-      params.set("segmentId", categoryMap[String(category)]);
+async function fetchMarlinsEvents(timeframe?: string): Promise<MappedEvent[]> {
+  const { startDateTime } = getDateRange(timeframe === "weekend" ? "weekend" : "week");
+  const start = new Date(startDateTime);
+  const end = new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const formatMlbDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const params = new URLSearchParams({
+    sportId: "1",
+    teamId: String(MARLINS_TEAM_ID),
+    startDate: formatMlbDate(start),
+    endDate: formatMlbDate(end),
+    hydrate: "team,venue",
+  });
+
+  const response = await fetchWithTimeout(`https://statsapi.mlb.com/api/v1/schedule?${params.toString()}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`MLB schedule ${response.status}: ${body.slice(0, 200)}`);
+  }
+
+  const data = await response.json() as MlbScheduleResponse;
+  const now = new Date().toISOString();
+
+  return (data.dates ?? [])
+    .flatMap((date) => date.games ?? [])
+    .filter((game) => {
+      const state = game.status?.abstractGameState?.toLowerCase();
+      const detailed = game.status?.detailedState?.toLowerCase();
+      if (state === "final" || detailed === "final" || detailed === "game over") return false;
+      return game.teams?.home?.team?.id === MARLINS_TEAM_ID || game.teams?.away?.team?.id === MARLINS_TEAM_ID;
+    })
+    .map((game) => {
+      const away = game.teams?.away?.team?.teamName ?? game.teams?.away?.team?.name ?? "Opponent";
+      const home = game.teams?.home?.team?.teamName ?? game.teams?.home?.team?.name ?? "Marlins";
+      const isHome = game.teams?.home?.team?.id === MARLINS_TEAM_ID;
+      const venue = game.venue;
+      const city = venue?.location?.city ?? "Miami";
+      const state = venue?.location?.stateAbbrev ?? venue?.location?.state ?? "FL";
+      const venueAddress = [venue?.location?.address1, city, state].filter(Boolean).join(", ") || LOANDEPOT_PARK.address;
+      const startDate = game.gameDate ?? `${game.officialDate ?? formatMlbDate(start)}T18:40:00`;
+      const end = new Date(new Date(startDate).getTime() + 3.5 * 60 * 60 * 1000);
+      const gamePk = String(game.gamePk ?? `${game.officialDate}-${away}`);
+
+      return {
+        id: `mlb-marlins-${gamePk}`,
+        sourceId: `mlb-marlins-${gamePk}`,
+        source: "mlb" as const,
+        sourceLabel: "MLB",
+        name: isHome ? `${away} at Miami Marlins` : `Miami Marlins at ${home}`,
+        description: isHome
+          ? `${home} home game at ${venue?.name ?? LOANDEPOT_PARK.name}. Pick this when the plan needs a real game-night anchor.`
+          : `Real Marlins away game. Use it as a game-night watch plan with your group.`,
+        startDate,
+        endDate: end.toISOString(),
+        url: isHome ? "https://www.mlb.com/marlins/tickets/single-game-tickets" : "https://www.mlb.com/marlins/schedule",
+        imageUrl: "https://images.unsplash.com/photo-1508344928928-7165b67de128?w=900&q=80",
+        venueName: isHome ? venue?.name ?? LOANDEPOT_PARK.name : "Marlins watch plan",
+        venueAddress: isHome ? venueAddress : LOANDEPOT_PARK.address,
+        neighborhood: "Miami",
+        latitude: isHome ? safeNumber(venue?.location?.latitude) ?? LOANDEPOT_PARK.latitude : LOANDEPOT_PARK.latitude,
+        longitude: isHome ? safeNumber(venue?.location?.longitude) ?? LOANDEPOT_PARK.longitude : LOANDEPOT_PARK.longitude,
+        isFree: false,
+        price: "Tickets available",
+        category: "Sports",
+        status: game.status?.detailedState ?? "scheduled",
+        updatedAt: now,
+        lastSeenAt: now,
+      };
+    });
+}
+
+function mapEventbriteEvents(rawEvents: EventbriteEvent[]): MappedEvent[] {
+  const categoryMap: Record<string, string> = {
+    "101": "Business",
+    "103": "Music",
+    "105": "Arts",
+    "107": "Sports",
+    "108": "Sports",
+    "110": "Food",
+    "113": "Community",
+  };
+  const now = new Date().toISOString();
+
+  return rawEvents
+    .filter((event) => {
+      if (event.status && !["live", "started"].includes(event.status)) return false;
+      const address = event.venue?.address;
+      return isInSouthFlorida(address?.city, address?.region, address?.postal_code);
+    })
+    .map((event) => {
+      const address = event.venue?.address;
+      const ticketPrice = event.ticket_availability?.minimum_ticket_price?.major_value;
+      const isFree = event.is_free === true || ticketPrice === "0.00";
+      return {
+        id: `eventbrite-${event.id}`,
+        sourceId: event.id,
+        source: "eventbrite" as const,
+        sourceLabel: "Eventbrite",
+        name: stripHtml(event.name?.text ?? event.name?.html ?? "Untitled Event"),
+        description: stripHtml(event.description?.text ?? event.description?.html ?? ""),
+        startDate: toLocalDateTime(event.start?.local, event.start?.utc),
+        endDate: toLocalDateTime(event.end?.local, event.end?.utc),
+        url: event.url ?? "",
+        imageUrl: event.logo?.original?.url ?? event.logo?.url ?? "",
+        venueName: event.venue?.name ?? "",
+        venueAddress: address?.localized_address_display ?? "",
+        neighborhood: getNeighborhood(address?.city),
+        latitude: safeNumber(address?.latitude),
+        longitude: safeNumber(address?.longitude),
+        isFree,
+        price: isFree ? "Free" : ticketPrice ? `From $${Number(ticketPrice).toFixed(0)}` : "Check tickets",
+        category: categoryMap[event.category_id ?? ""] ?? mapCategory(event.name?.text, event.description?.text),
+        status: event.status ?? "scheduled",
+        lastSeenAt: now,
+      };
+    });
+}
+
+async function fetchEventbritePublicSearchEvents(token: string, page: number, timeframe?: string): Promise<{
+  events: MappedEvent[];
+  hasMore: boolean;
+}> {
+  const { startDateTime, endDateTime } = getDateRange(timeframe);
+  const params = new URLSearchParams({
+    expand: "venue,ticket_availability,logo",
+    "location.latitude": SOUTH_FLORIDA_LATLONG.split(",")[0],
+    "location.longitude": SOUTH_FLORIDA_LATLONG.split(",")[1],
+    "location.within": `${SOUTH_FLORIDA_RADIUS_MILES}mi`,
+    "start_date.range_start": startDateTime,
+    "start_date.range_end": endDateTime,
+    sort_by: "date",
+    page: String(Math.max(page, 1)),
+  });
+
+  const response = await fetch(`https://www.eventbriteapi.com/v3/events/search/?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Eventbrite ${response.status}: ${body.slice(0, 200)}`);
+  }
+
+  const data = await response.json() as {
+    events?: EventbriteEvent[];
+    pagination?: { has_more_items?: boolean };
+  };
+
+  const events = mapEventbriteEvents(data.events ?? []);
+
+  return { events, hasMore: data.pagination?.has_more_items === true };
+}
+
+async function fetchEventbriteOrganizationEvents(token: string, page: number): Promise<{
+  events: MappedEvent[];
+  hasMore: boolean;
+}> {
+  const configuredOrgIds = (process.env.EVENTBRITE_ORGANIZATION_ID ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  let organizationIds = configuredOrgIds;
+
+  if (organizationIds.length === 0) {
+    const orgResponse = await fetch("https://www.eventbriteapi.com/v3/users/me/organizations/", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!orgResponse.ok) {
+      const body = await orgResponse.text().catch(() => "");
+      throw new Error(`Eventbrite organizations ${orgResponse.status}: ${body.slice(0, 200)}`);
     }
 
-    const tmUrl = `https://app.ticketmaster.com/discovery/v2/events.json?${params.toString()}`;
-    const response = await fetch(tmUrl);
+    const orgData = await orgResponse.json() as { organizations?: EventbriteOrganization[] };
+    organizationIds = (orgData.organizations ?? []).map((org) => org.id).filter(Boolean);
+  }
+
+  if (organizationIds.length === 0) {
+    throw new Error("Eventbrite token is valid, but no organizations were found for this private token.");
+  }
+
+  let events: MappedEvent[] = [];
+  let hasMore = false;
+
+  for (const organizationId of organizationIds.slice(0, 5)) {
+    const params = new URLSearchParams({
+      status: "live",
+      expand: "venue,ticket_availability,logo",
+      order_by: "start_asc",
+      page: String(Math.max(page, 1)),
+    });
+
+    const response = await fetch(
+      `https://www.eventbriteapi.com/v3/organizations/${encodeURIComponent(organizationId)}/events/?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
 
     if (!response.ok) {
       const body = await response.text().catch(() => "");
-      console.error("Ticketmaster error:", response.status, body.slice(0, 300));
-      return res.status(502).json({ error: "Failed to fetch events", configured: true });
+      throw new Error(`Eventbrite organization events ${response.status}: ${body.slice(0, 200)}`);
     }
 
     const data = await response.json() as {
-      _embedded?: { events?: TicketmasterEvent[] };
-      page?: { totalElements?: number; totalPages?: number; number?: number; size?: number };
+      events?: EventbriteEvent[];
+      pagination?: { has_more_items?: boolean };
     };
 
-    const rawEvents: TicketmasterEvent[] = data._embedded?.events ?? [];
+    events = events.concat(mapEventbriteEvents(data.events ?? []));
+    hasMore = hasMore || data.pagination?.has_more_items === true;
+  }
 
-    let events: MappedEvent[] = rawEvents
-      .filter((e) => {
-        const venue = e._embedded?.venues?.[0];
-        return isInSouthFlorida(
-          venue?.city?.name,
-          venue?.state?.stateCode,
-          venue?.postalCode,
-        );
+  return { events, hasMore };
+}
+
+async function fetchEventbriteEvents(token: string, page: number, timeframe?: string): Promise<{
+  events: MappedEvent[];
+  hasMore: boolean;
+}> {
+  if (process.env.EVENTBRITE_USE_PUBLIC_SEARCH === "true") {
+    try {
+      return await fetchEventbritePublicSearchEvents(token, page, timeframe);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (!message.includes("404")) throw err;
+    }
+  }
+
+  return fetchEventbriteOrganizationEvents(token, page);
+}
+
+function readString(payload: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function readNumber(payload: Record<string, unknown>, keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = payload[key];
+    const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+async function fetchPoshEvents(feedUrl: string, apiKey?: string, timeframe?: string): Promise<{
+  events: MappedEvent[];
+  hasMore: boolean;
+}> {
+  const { startDateTime, endDateTime } = getDateRange(timeframe);
+  const url = new URL(feedUrl);
+  url.searchParams.set("latlong", SOUTH_FLORIDA_LATLONG);
+  url.searchParams.set("radiusMiles", SOUTH_FLORIDA_RADIUS_MILES);
+  url.searchParams.set("startDateTime", startDateTime);
+  url.searchParams.set("endDateTime", endDateTime);
+
+  const response = await fetch(url, {
+    headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Posh feed ${response.status}: ${body.slice(0, 200)}`);
+  }
+
+  const payload = await response.json() as unknown;
+  const rows = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as { events?: unknown[] }).events)
+      ? (payload as { events: unknown[] }).events
+      : [];
+
+  const now = new Date().toISOString();
+  const events = rows
+    .filter((row): row is Record<string, unknown> => row !== null && typeof row === "object")
+    .map((row) => {
+      const city = readString(row, ["city", "neighborhood"]);
+      const start = readString(row, ["startDate", "startDateTime", "startsAt", "start"]);
+      const id = readString(row, ["id", "eventId", "slug"]) || `${readString(row, ["name", "title"])}-${start}`;
+      const price = readString(row, ["price", "ticketPrice"]);
+      const isFree = price.toLowerCase() === "free" || price === "$0";
+
+      return {
+        id: `posh-${id}`,
+        sourceId: id,
+        source: "posh" as const,
+        sourceLabel: "Posh",
+        name: readString(row, ["name", "title"]),
+        description: stripHtml(readString(row, ["description", "summary"])),
+        startDate: start,
+        endDate: readString(row, ["endDate", "endDateTime", "endsAt", "end"]),
+        url: readString(row, ["url", "ticketUrl", "link"]),
+        imageUrl: readString(row, ["imageUrl", "image", "coverImageUrl", "posterUrl"]),
+        venueName: readString(row, ["venueName", "venue", "locationName"]),
+        venueAddress: readString(row, ["venueAddress", "address", "location"]),
+        neighborhood: getNeighborhood(city),
+        latitude: readNumber(row, ["latitude", "lat"]),
+        longitude: readNumber(row, ["longitude", "lng", "lon"]),
+        isFree,
+        price: isFree ? "Free" : price || "Check tickets",
+        category: mapCategory(readString(row, ["category", "type"]), readString(row, ["name", "title"])),
+        status: readString(row, ["status"]) || "scheduled",
+        lastSeenAt: now,
+      };
+    })
+    .filter((event) => event.name && event.startDate);
+
+  return { events, hasMore: false };
+}
+
+router.get("/events", async (req, res) => {
+  const { page = "1", category, freeOnly, timeframe, q, area } = req.query;
+  const pageNumber = Number(page) || 1;
+  const cacheKey = `${pageNumber}-${category ?? ""}-${freeOnly ?? ""}-${timeframe ?? ""}-${q ?? ""}-${area ?? ""}`;
+
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return res.json({
+      events: cached.events,
+      total: cached.total,
+      hasMore: cached.hasMore,
+      configured: cached.configured,
+      providers: cached.providers,
+      refreshedAt: new Date(cached.timestamp).toISOString(),
+      cacheTtlMs: CACHE_TTL,
+    });
+  }
+
+  const ticketmasterKey = process.env.TICKETMASTER_API_KEY;
+  const providers: EventProviderStatus[] = [];
+  let marlinsEvents: MappedEvent[] = [];
+  try {
+    marlinsEvents = await fetchMarlinsEvents(typeof timeframe === "string" ? timeframe : undefined);
+    providers.push(providerStatus("mlb", "Marlins Games", true, "live", marlinsEvents.length));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "MLB schedule provider failed";
+    console.error("MLB schedule provider error:", message);
+    providers.push(providerStatus("mlb", "Marlins Games", true, "error", 0, message));
+  }
+
+  if (!ticketmasterKey) {
+    const useMocks = process.env.EVENTS_USE_MOCKS === "true";
+    const events = useMocks
+      ? applyRequestFilters(
+        [...marlinsEvents, ...MOCK_EVENTS.map((event) => ({ ...event, source: "mock" as const, sourceLabel: "Demo" }))],
+        { category, freeOnly, timeframe, q, area },
+      )
+      : applyRequestFilters(marlinsEvents, { category, freeOnly, timeframe, q, area });
+    providers.push(providerStatus("ticketmaster", "Ticketmaster", false, "disabled", events.length, "Missing TICKETMASTER_API_KEY"));
+
+    return res.json({
+      events,
+      total: events.length,
+      hasMore: false,
+      configured: useMocks || marlinsEvents.length > 0,
+      providers,
+      refreshedAt: new Date().toISOString(),
+      cacheTtlMs: CACHE_TTL,
+    });
+  }
+
+  let ticketmasterResult: { events: MappedEvent[]; hasMore: boolean };
+  try {
+    ticketmasterResult = await fetchTicketmasterEvents(
+      ticketmasterKey,
+      pageNumber,
+      typeof timeframe === "string" ? timeframe : undefined,
+      typeof q === "string" ? q : undefined,
+    );
+    providers.push(providerStatus("ticketmaster", "Ticketmaster", true, "live", ticketmasterResult.events.length));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Ticketmaster provider failed";
+    console.error("Ticketmaster events provider error:", message);
+    providers.push(providerStatus("ticketmaster", "Ticketmaster", true, "error", 0, message));
+
+    if (cached && cached.events.length > 0) {
+      return res.json({
+        events: cached.events,
+        total: cached.total,
+        hasMore: cached.hasMore,
+        configured: true,
+        providers: providers.map((provider) => ({ ...provider, status: "stale" as const })),
+        refreshedAt: new Date(cached.timestamp).toISOString(),
+        cacheTtlMs: CACHE_TTL,
+        stale: true,
+      });
+    }
+
+    if (marlinsEvents.length > 0) {
+      const events = applyRequestFilters(dedupeEvents(marlinsEvents), { category, freeOnly, timeframe, q, area });
+      cache.set(cacheKey, { events, total: events.length, hasMore: false, providers, configured: true, timestamp: Date.now() });
+      return res.json({
+        events,
+        total: events.length,
+        hasMore: false,
+        configured: true,
+        providers,
+        refreshedAt: new Date().toISOString(),
+        cacheTtlMs: CACHE_TTL,
+      });
+    }
+
+    return res.status(502).json({
+      events: [],
+      total: 0,
+      hasMore: false,
+      configured: true,
+      providers,
+      refreshedAt: new Date().toISOString(),
+      cacheTtlMs: CACHE_TTL,
+      error: "Failed to fetch Ticketmaster events",
+    });
+  }
+
+  const events = applyRequestFilters(dedupeEvents([...marlinsEvents, ...ticketmasterResult.events]), { category, freeOnly, timeframe, q, area });
+
+  if (events.length === 0 && cached && cached.events.length > 0) {
+    return res.json({
+      events: cached.events,
+      total: cached.total,
+      hasMore: cached.hasMore,
+      configured: true,
+      providers: providers.map((provider) =>
+        provider.status === "live" ? provider : { ...provider, status: "stale" as const },
+      ),
+      refreshedAt: new Date(cached.timestamp).toISOString(),
+      cacheTtlMs: CACHE_TTL,
+      stale: true,
+    });
+  }
+
+  const total = events.length;
+  cache.set(cacheKey, { events, total, hasMore: ticketmasterResult.hasMore, providers, configured: true, timestamp: Date.now() });
+
+  return res.json({
+    events,
+    total,
+    hasMore: ticketmasterResult.hasMore,
+    configured: true,
+    providers,
+    refreshedAt: new Date().toISOString(),
+    cacheTtlMs: CACHE_TTL,
+  });
+});
+
+router.post("/events/interest/toggle", (req, res) => {
+  const db = readSocialDb();
+  db.eventInterests = db.eventInterests ?? [];
+  const userId = String(req.body.userId ?? "").trim();
+  const sourceId = String(req.body.sourceId ?? "").trim();
+  const eventName = String(req.body.eventName ?? "Event");
+  const eventStartDate = String(req.body.eventStartDate ?? "");
+  const sourceType = ["ticketmaster", "eventbrite", "posh", "mlb", "mock"].includes(String(req.body.sourceType))
+    ? String(req.body.sourceType) as EventSource
+    : "ticketmaster";
+  const status = req.body.status === "saved" ? "saved" : "interested";
+  if (!userId || !sourceId) return res.status(400).json({ error: "userId and sourceId are required" });
+
+  const existing = db.eventInterests.find((interest) =>
+    interest.userId === userId && interest.sourceType === sourceType && interest.sourceId === sourceId,
+  );
+  if (existing?.status === status) {
+    db.eventInterests = db.eventInterests.filter((interest) => interest.id !== existing.id);
+    writeSocialDb(db);
+    return res.json({ interest: null, status: null });
+  }
+
+  const interest = existing ?? {
+    id: randomUUID(),
+    userId,
+    sourceType,
+    sourceId,
+    eventName,
+    eventStartDate,
+    status,
+    createdAt: new Date().toISOString(),
+  };
+  interest.status = status;
+  interest.eventName = eventName;
+  interest.eventStartDate = eventStartDate;
+  if (!existing) db.eventInterests.push(interest);
+  writeSocialDb(db);
+  return res.json({ interest, status: interest.status });
+});
+
+router.get("/events/context/:userId", (req, res) => {
+  const db = readSocialDb();
+  const userId = req.params.userId;
+  const sourceIds = String(req.query.sourceIds ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  const friendIds = friendIdsFor(db, userId);
+  const contexts = sourceIds.map((sourceId) => {
+    const plans = (db.plans ?? []).filter((plan) => plan.sourceType === "event" && plan.sourceId === sourceId);
+    const myPlan = plans.find((plan) => {
+      const creatorId = plan.creatorId ?? plan.creatorUserId;
+      return creatorId === userId || (db.planMembers ?? []).some((member) => member.planId === plan.id && member.userId === userId);
+    });
+    const joinablePlans = plans
+      .filter((plan) => {
+        const creatorId = plan.creatorId ?? plan.creatorUserId;
+        if (!creatorId || creatorId === userId) return false;
+        if ((db.planMembers ?? []).some((member) => member.planId === plan.id && member.userId === userId)) return false;
+        return true;
       })
-      .map((e) => {
-        const venue = e._embedded?.venues?.[0];
-        const classification = e.classifications?.[0];
-        const segment = classification?.segment?.name;
-        const genre = classification?.genre?.name;
-        const priceRange = e.priceRanges?.[0];
-        const isFree = !priceRange || (priceRange.min === 0 && priceRange.max === 0);
-        const price = isFree
-          ? "Free"
-          : priceRange
-          ? `From $${priceRange.min?.toFixed(0)}`
-          : "Paid";
-
-        const startLocal = e.dates?.start?.localDate
-          ? `${e.dates.start.localDate}T${e.dates.start.localTime ?? "00:00:00"}`
-          : e.dates?.start?.dateTime ?? "";
-
-        const endLocal = e.dates?.end?.localDate
-          ? `${e.dates.end.localDate}T${e.dates.end.localTime ?? "00:00:00"}`
-          : "";
-
-        const venueCity = venue?.city?.name ?? "";
-        const venueAddr = [venue?.address?.line1, venueCity, "FL"].filter(Boolean).join(", ");
-        const neighborhood = getNeighborhood(venueCity);
-
+      .slice(0, 4)
+      .map((plan) => {
+        const members = (db.planMembers ?? []).filter((member) => member.planId === plan.id);
+        const joinRequest = (db.planJoinRequests ?? []).find((request) =>
+          request.planId === plan.id && request.fromUserId === userId,
+        );
         return {
-          id: e.id,
-          name: e.name,
-          description: e.description ?? e.info ?? e.pleaseNote ?? "",
-          startDate: startLocal,
-          endDate: endLocal,
-          url: e.url,
-          imageUrl: getBestImage(e.images),
-          venueName: venue?.name ?? "",
-          venueAddress: venueAddr,
-          neighborhood,
-          latitude: venue?.location?.latitude ? parseFloat(venue.location.latitude) : undefined,
-          longitude: venue?.location?.longitude ? parseFloat(venue.location.longitude) : undefined,
-          isFree,
-          price,
-          category: mapCategory(segment, genre),
+          ...plan,
+          creatorId: plan.creatorId ?? plan.creatorUserId,
+          creator: userProfile(db, plan.creatorId ?? plan.creatorUserId ?? ""),
+          peopleGoing: members.length,
+          members: members.map((member) => ({ ...member, user: userProfile(db, member.userId) })),
+          joinRequestStatus: joinRequest?.status ?? null,
+          joinRequestId: joinRequest?.id,
+          lastMessage: lastMessageForChat(db, plan.chatId),
         };
       });
+    const interests = (db.eventInterests ?? []).filter((interest) => interest.sourceId === sourceId);
+    const myInterest = interests.find((interest) => interest.userId === userId);
+    const friendInterestedUsers = interests
+      .filter((interest) => friendIds.has(interest.userId))
+      .slice(0, 4)
+      .map((interest) => userProfile(db, interest.userId));
+    return {
+      sourceId,
+      interestedCount: interests.length,
+      friendInterestedUsers,
+      planCount: plans.length,
+      myPlan: myPlan ? {
+        ...myPlan,
+        creatorId: myPlan.creatorId ?? myPlan.creatorUserId,
+        creator: userProfile(db, myPlan.creatorId ?? myPlan.creatorUserId ?? ""),
+        peopleGoing: (db.planMembers ?? []).filter((member) => member.planId === myPlan.id).length,
+        lastMessage: lastMessageForChat(db, myPlan.chatId),
+      } : null,
+      joinablePlans,
+      myInterestStatus: myInterest?.status ?? null,
+    };
+  });
 
-    if (freeOnly === "true") {
-      events = events.filter((e) => e.isFree);
-    }
-
-    if (category && category !== "All") {
-      events = events.filter((e) => e.category === String(category));
-    }
-
-    const hasMore = (data.page?.number ?? 0) < (data.page?.totalPages ?? 1) - 1;
-    const total = events.length;
-    cache.set(cacheKey, { events, total, hasMore, timestamp: Date.now() });
-
-    return res.json({ events, total, hasMore, configured: true });
-  } catch (err) {
-    console.error("Events API error:", err);
-    return res.status(500).json({ error: "Failed to fetch events", configured: true });
-  }
+  return res.json({
+    contexts,
+    bySourceId: Object.fromEntries(contexts.map((context) => [context.sourceId, context])),
+  });
 });
 
 export default router;

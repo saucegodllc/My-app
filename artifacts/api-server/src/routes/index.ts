@@ -17,6 +17,7 @@ import networkRouter from "./network";
 import opportunitiesRouter from "./opportunities";
 import friendsRouter from "./friends";
 import datingRouter from "./dating";
+import doubleDateRouter from "./doubleDate";
 
 const router: IRouter = Router();
 
@@ -30,6 +31,7 @@ router.use(profilesRouter);
 router.use(discoveryRouter);
 router.use(matchesRouter);
 router.use(datingRouter);
+router.use(doubleDateRouter);
 router.use(friendsRouter);
 router.use(messagesRouter);
 router.use(subscriptionsRouter);

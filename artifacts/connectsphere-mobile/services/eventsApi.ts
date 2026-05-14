@@ -24,7 +24,7 @@ export function getEventContexts(userId: string, sourceIds: string[]) {
 export function toggleEventInterest(input: {
   userId: string;
   sourceId: string;
-  sourceType?: "ticketmaster" | "eventbrite" | "posh" | "mock";
+  sourceType?: "ticketmaster" | "eventbrite" | "posh" | "mlb" | "mock";
   eventName: string;
   eventStartDate: string;
   status?: "interested" | "saved";

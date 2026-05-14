@@ -1,10 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 
-import NetworkingTab from "@/components/NetworkingTab";
 import DoubleDateTab from "@/components/DoubleDateTab";
 import FriendsHubTab from "@/components/FriendsTab";
 import { ShotBottomSheet, ShotToast } from "@/components/ShotBottomSheet";
@@ -88,13 +87,6 @@ const tabs: Theme[] = [
     icon: "people",
     accent: ["#3B82F6", "#6366F1", "#8B5CF6"],
     glow: "#3B82F6",
-  },
-  {
-    id: "networking",
-    label: "Opportunities",
-    icon: "briefcase",
-    accent: ["#34D399", "#2DD4BF", "#22D3EE"],
-    glow: "#2DD4BF",
   },
 ];
 
@@ -779,6 +771,7 @@ const friendFeedItems: FriendFeedItem[] = [
 
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ intent?: string; subtab?: string }>();
   const { height: winH } = useWindowDimensions();
   const topInset = Platform.OS === "web" ? 14 : Math.max(insets.top, 12);
   // Web spec: `pb-[calc(env(safe-area-inset-bottom)+78px)]` — 78px clears the
@@ -806,6 +799,18 @@ export default function DiscoverScreen() {
   const [shotPremiumRequired, setShotPremiumRequired] = useState(false);
   const [shotSending, setShotSending] = useState(false);
   const [shotToastVisible, setShotToastVisible] = useState(false);
+
+  useEffect(() => {
+    if (params.intent === "dating") {
+      setActiveIntent("dating");
+      if (params.subtab === "Double Dates") setActiveSubTab("Double Dates");
+      setCardIndex(0);
+    } else if (params.intent === "friends") {
+      setActiveIntent("friends");
+      setActiveSubTab("For You");
+      setCardIndex(0);
+    }
+  }, [params.intent, params.subtab]);
 
   const theme = tabs.find((tab) => tab.id === activeIntent)!;
   const { data: datingFeed } = useGetDiscoveryFeed(
@@ -1039,7 +1044,7 @@ export default function DiscoverScreen() {
           })}
         </View>
 
-        {/* Dating keeps swipe filters here. Friends and Opportunities own
+        {/* Dating keeps swipe filters here. Friends owns
             their simpler controls inside their dedicated tab UIs. */}
         {activeIntent === "dating" && (
         <ScrollView
@@ -1075,13 +1080,8 @@ export default function DiscoverScreen() {
         </ScrollView>
         )}
 
-        {/* Networking gets its own dedicated tab UI (LinkedIn × Slack ×
-            Meetup vibe). Friends now uses a social hub; Dating keeps the swipe deck. */}
-        {activeIntent === "networking" ? (
-          <View style={{ flex: 1, marginHorizontal: -16 }}>
-            <NetworkingTab />
-          </View>
-        ) : activeIntent === "friends" ? (
+        {/* Friends uses its social hub; Dating keeps the swipe deck. */}
+        {activeIntent === "friends" ? (
           <View style={{ flex: 1, marginHorizontal: -16 }}>
             <FriendsHubTab bottomInset={bottomInset} />
           </View>
@@ -3232,7 +3232,7 @@ function SwipeCard({
         <Animated.View
           style={[deckStyles.overlaySpark, { opacity: sparkOpacity }]}
         >
-          <Ionicons name="flash" size={56} color="#6EE7B7" />
+          <Ionicons name="sparkles" size={56} color="#D8B4FE" />
         </Animated.View>
       </View>
 
@@ -3359,7 +3359,7 @@ function SparkExplosion() {
           },
         ]}
       >
-        <Ionicons name="sparkles" size={48} color="#6EE7B7" />
+        <Ionicons name="sparkles" size={48} color="#D8B4FE" />
       </Animated.View>
     </View>
   );
@@ -3507,11 +3507,11 @@ const deckStyles = StyleSheet.create({
     height: 112,
     borderRadius: 56,
     borderWidth: 1,
-    borderColor: "rgba(110,231,183,0.4)",
+    borderColor: "rgba(192,132,252,0.5)",
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#34D399",
+    shadowColor: "#A855F7",
     shadowOpacity: 0.85,
     shadowRadius: 36,
   },
@@ -3618,8 +3618,8 @@ const deckStyles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#6EE7B7",
-    shadowColor: "#34D399",
+    backgroundColor: "#D8B4FE",
+    shadowColor: "#A855F7",
     shadowOpacity: 1,
     shadowRadius: 12,
   },
@@ -3629,11 +3629,11 @@ const deckStyles = StyleSheet.create({
     height: 112,
     borderRadius: 56,
     borderWidth: 1,
-    borderColor: "rgba(110,231,183,0.7)",
-    backgroundColor: "rgba(52,211,153,0.10)",
+    borderColor: "rgba(192,132,252,0.7)",
+    backgroundColor: "rgba(168,85,247,0.12)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#34D399",
+    shadowColor: "#A855F7",
     shadowOpacity: 0.8,
     shadowRadius: 35,
   },

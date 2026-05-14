@@ -38,10 +38,20 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 type Event = EventsResponse["events"][number];
 type Timeframe = "all" | "week" | "weekend";
 type Category = "All" | "Nightlife" | "Arts" | "Sports" | "Food" | "Music" | "Business" | "Community" | "Other";
-type AreaFilter = "All" | "Near Me" | "Miami" | "Miami Beach" | "Wynwood" | "Brickell" | "Fort Lauderdale" | "Hollywood";
+type AreaFilter = "All" | "Near Me" | "Miami" | "Broward";
+type EventQuickFilter = "All" | "Near Me" | "Miami" | "Broward" | "This Week" | "Sports" | "Nightlife" | "Arts" | "Community";
 
-const CATEGORIES: Category[] = ["All", "Nightlife", "Arts", "Sports", "Food", "Music", "Business", "Community", "Other"];
-const AREAS: AreaFilter[] = ["All", "Near Me", "Miami", "Miami Beach", "Wynwood", "Brickell", "Fort Lauderdale", "Hollywood"];
+const EVENT_FILTERS: Array<{ value: EventQuickFilter; icon: keyof typeof Ionicons.glyphMap }> = [
+  { value: "All", icon: "apps-outline" },
+  { value: "Near Me", icon: "navigate-outline" },
+  { value: "Miami", icon: "location-outline" },
+  { value: "Broward", icon: "map-outline" },
+  { value: "This Week", icon: "calendar-outline" },
+  { value: "Sports", icon: "football-outline" },
+  { value: "Nightlife", icon: "moon-outline" },
+  { value: "Arts", icon: "color-palette-outline" },
+  { value: "Community", icon: "people-outline" },
+];
 
 const CATEGORY_ICONS: Record<Category, keyof typeof Ionicons.glyphMap> = {
   All: "apps-outline",
@@ -66,6 +76,310 @@ const CATEGORY_COLORS: Record<Category, string> = {
   Community: "#00C2A8",
   Other: "#8E8E93",
 };
+
+const LOCAL_EVENT_SEEDS = [
+  {
+    id: "local-wynwood-art-walk",
+    name: "Wynwood Art Walk & Creator Market",
+    description: "Gallery stops, pop-up vendors, music, and easy places to meet people around Wynwood.",
+    dayOffset: 1,
+    hour: 18,
+    venueName: "Wynwood Walls",
+    venueAddress: "2520 NW 2nd Ave, Miami, FL",
+    neighborhood: "Wynwood",
+    latitude: 25.8012,
+    longitude: -80.1994,
+    isFree: true,
+    price: "Free",
+    category: "Arts",
+    imageUrl: "https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=900&q=80",
+  },
+  {
+    id: "local-brickell-networking",
+    name: "Brickell Young Professionals Mixer",
+    description: "Low-pressure career and side-hustle networking with founders, creatives, and local operators.",
+    dayOffset: 2,
+    hour: 19,
+    venueName: "The Underline Brickell Backyard",
+    venueAddress: "SW 1st Ave, Miami, FL",
+    neighborhood: "Brickell",
+    latitude: 25.7663,
+    longitude: -80.1958,
+    isFree: true,
+    price: "Free",
+    category: "Business",
+    imageUrl: "https://images.unsplash.com/photo-1515169067865-5387ec356754?w=900&q=80",
+  },
+  {
+    id: "local-south-beach-yoga",
+    name: "Sunset Yoga on the Beach",
+    description: "Beginner-friendly movement, music, and a relaxed crowd by the water.",
+    dayOffset: 3,
+    hour: 17,
+    venueName: "South Pointe Park",
+    venueAddress: "1 Washington Ave, Miami Beach, FL",
+    neighborhood: "Miami Beach",
+    latitude: 25.7649,
+    longitude: -80.1328,
+    isFree: true,
+    price: "Free",
+    category: "Sports",
+    imageUrl: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=900&q=80",
+  },
+  {
+    id: "local-little-havana-music",
+    name: "Little Havana Salsa Night",
+    description: "Live Latin music, beginner lesson, and an easy social dance floor.",
+    dayOffset: 4,
+    hour: 20,
+    venueName: "Ball & Chain",
+    venueAddress: "1513 SW 8th St, Miami, FL",
+    neighborhood: "Miami",
+    latitude: 25.7659,
+    longitude: -80.2145,
+    isFree: false,
+    price: "From $15",
+    category: "Nightlife",
+    imageUrl: "https://images.unsplash.com/photo-1504609813442-a8924e83f76e?w=900&q=80",
+  },
+  {
+    id: "local-bayfront-food",
+    name: "Bayfront Food Truck Social",
+    description: "Food trucks, waterfront music, and casual group-friendly seating.",
+    dayOffset: 5,
+    hour: 12,
+    venueName: "Bayfront Park",
+    venueAddress: "301 Biscayne Blvd, Miami, FL",
+    neighborhood: "Miami",
+    latitude: 25.7743,
+    longitude: -80.1862,
+    isFree: false,
+    price: "Free entry",
+    category: "Community",
+    imageUrl: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=900&q=80",
+  },
+  {
+    id: "local-hollywood-comedy",
+    name: "Hollywood Comedy Pop-Up",
+    description: "Local comics, quick sets, and a friendly crowd for an easy night out.",
+    dayOffset: 6,
+    hour: 20,
+    venueName: "ArtsPark at Young Circle",
+    venueAddress: "1 N Young Cir, Hollywood, FL",
+    neighborhood: "Hollywood",
+    latitude: 26.0106,
+    longitude: -80.1437,
+    isFree: false,
+    price: "From $10",
+    category: "Arts",
+    imageUrl: "https://images.unsplash.com/photo-1585699324551-f6c309eedeca?w=900&q=80",
+  },
+  {
+    id: "local-panthers-watch",
+    name: "Broward Hockey Watch Party",
+    description: "Big screens, group tables, and a loud sports crowd for making plans fast.",
+    dayOffset: 0,
+    hour: 19,
+    venueName: "Amerant Bank Arena District",
+    venueAddress: "1 Panther Pkwy, Sunrise, FL",
+    neighborhood: "Broward",
+    latitude: 26.1585,
+    longitude: -80.3256,
+    isFree: false,
+    price: "Free entry",
+    category: "Sports",
+    imageUrl: "https://images.unsplash.com/photo-1519861531473-9200262188bf?w=900&q=80",
+  },
+  {
+    id: "local-fort-lauderdale-riverwalk",
+    name: "Riverwalk Night Market",
+    description: "Vendors, music, casual drinks, and an easy loop for meeting up in Fort Lauderdale.",
+    dayOffset: 1,
+    hour: 18,
+    venueName: "Riverwalk Fort Lauderdale",
+    venueAddress: "888 E Las Olas Blvd, Fort Lauderdale, FL",
+    neighborhood: "Broward",
+    latitude: 26.1194,
+    longitude: -80.1392,
+    isFree: true,
+    price: "Free",
+    category: "Community",
+    imageUrl: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=900&q=80",
+  },
+  {
+    id: "local-miami-heat-social",
+    name: "Downtown Basketball Social",
+    description: "Pre-game bites, fans, and nearby bars for a simple sports plan.",
+    dayOffset: 2,
+    hour: 18,
+    venueName: "Kaseya Center",
+    venueAddress: "601 Biscayne Blvd, Miami, FL",
+    neighborhood: "Miami",
+    latitude: 25.7814,
+    longitude: -80.187,
+    isFree: false,
+    price: "From $20",
+    category: "Sports",
+    imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=900&q=80",
+  },
+  {
+    id: "local-design-district-gallery",
+    name: "Design District Gallery Hop",
+    description: "Small galleries, design showrooms, and a polished crowd for artsy plans.",
+    dayOffset: 2,
+    hour: 18,
+    venueName: "Miami Design District",
+    venueAddress: "3841 NE 2nd Ave, Miami, FL",
+    neighborhood: "Miami",
+    latitude: 25.8133,
+    longitude: -80.192,
+    isFree: true,
+    price: "Free",
+    category: "Arts",
+    imageUrl: "https://images.unsplash.com/photo-1531058020387-3be344556be6?w=900&q=80",
+  },
+  {
+    id: "local-las-olas-rooftop",
+    name: "Las Olas Rooftop Mixer",
+    description: "Rooftop drinks, DJs, and plenty of four-person table energy.",
+    dayOffset: 3,
+    hour: 20,
+    venueName: "Las Olas Boulevard",
+    venueAddress: "E Las Olas Blvd, Fort Lauderdale, FL",
+    neighborhood: "Broward",
+    latitude: 26.1198,
+    longitude: -80.1326,
+    isFree: false,
+    price: "From $12",
+    category: "Nightlife",
+    imageUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=900&q=80",
+  },
+  {
+    id: "local-coconut-grove-community",
+    name: "Coconut Grove Picnic Social",
+    description: "Low-pressure lawn hangs, games, and small groups by the bay.",
+    dayOffset: 4,
+    hour: 16,
+    venueName: "Peacock Park",
+    venueAddress: "2820 McFarlane Rd, Miami, FL",
+    neighborhood: "Miami",
+    latitude: 25.7275,
+    longitude: -80.2404,
+    isFree: true,
+    price: "Free",
+    category: "Community",
+    imageUrl: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=900&q=80",
+  },
+  {
+    id: "local-miami-beach-club",
+    name: "South Beach Late Set",
+    description: "A dance-floor-first night with nearby lounges for after plans.",
+    dayOffset: 5,
+    hour: 22,
+    venueName: "Collins Avenue",
+    venueAddress: "1701 Collins Ave, Miami Beach, FL",
+    neighborhood: "Miami",
+    latitude: 25.7934,
+    longitude: -80.1293,
+    isFree: false,
+    price: "From $25",
+    category: "Nightlife",
+    imageUrl: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=900&q=80",
+  },
+  {
+    id: "local-hollywood-art-mural",
+    name: "Downtown Hollywood Mural Walk",
+    description: "Outdoor art, cafes, and an easy stroll for friend groups.",
+    dayOffset: 6,
+    hour: 17,
+    venueName: "Downtown Hollywood",
+    venueAddress: "Hollywood Blvd, Hollywood, FL",
+    neighborhood: "Broward",
+    latitude: 26.0112,
+    longitude: -80.1495,
+    isFree: true,
+    price: "Free",
+    category: "Arts",
+    imageUrl: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=900&q=80",
+  },
+] as const;
+
+function buildLocalEvents(): Event[] {
+  const now = new Date();
+  return LOCAL_EVENT_SEEDS.map((seed) => {
+    const start = new Date(now);
+    start.setDate(now.getDate() + seed.dayOffset);
+    start.setHours(seed.hour, 0, 0, 0);
+    while (start.getTime() < now.getTime() - 60 * 60 * 1000) {
+      start.setDate(start.getDate() + 7);
+    }
+    const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
+    return {
+      id: seed.id,
+      sourceId: seed.id,
+      source: "mock",
+      sourceLabel: "Backup Preview",
+      name: seed.name,
+      description: seed.description,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      url: "",
+      imageUrl: seed.imageUrl,
+      venueName: seed.venueName,
+      venueAddress: seed.venueAddress,
+      neighborhood: seed.neighborhood,
+      latitude: seed.latitude,
+      longitude: seed.longitude,
+      isFree: seed.isFree,
+      price: seed.price,
+      category: seed.category,
+      status: "scheduled",
+      updatedAt: now.toISOString(),
+      lastSeenAt: now.toISOString(),
+    } as Event;
+  });
+}
+
+function filterLocalEvents(events: Event[], filters: { timeframe: Timeframe; category: Category; freeOnly: boolean; area: AreaFilter }) {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  return events.filter((event) => {
+    const start = new Date(event.startDate).getTime();
+    if (!Number.isFinite(start) || start < now - 60 * 60 * 1000) return false;
+    if (filters.timeframe === "week" && start > now + 7 * day) return false;
+    if (filters.timeframe === "weekend") {
+      const date = new Date(start);
+      if (![0, 5, 6].includes(date.getDay())) return false;
+    }
+    if (filters.category !== "All" && event.category !== filters.category) return false;
+    if (filters.freeOnly && !event.isFree) return false;
+    if (filters.area !== "All" && filters.area !== "Near Me") {
+      const text = [event.venueName, event.venueAddress, event.neighborhood].join(" ").toLowerCase();
+      if (filters.area === "Broward") {
+        if (!/(broward|fort lauderdale|hollywood|sunrise|las olas)/.test(text)) return false;
+      } else if (!text.includes(filters.area.toLowerCase())) return false;
+    }
+    return true;
+  });
+}
+
+function filterSettings(filter: EventQuickFilter): { timeframe: Timeframe; category: Category; freeOnly: boolean; area: AreaFilter } {
+  if (filter === "Near Me") return { timeframe: "week", category: "All", freeOnly: false, area: "Near Me" };
+  if (filter === "Miami") return { timeframe: "week", category: "All", freeOnly: false, area: "Miami" };
+  if (filter === "Broward") return { timeframe: "week", category: "All", freeOnly: false, area: "Broward" };
+  if (filter === "This Week") return { timeframe: "week", category: "All", freeOnly: false, area: "All" };
+  if (filter === "Sports" || filter === "Nightlife" || filter === "Arts" || filter === "Community") {
+    return { timeframe: filter === "Sports" ? "all" : "week", category: filter, freeOnly: false, area: "All" };
+  }
+  return { timeframe: "all", category: "All", freeOnly: false, area: "All" };
+}
+
+function ticketUrlForEvent(event: Event) {
+  const directUrl = String((event as any).url ?? "").trim();
+  if (/^https?:\/\//i.test(directUrl)) return directUrl;
+  const query = encodeURIComponent(`${event.name} ${event.venueName ?? ""} tickets`);
+  return `https://www.google.com/search?q=${query}`;
+}
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return "";
@@ -97,9 +411,9 @@ function eventSourceId(event: Event): string {
   return String((event as any).sourceId ?? event.id);
 }
 
-function eventSourceType(event: Event): "ticketmaster" | "eventbrite" | "posh" | "mock" {
+function eventSourceType(event: Event): "ticketmaster" | "eventbrite" | "posh" | "mlb" | "mock" {
   const source = String((event as any).source ?? "ticketmaster");
-  return ["ticketmaster", "eventbrite", "posh", "mock"].includes(source) ? source as any : "ticketmaster";
+  return ["ticketmaster", "eventbrite", "posh", "mlb", "mock"].includes(source) ? source as any : "ticketmaster";
 }
 
 function eventTimingLabel(event: Event): string {
@@ -148,6 +462,17 @@ function getProviderEmptyMessage(data: EventsResponse | undefined): string | nul
   }
 
   return null;
+}
+
+function getProvider(data: EventsResponse | undefined, label: string) {
+  const providers = ((data as any)?.providers ?? []) as Array<{
+    label?: string;
+    status?: string;
+    configured?: boolean;
+    count?: number;
+    message?: string;
+  }>;
+  return providers.find((provider) => provider.label === label);
 }
 
 function MapThumbnail({ latitude, longitude }: { latitude: number; longitude: number }) {
@@ -255,23 +580,6 @@ function EventCard({
         ) : null}
       </View>
     </Pressable>
-  );
-}
-
-function EventAreaChips({ value, onChange }: { value: AreaFilter; onChange: (value: AreaFilter) => void }) {
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-      {AREAS.map((area) => (
-        <Pressable
-          key={area}
-          onPress={() => onChange(area)}
-          style={[styles.areaChip, value === area && styles.areaChipActive]}
-        >
-          <Ionicons name={area === "Near Me" ? "navigate" : "location-outline"} size={13} color={value === area ? "#FFFFFF" : "#999"} />
-          <Text style={[styles.chipText, value === area && styles.chipTextActive]}>{area}</Text>
-        </Pressable>
-      ))}
-    </ScrollView>
   );
 }
 
@@ -457,9 +765,12 @@ function EventDetailSheet({
   const primaryIcon: keyof typeof Ionicons.glyphMap = context?.myPlan?.chatId ? "chatbubbles" : hasJoinablePlans ? "people" : "add-circle";
 
   const handleGetTickets = () => {
-    if (event.url) {
-      Linking.openURL(event.url);
+    const url = ticketUrlForEvent(event);
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
     }
+    Linking.openURL(url).catch(() => {});
   };
 
   return (
@@ -621,15 +932,14 @@ export default function EventsScreen() {
   const { user } = useUser();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
-  const [timeframe, setTimeframe] = useState<Timeframe>("all");
-  const [category, setCategory] = useState<Category>("All");
-  const [freeOnly, setFreeOnly] = useState(false);
-  const [area, setArea] = useState<AreaFilter>("All");
+  const [activeFilter, setActiveFilter] = useState<EventQuickFilter>("This Week");
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
   const [planSource, setPlanSource] = useState<PlanLocationOption | null>(null);
   const [eventContexts, setEventContexts] = useState<Record<string, EventContext>>({});
   const currentUserId = user?.id ?? "user_self";
+
+  const { timeframe, category, freeOnly, area } = filterSettings(activeFilter);
 
   const queryParams = {
     page: 1,
@@ -659,9 +969,21 @@ export default function EventsScreen() {
     }, [refetch])
   );
 
-  const events = useMemo(() => data?.events ?? [], [data?.events]);
-  const isConfigured = data?.configured !== false;
-  const providerEmptyMessage = getProviderEmptyMessage(data);
+  const localEvents = useMemo(
+    () => filterLocalEvents(buildLocalEvents(), { timeframe, category, freeOnly, area }),
+    [activeFilter, area, category, freeOnly, timeframe],
+  );
+  const apiEvents = data?.events ?? [];
+  const events = useMemo(() => (apiEvents.length > 0 ? apiEvents : localEvents), [apiEvents, localEvents]);
+  const usingLocalEvents = apiEvents.length === 0 && localEvents.length > 0;
+  const isConfigured = usingLocalEvents ? true : data?.configured !== false;
+  const providerEmptyMessage = usingLocalEvents ? null : getProviderEmptyMessage(data);
+  const ticketmasterProvider = getProvider(data, "Ticketmaster");
+  const marlinsProvider = getProvider(data, "Marlins Games");
+  const feedSourceTitle = usingLocalEvents ? "Backup preview" : "Live events + Marlins";
+  const feedSourceDetail = usingLocalEvents
+    ? "Showing built-in Miami events because the phone could not reach the API."
+    : `${ticketmasterProvider?.count ?? 0} Ticketmaster events and ${marlinsProvider?.count ?? 0} Marlins games this week.`;
   const eventSourceIds = useMemo(() => events.map(eventSourceId), [events]);
 
   const loadEventContexts = useCallback(async () => {
@@ -777,74 +1099,36 @@ export default function EventsScreen() {
             <Text style={styles.liveKicker}>TONIGHT'S MOVES</Text>
             <Text style={styles.liveTitle}>Find the energy. Build the plan.</Text>
             <Text style={styles.liveSubcopy}>Concerts, parties, games, pop-ups, and real reasons to get outside.</Text>
+            <View style={[styles.feedSourcePill, usingLocalEvents ? styles.feedSourcePillBackup : styles.feedSourcePillLive]}>
+              <View style={[styles.feedSourceDot, usingLocalEvents ? styles.feedSourceDotBackup : styles.feedSourceDotLive]} />
+              <Text style={styles.feedSourceText}>{feedSourceTitle}</Text>
+            </View>
+            <Text style={styles.feedSourceDetail}>{feedSourceDetail}</Text>
           </View>
         </View>
       </LinearGradient>
 
-      <EventAreaChips value={area} onChange={setArea} />
-
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterScroll}
       >
-        <Pressable
-          style={[styles.chip, timeframe === "all" && styles.chipActive]}
-          onPress={() => setTimeframe("all")}
-        >
-          <Text style={[styles.chipText, timeframe === "all" && styles.chipTextActive]}>
-            All Upcoming
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.chip, timeframe === "week" && styles.chipActive]}
-          onPress={() => setTimeframe("week")}
-        >
-          <Text style={[styles.chipText, timeframe === "week" && styles.chipTextActive]}>
-            This Week
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.chip, timeframe === "weekend" && styles.chipActive]}
-          onPress={() => setTimeframe("weekend")}
-        >
-          <Text style={[styles.chipText, timeframe === "weekend" && styles.chipTextActive]}>
-            This Weekend
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.chip, freeOnly && styles.chipActive]}
-          onPress={() => setFreeOnly((v) => !v)}
-        >
-          <Ionicons
-            name="pricetag-outline"
-            size={13}
-            color={freeOnly ? "#fff" : "#999"}
-            style={{ marginRight: 4 }}
-          />
-          <Text style={[styles.chipText, freeOnly && styles.chipTextActive]}>Free Only</Text>
-        </Pressable>
-      </ScrollView>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        {CATEGORIES.map((cat) => {
-          const isActive = category === cat;
-          const color = CATEGORY_COLORS[cat];
+        {EVENT_FILTERS.map((filter) => {
+          const isActive = activeFilter === filter.value;
+          const color = filter.value === "All" || filter.value === "This Week" || filter.value === "Near Me" || filter.value === "Miami" || filter.value === "Broward"
+            ? PINK
+            : CATEGORY_COLORS[filter.value as Category] ?? PINK;
           return (
             <Pressable
-              key={cat}
+              key={filter.value}
               style={[
-                styles.categoryChip,
+                styles.chip,
                 isActive && { backgroundColor: color, borderColor: color },
               ]}
-              onPress={() => setCategory(cat)}
+              onPress={() => setActiveFilter(filter.value)}
             >
               <Ionicons
-                name={CATEGORY_ICONS[cat]}
+                name={filter.icon}
                 size={13}
                 color={isActive ? "#fff" : "#999"}
                 style={{ marginRight: 4 }}
@@ -852,10 +1136,10 @@ export default function EventsScreen() {
               <Text
                 style={[
                   styles.chipText,
-                  isActive && styles.chipTextActive,
-                ]}
+                isActive && styles.chipTextActive,
+              ]}
               >
-                {cat}
+                {filter.value}
               </Text>
             </Pressable>
           );
@@ -883,7 +1167,7 @@ export default function EventsScreen() {
             Ticketmaster is not connected on the API yet. Add the Ticketmaster key to unlock live Miami and Broward events.
           </Text>
         </View>
-      ) : isLoading ? (
+      ) : isLoading && !usingLocalEvents ? (
         <>
           {renderHeader()}
           <View style={styles.centered}>
@@ -891,7 +1175,7 @@ export default function EventsScreen() {
             <Text style={styles.loadingText}>Loading events…</Text>
           </View>
         </>
-      ) : isError ? (
+      ) : isError && !usingLocalEvents ? (
         <>
           {renderHeader()}
           <View style={styles.centered}>
@@ -1032,6 +1316,49 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 18,
     marginTop: 2,
+  },
+  feedSourcePill: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  feedSourcePillLive: {
+    backgroundColor: "rgba(29,185,84,0.12)",
+    borderColor: "rgba(29,185,84,0.38)",
+  },
+  feedSourcePillBackup: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  feedSourceDot: {
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  feedSourceDotLive: {
+    backgroundColor: "#1DB954",
+  },
+  feedSourceDotBackup: {
+    backgroundColor: "#FFB4D9",
+  },
+  feedSourceText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  feedSourceDetail: {
+    color: "#D7D7DF",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 15,
+    marginTop: 6,
   },
   filterScroll: {
     paddingHorizontal: 16,
