@@ -1,4 +1,5 @@
 const { getDefaultConfig } = require("expo/metro-config");
+const http = require("http");
 const path = require("path");
 
 const workspaceRoot = path.resolve(__dirname, "../..");
@@ -28,6 +29,41 @@ config.resolver = {
     /node_modules\/\.pnpm\/.*_tmp_\d+\/.*/,
     /node_modules\/.*_tmp_\d+\/.*/,
   ],
+};
+
+config.server = {
+  ...config.server,
+  enhanceMiddleware: (middleware) => {
+    return (req, res, next) => {
+      if (!req.url?.startsWith("/api/")) {
+        return middleware(req, res, next);
+      }
+
+      const proxyReq = http.request(
+        {
+          hostname: "127.0.0.1",
+          port: Number(process.env.CONNECTSPHERE_API_PORT || 8080),
+          path: req.url,
+          method: req.method,
+          headers: {
+            ...req.headers,
+            host: `127.0.0.1:${process.env.CONNECTSPHERE_API_PORT || 8080}`,
+          },
+        },
+        (proxyRes) => {
+          res.writeHead(proxyRes.statusCode || 500, proxyRes.headers);
+          proxyRes.pipe(res);
+        },
+      );
+
+      proxyReq.on("error", () => {
+        res.writeHead(502, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "ConnectSphere API is not running on port 8080." }));
+      });
+
+      req.pipe(proxyReq);
+    };
+  },
 };
 
 module.exports = config;

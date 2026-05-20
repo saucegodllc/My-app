@@ -1,6 +1,7 @@
+import { useAuth, useSignIn } from "@clerk/clerk-expo";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -12,13 +13,25 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useCongratsVideoPlayer } from "@/contexts/CongratsVideoContext";
+import { consumePendingAutoSignIn } from "@/lib/pendingAuth";
 import { VideoView } from "expo-video";
 
 const PINK = "#FF299B";
 
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export default function CongratsScreen() {
   const insets = useSafeAreaInsets();
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { signIn, setActive, isLoaded } = useSignIn();
+  const { isSignedIn, isLoaded: isAuthLoaded } = useAuth();
+  const autoSignInStartedRef = useRef(false);
+  const routeStartedRef = useRef(false);
+  const destinationRef = useRef<"/onboarding" | "/(tabs)" | "/(auth)/welcome">("/onboarding");
+  const [welcomeDone, setWelcomeDone] = useState(false);
+  const [handoffFailed, setHandoffFailed] = useState(false);
 
   const player = useCongratsVideoPlayer();
 
@@ -27,6 +40,51 @@ export default function CongratsScreen() {
     player.muted = true;
     player.play();
   }, [player]);
+
+  useEffect(() => {
+    if (!isLoaded || !signIn || !setActive || autoSignInStartedRef.current) return;
+    const pending = consumePendingAutoSignIn();
+    if (!pending) return;
+    autoSignInStartedRef.current = true;
+    destinationRef.current = pending.destination === "/(tabs)" ? "/(tabs)" : "/onboarding";
+    if (isSignedIn) return;
+
+    void (async () => {
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+          if (pending.ticket) {
+            const ticketAttempt = await signIn.create({ strategy: "ticket", ticket: pending.ticket });
+            if (ticketAttempt.status === "complete" && ticketAttempt.createdSessionId) {
+              await setActive({ session: ticketAttempt.createdSessionId });
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn("[congrats] ticket session handoff:", err);
+        }
+
+        try {
+          const passwordAttempt = await signIn.create({ identifier: pending.email, password: pending.password });
+          if (passwordAttempt.status === "complete" && passwordAttempt.createdSessionId) {
+            await setActive({ session: passwordAttempt.createdSessionId });
+            return;
+          }
+          if (passwordAttempt.status === "needs_first_factor") {
+            const factorAttempt = await signIn.attemptFirstFactor({ strategy: "password", password: pending.password });
+            if (factorAttempt.status === "complete" && factorAttempt.createdSessionId) {
+              await setActive({ session: factorAttempt.createdSessionId });
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn("[congrats] password session handoff:", err);
+        }
+
+        await wait(700 * (attempt + 1));
+      }
+      setHandoffFailed(true);
+    })();
+  }, [isLoaded, signIn, setActive, isSignedIn]);
 
   const screenFade = useRef(new Animated.Value(1)).current;
   const titleFade  = useRef(new Animated.Value(0)).current;
@@ -48,18 +106,36 @@ export default function CongratsScreen() {
       ]),
     ]).start();
 
-    // Fade entire screen to black before navigating
+    // Finish the welcome moment, then route only after auth is actually ready.
     const fadeTimer = setTimeout(() => {
-      Animated.timing(screenFade, {
-        toValue: 0,
-        duration: 600,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }).start(() => router.replace("/onboarding"));
+      setWelcomeDone(true);
     }, 6500);
 
     return () => clearTimeout(fadeTimer);
   }, []);
+
+  useEffect(() => {
+    if (!welcomeDone || !isAuthLoaded || routeStartedRef.current) return;
+
+    const destination = isSignedIn
+      ? destinationRef.current
+      : handoffFailed
+      ? "/(auth)/welcome"
+      : null;
+
+    if (!destination) return;
+    routeStartedRef.current = true;
+    Animated.timing(screenFade, {
+      toValue: 0,
+      duration: 600,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      if (destination === "/(tabs)") router.replace("/(tabs)");
+      else if (destination === "/(auth)/welcome") router.replace("/(auth)/welcome");
+      else router.replace("/onboarding");
+    });
+  }, [welcomeDone, isAuthLoaded, isSignedIn, handoffFailed, screenFade]);
 
   return (
     <Animated.View style={[styles.container, { opacity: screenFade }]}>

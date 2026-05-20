@@ -13,8 +13,6 @@ import authServerRouter from "./authServer";
 import bioRouter from "./bio";
 import eventsRouter from "./events";
 import venuesRouter from "./venues";
-import networkRouter from "./network";
-import opportunitiesRouter from "./opportunities";
 import friendsRouter from "./friends";
 import datingRouter from "./dating";
 import doubleDateRouter from "./doubleDate";
@@ -43,7 +41,5 @@ router.use(authServerRouter);
 router.use(bioRouter);
 router.use(eventsRouter);
 router.use(venuesRouter);
-router.use(networkRouter);
-router.use(opportunitiesRouter);
 
 export default router;

@@ -101,6 +101,7 @@ export default function ChatScreen() {
   const [jsonLoading, setJsonLoading] = useState(false);
   const isJsonChat = !!jsonChat?.chat;
   const isDoubleDateChat = jsonChat?.chat?.type === "double_date";
+  const isFriendDirectChat = jsonChat?.chat?.type === "friend_direct";
   const isFriendPlanChat = jsonChat?.chat?.type === "friend_plan" || jsonChat?.chat?.type === "plan";
   const { data, isLoading, refetch, isRefetching } = useGetMessages(matchId ?? "", undefined, {
     query: { enabled: !!matchId && !!isSignedIn && !isJsonChat },
@@ -145,8 +146,8 @@ export default function ChatScreen() {
   const quickPromptTitle = isDoubleDateChat ? "Plan the double date" : "Plan together";
   const quickActions = isDoubleDateChat
     ? jsonChat?.quickActions ?? ["Drinks", "Dinner", "Event Tonight", "Pick a Spot"]
-    : isFriendPlanChat
-      ? ["Coffee", "Dinner", "Event Tonight", "Pick a Spot"]
+    : isFriendPlanChat || isFriendDirectChat
+      ? jsonChat?.quickActions ?? ["AI opener", "Make a plan", "Pick a spot", "Invite more"]
       : [];
   const currentUserId = user?.id ?? "user_self";
 

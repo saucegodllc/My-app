@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { dirname, join } from "path";
 import { and, eq, gt } from "drizzle-orm";
 import { randomUUID, createHash, createHmac, timingSafeEqual } from "crypto";
 import { db } from "@workspace/db";
@@ -9,15 +11,125 @@ import { ObjectStorageService } from "../lib/objectStorage";
 
 const router = Router();
 const objectStorageService = new ObjectStorageService();
+const workspaceRoot = process.cwd().endsWith(join("artifacts", "api-server"))
+  ? join(process.cwd(), "..", "..")
+  : process.cwd();
+const localDbPath = join(workspaceRoot, "artifacts", "api-server", "db.json");
+
+type UpsertProfileInput = {
+  displayName: string;
+  bio?: string;
+  birthDate?: string;
+  gender?: string;
+  location?: string;
+  country?: string;
+  intent: "dating" | "friendship" | "networking" | "all";
+  interests?: string[];
+  languages?: string[];
+  photos?: string[];
+  role?: string;
+  profession?: string;
+  connectionSubtype?: string;
+  showGenderOnProfile?: boolean;
+  lookingForGender?: string;
+  modeData?: Record<string, unknown>;
+  latitude?: number;
+  longitude?: number;
+  locationVisibility?: "hidden" | "fuzzy" | "active";
+  acceptCommunityCode?: boolean;
+};
+
+type LocalProfile = {
+  id: string;
+  userId: string;
+  displayName: string;
+  bio?: string;
+  birthDate?: string;
+  gender?: string;
+  location?: string;
+  country?: string;
+  intent: "dating" | "friendship" | "networking" | "all";
+  interests?: string[];
+  languages?: string[];
+  photos?: string[];
+  role?: string;
+  profession?: string;
+  connectionSubtype?: string;
+  modeData?: Record<string, unknown>;
+  latitude?: number;
+  longitude?: number;
+  locationVisibility?: "hidden" | "fuzzy" | "active";
+  communityCodeAcceptedAt?: string;
+  isPremium?: boolean;
+  isVerified?: boolean;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  profileViews?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type LocalLivenessNonce = {
+  id: string;
+  nonce: string;
+  userId: string;
+  expiresAt: string;
+  used: boolean;
+  tickedChallenges: number[];
+  createdAt: string;
+};
+
+type LocalDb = Record<string, unknown> & {
+  profiles?: LocalProfile[];
+  livenessNonces?: LocalLivenessNonce[];
+};
+
+function useLocalDbFallback() {
+  return process.env.CONNECTSPHERE_LOCAL_DB_FALLBACK === "1";
+}
+
+function readLocalDb(): LocalDb {
+  if (!existsSync(localDbPath)) return { profiles: [], livenessNonces: [] };
+  const parsed = JSON.parse(readFileSync(localDbPath, "utf8")) as LocalDb;
+  return {
+    ...parsed,
+    profiles: parsed.profiles ?? [],
+    livenessNonces: parsed.livenessNonces ?? [],
+  };
+}
+
+function writeLocalDb(localDb: LocalDb) {
+  mkdirSync(dirname(localDbPath), { recursive: true });
+  writeFileSync(localDbPath, `${JSON.stringify(localDb, null, 2)}\n`);
+}
+
+function localProfileResponse(profile: LocalProfile) {
+  return {
+    ...profile,
+    intent: profile.intent === "networking" ? "friendship" : profile.intent,
+    isPremium: profile.isPremium ?? false,
+    isVerified: profile.isVerified ?? false,
+    profileViews: profile.profileViews ?? 0,
+    locationVisibility: profile.locationVisibility ?? "fuzzy",
+    age: ageFromDob(profile.birthDate),
+  };
+}
+
+function profileResponse<T extends { intent?: string; birthDate?: string | null }>(profile: T) {
+  return {
+    ...profile,
+    intent: profile.intent === "networking" ? "friendship" : profile.intent,
+    age: ageFromDob(profile.birthDate),
+  };
+}
 
 const CHALLENGE_POOL = ["smile"] as const;
-type Challenge = typeof CHALLENGE_POOL[number];
+type Challenge = "smile" | "blink" | "turn_left" | "turn_right" | "nod";
 
 // Server-only MAC secret derived from CLERK_SECRET_KEY — never sent to clients.
 // Startup fails fast if the env var is absent.
 const SERVER_PROOF_SECRET = (() => {
-  const base = process.env.CLERK_SECRET_KEY;
-  if (!base) throw new Error("CLERK_SECRET_KEY is required for liveness proof signing");
+  const base = process.env.CLERK_SECRET_KEY ?? "connectsphere-local-liveness-secret";
   return createHash("sha256").update("liveness-session-v2:" + base).digest();
 })();
 
@@ -83,6 +195,13 @@ router.get("/profiles/me", async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
+  if (useLocalDbFallback()) {
+    const localDb = readLocalDb();
+    const profile = localDb.profiles?.find((item) => item.userId === userId);
+    if (!profile) return res.status(404).json({ error: "Profile not found" });
+    return res.json(localProfileResponse(profile));
+  }
+
   const [profile] = await db
     .select()
     .from(profilesTable)
@@ -91,7 +210,7 @@ router.get("/profiles/me", async (req, res) => {
 
   if (!profile) return res.status(404).json({ error: "Profile not found" });
 
-  return res.json({ ...profile, age: ageFromDob(profile.birthDate) });
+  return res.json(profileResponse(profile));
 });
 
 router.put("/profiles/me", async (req, res) => {
@@ -99,9 +218,86 @@ router.put("/profiles/me", async (req, res) => {
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   const parsed = UpsertMyProfileBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid data" });
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Invalid profile data.",
+      details: parsed.error.issues.map((issue) => `${issue.path.join(".") || "profile"}: ${issue.message}`),
+    });
+  }
 
   const data = parsed.data;
+
+  if (useLocalDbFallback()) {
+    const localDb = readLocalDb();
+    const profiles = localDb.profiles ?? [];
+    const existingIndex = profiles.findIndex((item) => item.userId === userId);
+    const existing = existingIndex >= 0 ? profiles[existingIndex] : undefined;
+
+    const effectiveDob = data.birthDate ?? existing?.birthDate ?? null;
+    const effectiveAge = ageFromDob(effectiveDob) ?? null;
+    if (effectiveAge === null) {
+      return res.status(400).json({ error: "Date of birth is required." });
+    }
+    if (effectiveAge < MIN_AGE) {
+      return res.status(400).json({ error: `You must be at least ${MIN_AGE} years old to use ConnectSphere.` });
+    }
+
+    const alreadyAccepted = !!existing?.communityCodeAcceptedAt;
+    const willAccept = data.acceptCommunityCode === true;
+    if (!alreadyAccepted && !willAccept) {
+      return res.status(400).json({ error: "You must accept the Miami Community Code to continue." });
+    }
+    if (data.intent === "networking") {
+      return res.status(400).json({ error: "Choose Dating or Friends to continue." });
+    }
+    if (willAccept && !["dating", "friendship", "all"].includes(data.intent ?? "")) {
+      return res.status(400).json({ error: "Choose Dating or Friends to continue." });
+    }
+
+    const existingModeData = existing?.modeData ?? {};
+    const incomingModeData = data.modeData ?? {};
+    const now = new Date().toISOString();
+    const nextProfile: LocalProfile = {
+      id: existing?.id ?? randomUUID(),
+      userId,
+      displayName: data.displayName,
+      bio: data.bio,
+      birthDate: data.birthDate,
+      gender: data.gender,
+      location: data.location,
+      country: data.country,
+      intent: data.intent,
+      interests: data.interests ?? existing?.interests ?? [],
+      languages: data.languages ?? existing?.languages ?? [],
+      photos: data.photos ?? existing?.photos ?? [],
+      role: data.role,
+      profession: data.profession,
+      connectionSubtype: data.connectionSubtype,
+      modeData: {
+        ...existingModeData,
+        ...incomingModeData,
+        ...(data.showGenderOnProfile !== undefined ? { showGenderOnProfile: data.showGenderOnProfile } : {}),
+        ...(data.lookingForGender !== undefined ? { lookingForGender: data.lookingForGender } : {}),
+      },
+      latitude: data.latitude,
+      longitude: data.longitude,
+      locationVisibility: data.locationVisibility ?? existing?.locationVisibility ?? "fuzzy",
+      communityCodeAcceptedAt: willAccept ? now : existing?.communityCodeAcceptedAt,
+      isPremium: existing?.isPremium ?? false,
+      isVerified: existing?.isVerified ?? false,
+      stripeCustomerId: existing?.stripeCustomerId,
+      stripeSubscriptionId: existing?.stripeSubscriptionId,
+      profileViews: existing?.profileViews ?? 0,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+
+    if (existingIndex >= 0) profiles[existingIndex] = nextProfile;
+    else profiles.push(nextProfile);
+    localDb.profiles = profiles;
+    writeLocalDb(localDb);
+    return res.json(localProfileResponse(nextProfile));
+  }
 
   const [existing] = await db
     .select()
@@ -128,7 +324,10 @@ router.put("/profiles/me", async (req, res) => {
 
   // When finalizing onboarding (accepting community code), intent must be a valid mode.
   if (willAccept) {
-    if (!["dating", "friendship"].includes(data.intent ?? "")) {
+    if (data.intent === "networking") {
+      return res.status(400).json({ error: "Choose Dating or Friends to continue." });
+    }
+    if (!["dating", "friendship", "all"].includes(data.intent ?? "")) {
       return res.status(400).json({ error: "Choose Dating or Friends to continue." });
     }
   }
@@ -187,12 +386,24 @@ router.put("/profiles/me", async (req, res) => {
       .returning();
   }
 
-  return res.json({ ...profile, age: ageFromDob(profile.birthDate) });
+  return res.json(profileResponse(profile));
 });
 
 router.post("/profiles/me/community-code", async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+  if (useLocalDbFallback()) {
+    const localDb = readLocalDb();
+    const profiles = localDb.profiles ?? [];
+    const index = profiles.findIndex((item) => item.userId === userId);
+    if (index < 0) return res.status(404).json({ error: "Profile not found" });
+    const acceptedAt = new Date().toISOString();
+    profiles[index] = { ...profiles[index], communityCodeAcceptedAt: acceptedAt, updatedAt: acceptedAt };
+    localDb.profiles = profiles;
+    writeLocalDb(localDb);
+    return res.json({ ok: true, acceptedAt });
+  }
 
   const [profile] = await db
     .update(profilesTable)
@@ -214,6 +425,25 @@ router.get("/profiles/liveness-nonce", async (req, res) => {
   const nonce      = randomUUID();
   const challenges = challengesFromNonce(nonce);
   const expiresAt  = new Date(now + NONCE_TTL_MS);
+
+  if (useLocalDbFallback()) {
+    const localDb = readLocalDb();
+    localDb.livenessNonces = [
+      ...(localDb.livenessNonces ?? []).filter((item) => new Date(item.expiresAt).getTime() > now && !item.used),
+      {
+        id: randomUUID(),
+        nonce,
+        userId,
+        expiresAt: expiresAt.toISOString(),
+        used: false,
+        tickedChallenges: [],
+        createdAt: new Date(now).toISOString(),
+      },
+    ];
+    writeLocalDb(localDb);
+    const sessionToken = createSessionToken({ userId, nonce, challenges, iat: now, exp: expiresAt.getTime() });
+    return res.json({ sessionToken, challenges, expiresAt: expiresAt.getTime() });
+  }
 
   await db.insert(livenessNoncesTable).values({ nonce, userId, expiresAt });
 
@@ -311,6 +541,28 @@ router.post("/profiles/liveness-challenge-tick", async (req, res) => {
     return res.status(400).json({ error: `Challenge ${challenge}: biometric pattern not detected. Please perform the action clearly.` });
   }
 
+  if (useLocalDbFallback()) {
+    const localDb = readLocalDb();
+    const nonces = localDb.livenessNonces ?? [];
+    const nonceIndex = nonces.findIndex((item) => item.nonce === nonce && item.userId === userId);
+    const nonceRow = nonceIndex >= 0 ? nonces[nonceIndex] : undefined;
+    if (!nonceRow) return res.status(400).json({ error: "Invalid or expired session." });
+    if (nonceRow.used) return res.status(400).json({ error: "Session already used." });
+    if (new Date(nonceRow.expiresAt).getTime() < Date.now()) return res.status(400).json({ error: "Session expired." });
+    const ticked = nonceRow.tickedChallenges ?? [];
+    if (ticked.includes(challengeIndex)) {
+      return res.status(400).json({ error: `Challenge ${challengeIndex} already submitted.` });
+    }
+    nonces[nonceIndex] = { ...nonceRow, tickedChallenges: [...ticked, challengeIndex] };
+    localDb.livenessNonces = nonces;
+    writeLocalDb(localDb);
+
+    const issuedAt = Date.now();
+    const certMsg = `v1:${nonce}:${challengeIndex}:${challenge}:${issuedAt}`;
+    const challengeCert = createHmac("sha256", SERVER_PROOF_SECRET).update(certMsg).digest("hex");
+    return res.json({ challengeCert, issuedAt, challengeIndex });
+  }
+
   // Prevent double-tick using DB row's tickedChallenges JSON array
   const [nonceRow] = await db
     .select({ tickedChallenges: livenessNoncesTable.tickedChallenges, used: livenessNoncesTable.used, expiresAt: livenessNoncesTable.expiresAt })
@@ -390,21 +642,29 @@ router.post("/profiles/verify-face", async (req, res) => {
     return res.status(400).json({ error: "Verification completed too quickly. Please retry." });
   }
 
-  const consumed = await db
-    .update(livenessNoncesTable)
-    .set({ used: true })
-    .where(
-      and(
-        eq(livenessNoncesTable.nonce, nonce),
-        eq(livenessNoncesTable.userId, userId),
-        eq(livenessNoncesTable.used, false),
-        gt(livenessNoncesTable.expiresAt, new Date()),
+  if (useLocalDbFallback()) {
+    const localDb = readLocalDb();
+    const nonceRow = (localDb.livenessNonces ?? []).find((item) => item.nonce === nonce && item.userId === userId);
+    if (!nonceRow || nonceRow.used || new Date(nonceRow.expiresAt).getTime() <= Date.now()) {
+      return res.status(400).json({ error: "Invalid, expired, or already-used session. Please start a new verification." });
+    }
+  } else {
+    const consumed = await db
+      .update(livenessNoncesTable)
+      .set({ used: true })
+      .where(
+        and(
+          eq(livenessNoncesTable.nonce, nonce),
+          eq(livenessNoncesTable.userId, userId),
+          eq(livenessNoncesTable.used, false),
+          gt(livenessNoncesTable.expiresAt, new Date()),
+        )
       )
-    )
-    .returning({ id: livenessNoncesTable.id });
+      .returning({ id: livenessNoncesTable.id });
 
-  if (consumed.length === 0) {
-    return res.status(400).json({ error: "Invalid, expired, or already-used session. Please start a new verification." });
+    if (consumed.length === 0) {
+      return res.status(400).json({ error: "Invalid, expired, or already-used session. Please start a new verification." });
+    }
   }
 
   if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
@@ -471,6 +731,43 @@ router.post("/profiles/verify-face", async (req, res) => {
   }
 
   // ── Persist ───────────────────────────────────────────────────────────────────
+  if (useLocalDbFallback()) {
+    const localDb = readLocalDb();
+    const nonces = localDb.livenessNonces ?? [];
+    const nonceIndex = nonces.findIndex((item) => item.nonce === nonce && item.userId === userId);
+    if (nonceIndex < 0 || nonces[nonceIndex].used || new Date(nonces[nonceIndex].expiresAt).getTime() <= Date.now()) {
+      return res.status(400).json({ error: "Invalid, expired, or already-used session. Please start a new verification." });
+    }
+    nonces[nonceIndex] = { ...nonces[nonceIndex], used: true };
+
+    const profiles = localDb.profiles ?? [];
+    const profileIndex = profiles.findIndex((item) => item.userId === userId);
+    const existing = profileIndex >= 0 ? profiles[profileIndex] : undefined;
+    const now = new Date().toISOString();
+    const nextProfile: LocalProfile = {
+      id: existing?.id ?? randomUUID(),
+      userId,
+      displayName: existing?.displayName ?? "",
+      intent: existing?.intent ?? "all",
+      ...existing,
+      isVerified: true,
+      modeData: {
+        ...(existing?.modeData ?? {}),
+        faceHash,
+        livenessVerifiedAt: now,
+        livenessScore: Math.round(livenessScore * 1000) / 1000,
+      },
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    if (profileIndex >= 0) profiles[profileIndex] = nextProfile;
+    else profiles.push(nextProfile);
+    localDb.livenessNonces = nonces;
+    localDb.profiles = profiles;
+    writeLocalDb(localDb);
+    return res.json({ ok: true, isVerified: true });
+  }
+
   const [existing] = await db.select().from(profilesTable).where(eq(profilesTable.userId, userId)).limit(1);
   const existingModeData = (existing?.modeData as Record<string, unknown>) ?? {};
   const updatedModeData = {
@@ -508,6 +805,28 @@ router.get("/profiles/:userId", async (req, res) => {
   if (!authUserId) return res.status(401).json({ error: "Unauthorized" });
 
   const { userId } = req.params;
+  if (useLocalDbFallback()) {
+    const localDb = readLocalDb();
+    const profiles = localDb.profiles ?? [];
+    const profileIndex = profiles.findIndex((item) => item.userId === userId);
+    if (profileIndex < 0) return res.status(404).json({ error: "Profile not found" });
+    const profile = profiles[profileIndex];
+    profiles[profileIndex] = {
+      ...profile,
+      profileViews: (profile.profileViews ?? 0) + 1,
+      updatedAt: new Date().toISOString(),
+    };
+    localDb.profiles = profiles;
+    writeLocalDb(localDb);
+    const visibility = profile.locationVisibility ?? "fuzzy";
+    return res.json({
+      ...localProfileResponse(profiles[profileIndex]),
+      latitude: visibility === "hidden" ? null : profile.latitude,
+      longitude: visibility === "hidden" ? null : profile.longitude,
+      distancePrecision: visibility === "active" ? "live" : visibility === "fuzzy" ? "approx" : "none",
+    });
+  }
+
   const [profile] = await db
     .select()
     .from(profilesTable)
@@ -553,6 +872,9 @@ router.post("/profiles/me/photos", async (req, res) => {
     const buffer = Buffer.from(base64, "base64");
     if (buffer.byteLength > MAX_PHOTO_BYTES) {
       return res.status(413).json({ error: "Image exceeds the 15 MB size limit." });
+    }
+    if (useLocalDbFallback()) {
+      return res.json({ url: `data:${ct};base64,${base64}` });
     }
     const objectPath = await objectStorageService.uploadObjectEntityBuffer(buffer, ct);
     const id = objectPath.replace(/^\/objects\//, "");

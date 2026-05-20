@@ -1,6 +1,6 @@
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
@@ -32,6 +32,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const PINK = "#FF299B";
 const ROSE = "#D91880";
 const PURPLE = "#8B5CF6";
+const FINISH_SAVE_TIMEOUT_MS = 10_000;
 
 function appleEmojiUrl(emoji: string): string {
   const points = [...emoji]
@@ -39,6 +40,10 @@ function appleEmojiUrl(emoji: string): string {
     .filter((cp) => cp !== 0xfe0f) // strip variation selectors
     .map((cp) => cp.toString(16).toLowerCase());
   return `https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${points.join("-")}.png`;
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
 }
 const WINDOW_WIDTH = Dimensions.get("window").width;
 const TOTAL_STEPS = 10;
@@ -115,6 +120,14 @@ const FRIENDSHIP_TYPES = [
   { value: "Activity Partner", icon: "bicycle-outline" as const,        label: "Activity Partner" },
   { value: "Wing Person",      icon: "people-circle-outline" as const,  label: "Wing Person" },
   { value: "BFF Hunt",         icon: "heart-circle-outline" as const,   label: "BFF Hunt" },
+];
+
+const OPPORTUNITY_TYPES = [
+  { value: "Jobs & Referrals", icon: "briefcase-outline" as const, label: "Jobs & Referrals" },
+  { value: "Collaborations", icon: "git-network-outline" as const, label: "Collaborations" },
+  { value: "Mentorship", icon: "school-outline" as const, label: "Mentorship" },
+  { value: "Business Partners", icon: "rocket-outline" as const, label: "Business Partners" },
+  { value: "Events & Gigs", icon: "calendar-outline" as const, label: "Events & Gigs" },
 ];
 
 const DATING_GOALS = [
@@ -336,7 +349,7 @@ function PinkButton({ label, onPress, disabled, icon }: {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function OnboardingScreen() {
-  const { getToken, signOut } = useAuth();
+  const { getToken, signOut, isSignedIn, isLoaded: isAuthLoaded } = useAuth();
   const { user } = useUser();
   const insets = useSafeAreaInsets();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -354,6 +367,12 @@ export default function OnboardingScreen() {
   }, []);
 
   // ── Navigation ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isAuthLoaded && !isSignedIn) {
+      router.replace("/(auth)/welcome");
+    }
+  }, [isAuthLoaded, isSignedIn]);
+
   const [step, setStep] = useState(1);
   const [underageDenied, setUnderageDenied] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -463,6 +482,14 @@ export default function OnboardingScreen() {
     setCustomInterest("");
   }
 
+  async function requireSessionToken(): Promise<string> {
+    const token = await getToken();
+    if (!token) {
+      throw new Error("Your account is still opening. Please wait a moment, then try again.");
+    }
+    return token;
+  }
+
   // ── Step 6 — Photos ─────────────────────────────────────────────────────────
   // 3 slots total: slot 0 = main, slots 1-2 = additional
   const [photoUris, setPhotoUris] = useState<(string | null)[]>([null, null, null]);
@@ -497,7 +524,7 @@ export default function OnboardingScreen() {
     // Upload to object storage immediately in the background
     setPhotoUploading((prev) => { const copy = [...prev]; copy[slot] = true; return copy; });
     try {
-      const token = await getToken();
+      const token = await requireSessionToken();
       let base64: string;
       if (b64) {
         base64 = b64;
@@ -706,14 +733,13 @@ export default function OnboardingScreen() {
     if (typeof saved.gender === "string") setGender(saved.gender);
     if (typeof saved.showGenderOnProfile === "boolean") setShowGenderOnProfile(saved.showGenderOnProfile);
     if (typeof saved.lookingForGender === "string") setLookingForGender(saved.lookingForGender);
-    if (typeof saved.intent === "string") setIntent(saved.intent);
+    if (typeof saved.intent === "string") setIntent(saved.intent === "networking" ? "friendship" : saved.intent);
     if (typeof saved.datingGoal === "string") setDatingGoal(saved.datingGoal);
     if (typeof saved.datingPace === "string") setDatingPace(saved.datingPace);
     if (typeof saved.firstDateStyle === "string") setFirstDateStyle(saved.firstDateStyle);
     if (typeof saved.datingEnergy === "string") setDatingEnergy(saved.datingEnergy);
     if (Array.isArray(saved.datingComforts)) setDatingComforts(saved.datingComforts as string[]);
     if (Array.isArray(saved.friendshipTypes)) setFriendshipTypes(saved.friendshipTypes as string[]);
-    if (typeof saved.careerStage === "string") setCareerStage(saved.careerStage);
     if (Array.isArray(saved.selectedInterests)) setSelectedInterests(saved.selectedInterests as string[]);
     if (saved.county === "Miami-Dade" || saved.county === "Broward") setCounty(saved.county);
     if (typeof saved.city === "string") setCity(saved.city);
@@ -731,7 +757,7 @@ export default function OnboardingScreen() {
           dobMonth, dobDay, dobYear,
           gender, showGenderOnProfile,
           lookingForGender,
-          intent, datingGoal, datingPace, firstDateStyle, datingEnergy, datingComforts, friendshipTypes, careerStage,
+          intent, datingGoal, datingPace, firstDateStyle, datingEnergy, datingComforts, friendshipTypes,
           selectedInterests,
           county, city, locationVisibility,
           communityCodeAccepted,
@@ -743,7 +769,7 @@ export default function OnboardingScreen() {
   // ── Photo upload ─────────────────────────────────────────────────────────────
   // base64Hint: pre-fetched base64 from the image picker (preferred path).
   // Falls back to reading the file only if base64Hint is not available.
-  async function uploadPhoto(uri: string, token: string | null, base64Hint?: string | null): Promise<string | null> {
+  async function uploadPhoto(uri: string, token: string, base64Hint?: string | null): Promise<string | null> {
     try {
       let base64: string;
       if (base64Hint) {
@@ -768,7 +794,7 @@ export default function OnboardingScreen() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ base64, contentType: "image/jpeg" }),
         }
@@ -825,8 +851,10 @@ export default function OnboardingScreen() {
       return;
     }
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FINISH_SAVE_TIMEOUT_MS);
     try {
-      const token = await getToken();
+      const token = await requireSessionToken();
 
       // Collect uploaded photo URLs — photos are uploaded immediately when picked,
       // so photoStorageUrls[i] is usually already set. If not, try once more now.
@@ -850,7 +878,6 @@ export default function OnboardingScreen() {
       const connectionSubtype =
         intent === "dating" ? (datingGoal || undefined) :
         intent === "friendship" ? (friendshipTypes[0] || undefined) :
-        intent === "networking" ? (careerStage || undefined) :
         undefined;
 
       const modeData =
@@ -866,14 +893,13 @@ export default function OnboardingScreen() {
             }
           : intent === "friendship"
           ? { friendshipTypes: friendshipTypes.length > 0 ? friendshipTypes : ["Casual Hangout"] }
-          : intent === "networking"
-          ? { networkingSubtype: careerStage || undefined }
           : {};
 
       const response = await fetch(
         apiUrl("/api/profiles/me"),
         {
           method: "PUT",
+          signal: controller.signal,
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -900,13 +926,19 @@ export default function OnboardingScreen() {
       );
 
       if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? "Failed to save profile");
+        const raw = await response.text().catch(() => "");
+        let err: { error?: string; details?: string[] } = {};
+        try {
+          err = raw ? JSON.parse(raw) as { error?: string; details?: string[] } : {};
+        } catch {}
+        const detailText = Array.isArray(err.details) && err.details.length > 0 ? ` ${err.details.join(" ")}` : "";
+        throw new Error(`${err.error ?? `Failed to save profile (${response.status})`}${detailText}`);
       }
 
       await user?.update({
         unsafeMetadata: { ...user.unsafeMetadata, onboardingComplete: true, onboardingProgress: null },
       });
+      await user?.reload();
 
       // Celebration flash → navigate
       Animated.sequence([
@@ -914,9 +946,12 @@ export default function OnboardingScreen() {
         Animated.timing(celebAnim, { toValue: 0, duration: 480, useNativeDriver: true }),
       ]).start(() => router.replace("/success"));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Something went wrong. Please try again.";
+      const msg = isAbortError(e)
+        ? "Saving your profile is taking too long. Make sure the API server is running, then try again."
+        : e instanceof Error ? e.message : "Something went wrong. Please try again.";
       Alert.alert("Couldn't save profile", msg);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }
@@ -956,7 +991,6 @@ export default function OnboardingScreen() {
     step === 4 ? (
       intent === "dating" ? datingGoal.length > 0 && datingPace.length > 0 && firstDateStyle.length > 0 && datingEnergy.length > 0 :
       intent === "friendship" ? friendshipTypes.length > 0 :
-      intent === "networking" ? careerStage.length > 0 :
       false
     ) :
     step === 5 ? lookingForGender.length > 0 :
@@ -1273,7 +1307,18 @@ export default function OnboardingScreen() {
                     return (
                       <ScalePressable
                         key={item.value}
-                        onPress={() => setIntent(sel ? "" : item.value)}
+                        onPress={() => {
+                          const nextIntent = sel ? "" : item.value;
+                          setIntent(nextIntent);
+                          if (nextIntent !== "dating") {
+                            setDatingGoal("");
+                            setDatingPace("");
+                            setFirstDateStyle("");
+                            setDatingEnergy("");
+                            setDatingComforts([]);
+                          }
+                          if (nextIntent !== "friendship") setFriendshipTypes([]);
+                        }}
                         style={{
                           flexDirection: "row", alignItems: "center", gap: 14,
                           padding: 16, borderRadius: 16,

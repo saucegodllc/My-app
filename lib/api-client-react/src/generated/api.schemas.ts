@@ -37,6 +37,8 @@ export interface Profile {
   age?: number;
   gender?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   country?: string;
   intent: ConnectionIntent;
   interests?: string[];
@@ -261,6 +263,12 @@ export interface Event {
   isFree: boolean;
   price: string;
   category: string;
+  source?: string;
+  sourceId?: string;
+  sourceLabel?: string;
+  status?: string;
+  updatedAt?: string;
+  lastSeenAt?: string;
 }
 
 export interface EventsResponse {
@@ -393,6 +401,7 @@ export interface NetworkProfile {
   isVerified: boolean;
   location?: string | null;
   networkingGoals?: string | null;
+  interests?: string[] | null;
 }
 
 export interface NetworkConnection {

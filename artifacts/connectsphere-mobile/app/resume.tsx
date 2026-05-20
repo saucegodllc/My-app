@@ -104,7 +104,7 @@ export default function ResumeScreen() {
 
       // Read PDF as base64
       const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: "base64",
       });
       await detectResume(base64, "application/pdf", name);
     } catch {

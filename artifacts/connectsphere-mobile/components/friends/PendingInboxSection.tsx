@@ -15,6 +15,7 @@ type Props = {
   onAccept: (request: FriendRequest) => void;
   onIgnore: (request: FriendRequest) => void;
   onCancel: (request: FriendRequest) => void;
+  onIcebreaker: (request: FriendRequest) => void;
   onFindPeople: () => void;
 };
 
@@ -29,6 +30,7 @@ export default function PendingInboxSection({
   onAccept,
   onIgnore,
   onCancel,
+  onIcebreaker,
   onFindPeople,
 }: Props) {
   if (!requests.length) {
@@ -145,6 +147,17 @@ export default function PendingInboxSection({
                   >
                     <Text style={styles.secondaryText}>{busyLabel(isPlanJoin ? "Decline" : "Ignore", isActing(ignoreKey))}</Text>
                   </Pressable>
+                  <Pressable
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      onIcebreaker(request);
+                    }}
+                    style={styles.ai}
+                    disabled={isActing(acceptKey) || isActing(ignoreKey)}
+                  >
+                    <Ionicons name="sparkles" size={14} color="#0A0A0B" />
+                    <Text style={styles.aiText}>AI</Text>
+                  </Pressable>
                 </View>
               )}
             </View>
@@ -236,6 +249,17 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   secondaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },
+  ai: {
+    alignItems: "center",
+    backgroundColor: "#FBBF24",
+    borderRadius: 14,
+    flexDirection: "row",
+    gap: 5,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: 12,
+  },
+  aiText: { color: "#0A0A0B", fontSize: 12, fontWeight: "900" },
   waitingPill: {
     alignItems: "center",
     backgroundColor: "rgba(255,45,168,0.1)",

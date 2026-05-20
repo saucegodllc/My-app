@@ -92,6 +92,10 @@ httpServer.listen(port, async (err?: Error) => {
     process.exit(1);
   }
   logger.info({ port }, "Server listening");
+  if (process.env.CONNECTSPHERE_LOCAL_DB_FALLBACK === "1") {
+    logger.warn("DATABASE_URL not set; running JSON-backed routes without Postgres startup tasks");
+    return;
+  }
   await runLivenessMigrations();
   await initStripe();
 });

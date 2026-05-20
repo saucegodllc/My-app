@@ -95,9 +95,9 @@ const LOCAL_EVENT_SEEDS = [
     imageUrl: "https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=900&q=80",
   },
   {
-    id: "local-brickell-networking",
-    name: "Brickell Young Professionals Mixer",
-    description: "Low-pressure career and side-hustle networking with founders, creatives, and local operators.",
+    id: "local-brickell-friends-mixer",
+    name: "Brickell Friends Mixer",
+    description: "Low-pressure games, music, and easy group conversations for meeting new friends nearby.",
     dayOffset: 2,
     hour: 19,
     venueName: "The Underline Brickell Backyard",
@@ -107,7 +107,7 @@ const LOCAL_EVENT_SEEDS = [
     longitude: -80.1958,
     isFree: true,
     price: "Free",
-    category: "Business",
+    category: "Social",
     imageUrl: "https://images.unsplash.com/photo-1515169067865-5387ec356754?w=900&q=80",
   },
   {

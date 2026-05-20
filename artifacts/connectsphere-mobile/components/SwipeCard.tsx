@@ -78,19 +78,6 @@ function getIntentTheme(intent: string) {
     };
   }
 
-  if (intent === "networking") {
-    return {
-      accent: "#A855F7",
-      accentSoft: "rgba(168,85,247,0.18)",
-      label: "Opportunities",
-      fitLabel: "Network Fit",
-      rightStamp: "CONNECT",
-      upStamp: "VIEW",
-      leftStamp: "NOT NOW",
-      headlinePrefix: "Open to",
-    };
-  }
-
   return {
     accent: "#FF299B",
     accentSoft: "rgba(255,41,155,0.18)",
@@ -192,11 +179,8 @@ export function SwipeCard({
   const compatibility = deterministicPct(profile.userId);
   const isOnline = deterministicPct(profile.userId + "-online") % 2 === 0;
   const locationText = [profile.location, profile.country].filter(Boolean).join(", ");
-  const isNetworking = profile.intent === "networking";
-  const primaryTitle = isNetworking && profile.profession ? profile.profession : profile.displayName;
-  const secondaryTitle = isNetworking
-    ? profile.displayName
-    : profile.age
+  const primaryTitle = profile.displayName;
+  const secondaryTitle = profile.age
       ? `${profile.age}`
       : "";
   const intentLine = profile.connectionSubtype
@@ -271,7 +255,7 @@ export function SwipeCard({
         <Pressable onPress={onOpenProfile} style={styles.info}>
           <View style={styles.intentHeadline}>
             <Ionicons
-              name={profile.intent === "friendship" ? "people" : profile.intent === "networking" ? "briefcase" : "flame"}
+              name={profile.intent === "friendship" ? "people" : "flame"}
               size={14}
               color={theme.accent}
             />
@@ -290,10 +274,6 @@ export function SwipeCard({
               </View>
             ) : null}
           </View>
-
-          {isNetworking && profile.displayName ? (
-            <Text style={styles.professionalName} numberOfLines={1}>{profile.displayName}</Text>
-          ) : null}
 
           {locationText ? (
             <View style={styles.locationRow}>

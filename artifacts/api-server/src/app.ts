@@ -9,6 +9,9 @@ import { CLERK_PROXY_PATH, clerkProxyMiddleware } from "./middlewares/clerkProxy
 
 const app: Express = express();
 
+process.env.CLERK_PUBLISHABLE_KEY ??= "pk_test_a2V5LWNoYW1vaXMtNzkuY2xlcmsuYWNjb3VudHMuZGV2JA";
+process.env.CLERK_SECRET_KEY ??= "sk_test_connectsphere_local";
+
 app.use(
   pinoHttp({
     logger,

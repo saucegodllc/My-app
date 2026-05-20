@@ -13,10 +13,11 @@ type Props = {
   onReact: (story: FriendStory) => void;
   onReply: (story: FriendStory) => void;
   onPlan: (story: FriendStory) => void;
+  onIcebreaker: (story: FriendStory) => void;
   isBusy?: (story: FriendStory, action: "react" | "reply" | "plan") => boolean;
 };
 
-export default function FriendSignalsRow({ stories, onReact, onReply, onPlan, isBusy }: Props) {
+export default function FriendSignalsRow({ stories, onReact, onReply, onPlan, onIcebreaker, isBusy }: Props) {
   if (!stories.length) {
     return (
       <View style={styles.empty}>
@@ -58,11 +59,11 @@ export default function FriendSignalsRow({ stories, onReact, onReply, onPlan, is
                   <Ionicons name="sparkles" size={14} color="#FFB6D9" />
                 </Pressable>
                 <Pressable
-                  onPress={() => onReply(story)}
+                  onPress={() => onIcebreaker(story)}
                   disabled={replying}
                   style={[styles.actionButton, replying && styles.disabledButton]}
                 >
-                  <Text style={styles.actionText}>{replying ? "..." : "Reply"}</Text>
+                  <Text style={styles.actionText}>{replying ? "..." : "AI Reply"}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => onPlan(story)}

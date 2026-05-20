@@ -22,4 +22,10 @@ export interface Event {
   isFree: boolean;
   price: string;
   category: string;
+  source?: string;
+  sourceId?: string;
+  sourceLabel?: string;
+  status?: string;
+  updatedAt?: string;
+  lastSeenAt?: string;
 }

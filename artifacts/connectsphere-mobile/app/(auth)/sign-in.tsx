@@ -75,6 +75,36 @@ export default function SignInScreen() {
     }
   }
 
+  async function completeEmailPasswordSignIn(email: string, passwordValue: string, destination: "/congrats" | "/(tabs)" = "/(tabs)", showError = true) {
+    if (!isLoaded || !signIn || !setActive) return false;
+    setLoading(true);
+    try {
+      const result = await signIn.create({ identifier: email, password: passwordValue });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        router.replace(destination);
+        return true;
+      }
+      if (result.status === "needs_first_factor") {
+        const attempt = await signIn.attemptFirstFactor({ strategy: "password", password: passwordValue });
+        if (attempt.status === "complete") {
+          await setActive({ session: attempt.createdSessionId });
+          router.replace(destination);
+          return true;
+        }
+      }
+      console.warn("[sign-in] email/password sign-in incomplete:", result.status);
+      return false;
+    } catch (err: unknown) {
+      const message = extractClerkError(err, "Incorrect credentials. Please try again.");
+      console.warn("[sign-in] email/password sign-in failed:", message);
+      if (showError) Alert.alert("Sign In Failed", message);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleSignIn() {
     if (!isLoaded) return;
     if (!identifier.trim()) {
@@ -90,7 +120,11 @@ export default function SignInScreen() {
       const id = mode === "email"
         ? identifier.trim().toLowerCase()
         : identifier.trim().startsWith("+") ? identifier.trim() : `+1${identifier.trim().replace(/\D/g, "")}`;
-      const result = await signIn!.create({ identifier: id, ...(mode === "email" ? { password } : {}) });
+      if (mode === "email") {
+        await completeEmailPasswordSignIn(id, password, "/(tabs)");
+        return;
+      }
+      const result = await signIn!.create({ identifier: id });
       if (result.status === "complete") {
         await setActive!({ session: result.createdSessionId });
       }

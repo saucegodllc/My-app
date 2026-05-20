@@ -1,6 +1,26 @@
 import { Router } from "express";
 
 const router = Router();
+const LOCAL_PLACEHOLDER_CLERK_SECRET = "sk_test_connectsphere_local";
+const CLERK_API_TIMEOUT_MS = 10_000;
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
+}
+
+async function fetchClerk(path: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CLERK_API_TIMEOUT_MS);
+
+  try {
+    return await fetch(`https://api.clerk.com/v1${path}`, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 router.post("/auth/signup-bypass", async (req, res) => {
   try {
@@ -12,15 +32,17 @@ router.post("/auth/signup-bypass", async (req, res) => {
     }
 
     const clerkSecretKey = process.env.CLERK_SECRET_KEY;
-    if (!clerkSecretKey) {
-      res.status(500).json({ error: "Server configuration error." });
+    if (!clerkSecretKey || clerkSecretKey === LOCAL_PLACEHOLDER_CLERK_SECRET) {
+      res.status(503).json({
+        error: "Server sign-up is not connected to Clerk yet. Add CLERK_SECRET_KEY to the API environment, then restart the API.",
+      });
       return;
     }
 
     // Step 1: Create user (or find existing)
     let userId: string | undefined;
 
-    const createResp = await fetch("https://api.clerk.com/v1/users", {
+    const createResp = await fetchClerk("/users", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${clerkSecretKey}`,
@@ -52,7 +74,7 @@ router.post("/auth/signup-bypass", async (req, res) => {
     userId = createData.id;
 
     // Step 2: Create a one-time sign-in token so the client can authenticate instantly
-    const tokenResp = await fetch("https://api.clerk.com/v1/sign_in_tokens", {
+    const tokenResp = await fetchClerk("/sign_in_tokens", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${clerkSecretKey}`,
@@ -64,13 +86,27 @@ router.post("/auth/signup-bypass", async (req, res) => {
     const tokenData = await tokenResp.json() as { token?: string; errors?: Array<{ message: string }> };
 
     if (!tokenResp.ok || !tokenData.token) {
-      // Token creation failed — client will fall back to password sign-in
-      res.json({ success: true, userId });
+      // Do not leave a new account behind unless the app can start the session.
+      await fetchClerk(`/users/${userId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${clerkSecretKey}` },
+      }).catch((deleteErr) => {
+        console.error("Clerk cleanup after token failure failed:", deleteErr);
+      });
+
+      res.status(502).json({
+        error: "Account setup could not start automatically. Please try again.",
+      });
       return;
     }
 
     res.json({ success: true, userId, ticket: tokenData.token });
   } catch (err) {
+    if (isAbortError(err)) {
+      console.error("signup-bypass Clerk timeout:", err);
+      res.status(504).json({ error: "Clerk sign-up took too long to respond. Please try again." });
+      return;
+    }
     console.error("signup-bypass error:", err);
     res.status(500).json({ error: "Something went wrong. Please try again." });
   }

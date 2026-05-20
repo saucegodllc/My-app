@@ -20,7 +20,7 @@ export default function AuthLayout() {
 
   if (isSignedIn) {
     const onboardingComplete = user?.unsafeMetadata?.onboardingComplete === true;
-    return <Redirect href={onboardingComplete ? "/(tabs)/" : "/onboarding"} />;
+    return <Redirect href={onboardingComplete ? "/(tabs)" : "/onboarding"} />;
   }
 
   return (

@@ -102,7 +102,7 @@ export default function ProfileScreen() {
         base64 = btoa(binary);
       } else {
         base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: "base64",
         });
       }
 
@@ -269,7 +269,7 @@ export default function ProfileScreen() {
               {profile?.intent && (
                 <View style={[styles.intentBadge, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "50" }]}>
                   <Ionicons
-                    name={profile.intent === "dating" ? "flame" : profile.intent === "friendship" ? "people" : profile.intent === "networking" ? "briefcase" : "globe"}
+                    name={profile.intent === "dating" ? "flame" : "people"}
                     size={13}
                     color={colors.primary}
                   />

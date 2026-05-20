@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { getAuth } from "@clerk/express";
 import { Router } from "express";
+import { generateFriendIcebreakers, type FriendIcebreakerContext } from "../lib/friendsIcebreakers";
 
 type FriendUser = {
   id: string;
@@ -35,11 +36,11 @@ type ConnectionRequest = {
   id: string;
   fromUserId: string;
   toUserId: string;
-  status: "pending" | "accepted" | "ignored";
+  status: "pending" | "accepted" | "ignored" | "canceled";
   message?: string;
   storyId?: string;
   planId?: string;
-  kind?: "friend" | "story_reply" | "plan_invite";
+  kind?: "friend" | "story_reply" | "plan_invite" | "plan_join";
   createdAt: string;
 };
 
@@ -72,6 +73,8 @@ type Chat = {
   title?: string;
   planId?: string;
   createdAt: string;
+  isGroup?: boolean;
+  groupPromotedAt?: string;
 };
 
 type Message = {
@@ -109,7 +112,16 @@ type PlanJoinRequest = {
   planId: string;
   fromUserId: string;
   creatorId: string;
-  status: "pending" | "accepted" | "declined";
+  status: "pending" | "accepted" | "declined" | "canceled";
+  createdAt: string;
+};
+
+type FriendReport = {
+  id: string;
+  userId: string;
+  reportedUserId: string;
+  reason?: string;
+  context?: string;
   createdAt: string;
 };
 
@@ -129,12 +141,28 @@ type FriendsDb = {
   friendStories?: FriendStory[];
   friendStoryReactions?: Array<{ id: string; storyId: string; userId: string; reaction: string; createdAt: string }>;
   planJoinRequests?: PlanJoinRequest[];
+  userReports?: FriendReport[];
   datingMatches?: Array<{ id: string; userAId: string; userBId: string; createdAt: string; shotId?: string }>;
   doubleDatePairs?: Array<{ id: string; userIds: [string, string]; createdBy: string; status: "active" | "paused"; vibeTags: string[]; createdAt: string }>;
-  doubleDateLikes?: Array<{ id: string; fromPairId: string; toPairId: string; type: "like" | "spark"; createdAt: string }>;
+  doubleDateLikes?: Array<{ id: string; fromPairId: string; toPairId: string; type: "like" | "spark" | "shot"; createdAt: string }>;
   doubleDatePasses?: Array<{ id: string; fromPairId: string; toPairId: string; createdAt: string }>;
   doubleDateMatches?: Array<{ id: string; pairIds: [string, string]; userIds: [string, string, string, string]; chatId: string; createdAt: string }>;
   blockedUsers?: Array<{ id: string; userId: string; blockedUserId: string; createdAt: string }>;
+  planShareLinks?: Array<{
+    id: string;
+    planId: string;
+    token: string;
+    createdByUserId: string;
+    createdAt: string;
+    revokedAt?: string;
+  }>;
+  planShareLinkRedemptions?: Array<{
+    id: string;
+    token: string;
+    planId: string;
+    userId: string;
+    createdAt: string;
+  }>;
 };
 
 const router = Router();
@@ -220,6 +248,7 @@ function emptyDb(): FriendsDb {
     friendStories: [],
     friendStoryReactions: [],
     planJoinRequests: [],
+    userReports: [],
   };
 }
 
@@ -250,12 +279,15 @@ function readDb(): FriendsDb {
     friendStories: parsed.friendStories ?? [],
     friendStoryReactions: parsed.friendStoryReactions ?? [],
     planJoinRequests: parsed.planJoinRequests ?? [],
+    userReports: parsed.userReports ?? [],
     datingMatches: parsed.datingMatches ?? [],
     doubleDatePairs: parsed.doubleDatePairs ?? [],
     doubleDateLikes: parsed.doubleDateLikes ?? [],
     doubleDatePasses: parsed.doubleDatePasses ?? [],
     doubleDateMatches: parsed.doubleDateMatches ?? [],
     blockedUsers: parsed.blockedUsers ?? [],
+    planShareLinks: parsed.planShareLinks ?? [],
+    planShareLinkRedemptions: parsed.planShareLinkRedemptions ?? [],
   };
 }
 
@@ -313,6 +345,12 @@ export function getPlanSuggestions(viewer: FriendUser, candidate: FriendUser) {
 }
 
 export function getFriendActions(viewerId: string, candidateId: string, db: FriendsDb) {
+  if (isBlocked(db, viewerId, candidateId)) {
+    return {
+      connect: "blocked",
+      plan: "blocked",
+    };
+  }
   const request = db.connectionRequests.find(
     (item) =>
       ((item.fromUserId === viewerId && item.toUserId === candidateId) ||
@@ -336,6 +374,7 @@ export function buildFriendsFeed(userId: string, db: FriendsDb) {
   const behavior = db.userBehavior.find((item) => item.userId === userId);
 
   return db.friendPosts
+    .filter((post) => post.userId === userId || !isBlocked(db, userId, post.userId))
     .map((post) => {
       const author = userProfile(db, post.userId);
       const compatibility = calculateCompatibility(viewer, author, behavior);
@@ -380,6 +419,14 @@ function userProfile(db: FriendsDb, id: string) {
   };
 }
 
+function isBlocked(db: FriendsDb, userAId: string, userBId: string) {
+  return (db.blockedUsers ?? []).some(
+    (block) =>
+      (block.userId === userAId && block.blockedUserId === userBId) ||
+      (block.userId === userBId && block.blockedUserId === userAId),
+  );
+}
+
 function areFriends(db: FriendsDb, userAId: string, userBId: string) {
   return db.connections.some((connection) => {
     const ids = connection.userIds ?? [connection.userAId, connection.userBId];
@@ -407,6 +454,26 @@ function ensureChatMember(db: FriendsDb, chatId: string, userId: string) {
   if (!db.chatMembers.some((member) => member.chatId === chatId && member.userId === userId)) {
     db.chatMembers.push({ id: randomUUID(), chatId, userId });
   }
+}
+
+// When chat membership crosses 3, flip the `isGroup` flag and post a one-time
+// hype system message so the Connect tab can render a "group chat hype on"
+// ribbon. Safe to call after every member add; runs at most once per chat.
+function ensureGroupPromotion(db: FriendsDb, chatId: string) {
+  const chat = db.chats.find((item) => item.id === chatId);
+  if (!chat) return;
+  const memberCount = db.chatMembers.filter((member) => member.chatId === chatId).length;
+  if (memberCount < 3 || chat.isGroup) return;
+  chat.isGroup = true;
+  chat.groupPromotedAt = new Date().toISOString();
+  db.messages.push({
+    id: randomUUID(),
+    chatId,
+    senderUserId: "system",
+    text: "🎉 group chat hype on",
+    createdAt: chat.groupPromotedAt,
+    system: true,
+  });
 }
 
 function findDirectChat(db: FriendsDb, userAId: string, userBId: string) {
@@ -465,6 +532,7 @@ function ensureConnection(db: FriendsDb, userAId: string, userBId: string) {
 }
 
 function ensurePendingRequest(db: FriendsDb, fromUserId: string, toUserId: string, extras?: Partial<ConnectionRequest>) {
+  if (isBlocked(db, fromUserId, toUserId)) return null;
   const existing = pendingRequestBetween(db, fromUserId, toUserId);
   if (existing) {
     if (extras?.message) existing.message = extras.message;
@@ -502,6 +570,9 @@ function peopleCard(db: FriendsDb, viewerId: string, candidateId: string) {
   const pending = pendingRequestBetween(db, viewerId, candidateId);
   const chat = areFriends(db, viewerId, candidateId) ? ensureDirectChat(db, viewerId, candidateId) : undefined;
   const sharedInterests = arrayOverlap(viewer.interests, candidate.interests);
+  const compatibility = calculateCompatibility(viewer, candidate, db.userBehavior.find((item) => item.userId === viewerId));
+  const planSuggestions = getPlanSuggestions(viewer, candidate);
+  const suggestedPlan = planSuggestions[0];
   return {
     ...candidate,
     location: candidate.neighborhood || candidate.city,
@@ -510,6 +581,12 @@ function peopleCard(db: FriendsDb, viewerId: string, candidateId: string) {
     requestId: pending?.id,
     chatId: chat?.id,
     sharedInterests,
+    compatibility,
+    planSuggestions,
+    smartReason: compatibility.signals.slice(0, 2).join(" • "),
+    suggestedPlanType: suggestedPlan?.type,
+    suggestedPlanReason: suggestedPlan?.reason,
+    blocked: isBlocked(db, viewerId, candidateId),
   };
 }
 
@@ -517,6 +594,50 @@ function lastMessageForChat(db: FriendsDb, chatId: string) {
   return db.messages
     .filter((message) => message.chatId === chatId)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+}
+
+function addChatMessage(db: FriendsDb, chatId: string, senderUserId: string, text: string, system = false) {
+  const message: Message = {
+    id: randomUUID(),
+    chatId,
+    senderId: senderUserId,
+    senderUserId,
+    text,
+    createdAt: new Date().toISOString(),
+    system,
+  };
+  db.messages.push(message);
+  return message;
+}
+
+function icebreakerContextFromBody(db: FriendsDb, body: Record<string, unknown>, userId: string): FriendIcebreakerContext {
+  const kind = String(body.kind ?? "person") as FriendIcebreakerContext["kind"];
+  const targetUserId = typeof body.targetUserId === "string" ? body.targetUserId : undefined;
+  const storyId = typeof body.storyId === "string" ? body.storyId : undefined;
+  const planId = typeof body.planId === "string" ? body.planId : undefined;
+  const chatId = typeof body.chatId === "string" ? body.chatId : undefined;
+  const target = targetUserId ? userProfile(db, targetUserId) : undefined;
+  const story = storyId ? (db.friendStories ?? []).find((item) => item.id === storyId) : undefined;
+  const storyUser = story ? userProfile(db, story.userId) : undefined;
+  const plan = planId ? db.plans.find((item) => item.id === planId) : undefined;
+  const chat = chatId ? db.chats.find((item) => item.id === chatId) : undefined;
+  const otherChatUserId = chat?.participantIds?.find((id) => id !== userId);
+  const otherChatUser = otherChatUserId ? userProfile(db, otherChatUserId) : undefined;
+  const lastMessage = chatId ? lastMessageForChat(db, chatId)?.text : undefined;
+  const person = target ?? storyUser ?? otherChatUser;
+  return {
+    kind,
+    currentUserName: userProfile(db, userId).name,
+    targetName: person?.name,
+    interests: person?.interests,
+    energy: person?.energy,
+    location: person?.neighborhood ?? person?.city ?? plan?.location,
+    storyText: story?.text,
+    planTitle: plan?.title,
+    planType: plan?.type,
+    planLocation: plan?.sourceName ?? plan?.location,
+    lastMessage,
+  };
 }
 
 function createFriendPlanWithChat(
@@ -541,8 +662,9 @@ function createFriendPlanWithChat(
 ) {
   const createdAt = new Date().toISOString();
   const invitedUserIds = unique(input.invitedUserIds ?? []).filter((userId) => userId !== input.creatorId);
-  const instantInviteIds = invitedUserIds.filter((userId) => areFriends(db, input.creatorId, userId));
-  const pendingInviteIds = invitedUserIds.filter((userId) => !areFriends(db, input.creatorId, userId));
+  const visibleInviteIds = invitedUserIds.filter((userId) => !isBlocked(db, input.creatorId, userId));
+  const instantInviteIds = visibleInviteIds.filter((userId) => areFriends(db, input.creatorId, userId));
+  const pendingInviteIds = visibleInviteIds.filter((userId) => !areFriends(db, input.creatorId, userId));
   const participantIds = unique([input.creatorId, ...instantInviteIds]);
   const plan: Plan = {
     id: randomUUID(),
@@ -561,7 +683,7 @@ function createFriendPlanWithChat(
     sourceImageUrl: input.sourceImageUrl,
     latitude: input.latitude,
     longitude: input.longitude,
-    invitedUserIds,
+    invitedUserIds: visibleInviteIds,
     createdAt,
   };
   const chat: Chat = {
@@ -579,11 +701,18 @@ function createFriendPlanWithChat(
     db.planMembers.push({ id: randomUUID(), planId: plan.id, userId, role: userId === input.creatorId ? "host" : "guest" });
     ensureChatMember(db, chat.id, userId);
   });
+  ensureGroupPromotion(db, chat.id);
+  const whenLabel = plan.timeLabel ?? plan.time ?? "soon";
+  const sourceLabel = plan.sourceName ?? plan.location ?? plan.title;
+  const sourceIcon =
+    plan.sourceType === "event" ? "🎟" : plan.sourceType === "map" ? "📍" : "✨";
+  const sourcePrefix =
+    plan.sourceType === "event" ? "plan from" : plan.sourceType === "map" ? "plan at" : "plan";
   db.messages.push({
     id: randomUUID(),
     chatId: chat.id,
     senderUserId: input.creatorId,
-    text: `Plan created: ${plan.title}.`,
+    text: `${sourceIcon} ${sourcePrefix} ${sourceLabel} · ${whenLabel}`,
     createdAt,
     system: true,
   });
@@ -603,7 +732,7 @@ function ensureMockPeopleStories(db: FriendsDb, viewerId: string) {
   const hasPeopleStories = db.friendStories.some((story) => story.userId !== viewerId);
   if (hasPeopleStories) return;
 
-  const candidates = db.users.filter((user) => user.id !== viewerId).slice(0, 4);
+  const candidates = db.users.filter((user) => user.id !== viewerId && !isBlocked(db, viewerId, user.id)).slice(0, 4);
   const storySet: Array<{
     type: FriendStory["type"];
     text: string;
@@ -666,7 +795,9 @@ function planSummary(db: FriendsDb, plan: Plan) {
 
 function planFeedCard(db: FriendsDb, plan: Plan, viewerId: string) {
   const creatorId = plan.creatorId ?? plan.creatorUserId ?? "";
-  const joinRequest = (db.planJoinRequests ?? []).find((request) => request.planId === plan.id && request.fromUserId === viewerId);
+  const joinRequest = (db.planJoinRequests ?? []).find(
+    (request) => request.planId === plan.id && request.fromUserId === viewerId && request.status === "pending",
+  );
   const isMember = db.planMembers.some((member) => member.planId === plan.id && member.userId === viewerId);
   return {
     ...planSummary(db, plan),
@@ -698,6 +829,7 @@ function joinPlanAsMember(db: FriendsDb, plan: Plan, userId: string) {
   chat.participantIds = unique([...(chat.participantIds ?? []), creatorId, userId]);
   ensureChatMember(db, chat.id, creatorId);
   ensureChatMember(db, chat.id, userId);
+  ensureGroupPromotion(db, chat.id);
   return chat;
 }
 
@@ -716,6 +848,16 @@ function requestSummary(db: FriendsDb, viewerId: string, request: ConnectionRequ
     plan: plan ? planSummary(db, plan) : null,
     sharedInterests: arrayOverlap(viewer.interests, otherUser.interests),
   };
+}
+
+function requestVisibleToViewer(db: FriendsDb, viewerId: string, request: ConnectionRequest) {
+  const otherUserId = request.fromUserId === viewerId ? request.toUserId : request.fromUserId;
+  return !isBlocked(db, viewerId, otherUserId);
+}
+
+function planJoinRequestVisibleToViewer(db: FriendsDb, viewerId: string, request: PlanJoinRequest) {
+  const otherUserId = request.fromUserId === viewerId ? request.creatorId : request.fromUserId;
+  return !isBlocked(db, viewerId, otherUserId);
 }
 
 function planJoinRequestSummary(db: FriendsDb, viewerId: string, request: PlanJoinRequest) {
@@ -741,12 +883,18 @@ router.get("/friends/people/:userId", (req, res) => {
   const query = String(req.query.q ?? "").trim().toLowerCase();
   const people = db.users
     .filter((user) => user.id !== userId)
+    .filter((user) => !isBlocked(db, userId, user.id))
     .map((user) => peopleCard(db, userId, user.id))
     .filter((person) => {
       if (!query) return true;
       return [person.name, person.city, person.neighborhood, person.energy, ...(person.interests ?? [])]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query));
+    })
+    .sort((a, b) => {
+      const statusBoost = (status: string) => (status === "incoming" ? 300 : status === "friends" ? 120 : status === "none" ? 80 : 20);
+      const activeBoost = (person: ReturnType<typeof peopleCard>) => (person.activeTonight ? 30 : 0);
+      return statusBoost(b.relationshipStatus) + activeBoost(b) + b.compatibility.score - (statusBoost(a.relationshipStatus) + activeBoost(a) + a.compatibility.score);
     });
   writeDb(db);
   res.json({ people });
@@ -757,19 +905,57 @@ router.post("/friends/request", (req, res) => {
   const fromUserId = authUserId(req, req.body.fromUserId);
   const toUserId = String(req.body.toUserId ?? "");
   if (!toUserId) return res.status(400).json({ error: "toUserId is required" });
+  if (fromUserId === toUserId) return res.status(400).json({ error: "Cannot send a request to yourself" });
+  if (isBlocked(db, fromUserId, toUserId)) return res.status(403).json({ error: "This connection is blocked" });
   if (areFriends(db, fromUserId, toUserId)) {
     const chat = ensureDirectChat(db, fromUserId, toUserId);
     writeDb(db);
-    return res.json({ request: null, relationshipStatus: "friends", chat });
+    return res.json({ request: null, relationshipStatus: "friends", chat, alreadyFriends: true });
   }
+
+  // Mutual match: the other side already has a pending request to me. Auto-accept it.
+  const existing = pendingRequestBetween(db, fromUserId, toUserId);
+  if (existing && existing.fromUserId === toUserId && existing.toUserId === fromUserId) {
+    existing.status = "accepted";
+    const { connection, chat } = ensureConnection(db, existing.fromUserId, existing.toUserId);
+    writeDb(db);
+    return res.json({
+      request: existing,
+      relationshipStatus: "friends",
+      connection,
+      chat,
+      mutual: true,
+    });
+  }
+
+  // Idempotent: if a same-direction pending request already exists, return 200.
+  const reused = !!existing;
   const request = ensurePendingRequest(db, fromUserId, toUserId, {
     kind: req.body.kind ?? "friend",
     message: typeof req.body.message === "string" ? req.body.message : undefined,
     planId: typeof req.body.planId === "string" ? req.body.planId : undefined,
     storyId: typeof req.body.storyId === "string" ? req.body.storyId : undefined,
   });
+  if (!request) return res.status(403).json({ error: "This connection is blocked" });
   writeDb(db);
-  return res.status(201).json({ request, relationshipStatus: relationshipStatus(db, fromUserId, toUserId) });
+  return res.status(reused ? 200 : 201).json({
+    request,
+    relationshipStatus: relationshipStatus(db, fromUserId, toUserId),
+    reused,
+  });
+});
+
+router.post("/friends/request/cancel", (req, res) => {
+  const db = readDb();
+  const requestId = String(req.body.requestId ?? "");
+  const userId = authUserId(req, req.body.userId);
+  const request = db.connectionRequests.find((item) => item.id === requestId);
+  if (!request) return res.status(404).json({ error: "Request not found" });
+  if (request.fromUserId !== userId) return res.status(403).json({ error: "Only the sender can cancel this request" });
+  if (request.status !== "pending") return res.status(409).json({ error: "Request is no longer pending" });
+  request.status = "canceled";
+  writeDb(db);
+  return res.json({ request });
 });
 
 router.post("/friends/request/respond", (req, res) => {
@@ -794,7 +980,10 @@ router.post("/friends/request/respond", (req, res) => {
       if (!db.planMembers.some((member) => member.planId === plan.id && member.userId === request.toUserId)) {
         db.planMembers.push({ id: randomUUID(), planId: plan.id, userId: request.toUserId, role: "guest" });
       }
-      if (planChat) ensureChatMember(db, planChat.id, request.toUserId);
+      if (planChat) {
+        ensureChatMember(db, planChat.id, request.toUserId);
+        ensureGroupPromotion(db, planChat.id);
+      }
     }
   }
   writeDb(db);
@@ -806,9 +995,11 @@ router.get("/friends/requests/:userId", (req, res) => {
   const userId = req.params.userId;
   const friendRequests = db.connectionRequests
     .filter((request) => request.status === "pending" && (request.toUserId === userId || request.fromUserId === userId))
+    .filter((request) => requestVisibleToViewer(db, userId, request))
     .map((request) => requestSummary(db, userId, request));
   const planRequests = (db.planJoinRequests ?? [])
     .filter((request) => request.status === "pending" && (request.creatorId === userId || request.fromUserId === userId))
+    .filter((request) => planJoinRequestVisibleToViewer(db, userId, request))
     .map((request) => planJoinRequestSummary(db, userId, request));
   const requests = [...planRequests, ...friendRequests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   res.json({ requests });
@@ -820,6 +1011,7 @@ router.get("/friends/plans/:userId", (req, res) => {
   const plans = db.plans
     .filter((plan) => {
       const creatorId = plan.creatorId ?? plan.creatorUserId;
+      if (creatorId && creatorId !== userId && isBlocked(db, userId, creatorId)) return false;
       return (
         creatorId === userId ||
         (plan.invitedUserIds ?? []).includes(userId) ||
@@ -838,6 +1030,7 @@ router.get("/friends/plans/feed/:userId", (req, res) => {
     .filter((plan) => {
       const creatorId = plan.creatorId ?? plan.creatorUserId;
       if (!creatorId || creatorId === userId) return false;
+      if (isBlocked(db, userId, creatorId)) return false;
       if (db.planMembers.some((member) => member.planId === plan.id && member.userId === userId)) return false;
       const creator = userProfile(db, creatorId);
       return plan.visibility === "friends_nearby" || areFriends(db, userId, creatorId) || creator.city === viewer.city;
@@ -854,6 +1047,33 @@ router.post("/friends/plans/create", (req, res) => {
     ...(Array.isArray(req.body.invitedUserIds) ? req.body.invitedUserIds.map(String) : []),
     typeof req.body.invitedUserId === "string" ? req.body.invitedUserId : "",
   ]);
+
+  // Dedupe: if this creator already made a plan from the same source within the
+  // last 6 hours, return the existing plan + chat instead of spawning a duplicate.
+  const dedupeSourceType = String(req.body.sourceType ?? "");
+  const dedupeSourceId = typeof req.body.sourceId === "string" ? req.body.sourceId : "";
+  if (dedupeSourceId && (dedupeSourceType === "event" || dedupeSourceType === "map")) {
+    const sixHoursAgo = Date.now() - 6 * 60 * 60 * 1000;
+    const existing = db.plans.find((plan) => {
+      const planCreator = plan.creatorId ?? plan.creatorUserId;
+      const createdAtMs = plan.createdAt ? new Date(plan.createdAt).getTime() : 0;
+      return (
+        planCreator === creatorId &&
+        plan.sourceType === dedupeSourceType &&
+        plan.sourceId === dedupeSourceId &&
+        createdAtMs >= sixHoursAgo
+      );
+    });
+    if (existing) {
+      const existingChat = db.chats.find(
+        (chat) => chat.id === existing.chatId || chat.planId === existing.id,
+      );
+      if (existingChat) {
+        return res.status(200).json({ plan: planSummary(db, existing), chat: existingChat, deduped: true });
+      }
+    }
+  }
+
   const result = createFriendPlanWithChat(db, {
     creatorId,
     title: String(req.body.title ?? "New plan"),
@@ -875,6 +1095,137 @@ router.post("/friends/plans/create", (req, res) => {
   return res.status(201).json(result);
 });
 
+// Mint a tokenized share link for a plan. Anyone with the link can RSVP (Phase 4).
+router.post("/friends/plans/share-link", (req, res) => {
+  const db = readDb();
+  const userId = authUserId(req, req.body.userId);
+  const planId = String(req.body.planId ?? "");
+  const plan = db.plans.find((item) => item.id === planId);
+  if (!plan) return res.status(404).json({ error: "Plan not found" });
+  const creatorId = plan.creatorId ?? plan.creatorUserId ?? "";
+  // Only the creator or an existing plan member can mint a share link.
+  const isMember = db.planMembers.some((member) => member.planId === planId && member.userId === userId);
+  if (creatorId !== userId && !isMember) {
+    return res.status(403).json({ error: "Only plan members can share this plan" });
+  }
+  db.planShareLinks = db.planShareLinks ?? [];
+  // Reuse an existing non-revoked link if the user already minted one.
+  const existing = db.planShareLinks.find(
+    (link) => link.planId === planId && link.createdByUserId === userId && !link.revokedAt,
+  );
+  const token = existing?.token ?? randomUUID();
+  if (!existing) {
+    db.planShareLinks.push({
+      id: randomUUID(),
+      planId,
+      token,
+      createdByUserId: userId,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  writeDb(db);
+  const baseUrl = process.env.SHARE_LINK_BASE_URL ?? "https://connectsphere.app";
+  return res.status(existing ? 200 : 201).json({
+    token,
+    planId,
+    url: `${baseUrl}/p/${token}`,
+    reused: !!existing,
+  });
+});
+
+// Redeem a share-link token to join a plan. Anyone signed in can hit this.
+router.post("/friends/plans/rsvp-link", (req, res) => {
+  const db = readDb();
+  const userId = authUserId(req, req.body.userId);
+  const token = String(req.body.token ?? "");
+  if (!token) return res.status(400).json({ error: "token is required" });
+  db.planShareLinks = db.planShareLinks ?? [];
+  db.planShareLinkRedemptions = db.planShareLinkRedemptions ?? [];
+  const link = db.planShareLinks.find((item) => item.token === token && !item.revokedAt);
+  if (!link) return res.status(404).json({ error: "This invite link is no longer valid" });
+  const plan = db.plans.find((item) => item.id === link.planId);
+  if (!plan) return res.status(404).json({ error: "Plan not found" });
+  const creatorId = plan.creatorId ?? plan.creatorUserId ?? "";
+  if (creatorId && isBlocked(db, userId, creatorId)) {
+    return res.status(403).json({ error: "This plan is blocked" });
+  }
+  const alreadyMember =
+    creatorId === userId ||
+    db.planMembers.some((member) => member.planId === plan.id && member.userId === userId);
+  const chat =
+    db.chats.find((item) => item.id === plan.chatId || item.planId === plan.id) ?? null;
+  if (alreadyMember) {
+    // Idempotent: log redemption but skip duplicate membership writes.
+    db.planShareLinkRedemptions.push({
+      id: randomUUID(),
+      token,
+      planId: plan.id,
+      userId,
+      createdAt: new Date().toISOString(),
+    });
+    writeDb(db);
+    return res.json({
+      plan: planSummary(db, plan),
+      chat,
+      joinedViaLink: true,
+      isFirstJoinForThisUser: false,
+      alreadyMember: true,
+    });
+  }
+  db.planMembers.push({ id: randomUUID(), planId: plan.id, userId, role: "guest" });
+  if (chat) {
+    ensureChatMember(db, chat.id, userId);
+    ensureGroupPromotion(db, chat.id);
+  }
+  // System message: who joined and via link.
+  if (chat) {
+    db.messages.push({
+      id: randomUUID(),
+      chatId: chat.id,
+      senderUserId: userId,
+      text: "🔗 joined via share link",
+      createdAt: new Date().toISOString(),
+      system: true,
+    });
+  }
+  const isFirstRedemption = !db.planShareLinkRedemptions.some(
+    (entry) => entry.userId === userId && entry.token === token,
+  );
+  db.planShareLinkRedemptions.push({
+    id: randomUUID(),
+    token,
+    planId: plan.id,
+    userId,
+    createdAt: new Date().toISOString(),
+  });
+  writeDb(db);
+  return res.status(201).json({
+    plan: planSummary(db, plan),
+    chat,
+    joinedViaLink: true,
+    isFirstJoinForThisUser: isFirstRedemption,
+  });
+});
+
+// Revoke a share link so further taps return 404.
+router.post("/friends/plans/share-link/revoke", (req, res) => {
+  const db = readDb();
+  const userId = authUserId(req, req.body.userId);
+  const token = String(req.body.token ?? "");
+  db.planShareLinks = db.planShareLinks ?? [];
+  const link = db.planShareLinks.find((item) => item.token === token);
+  if (!link) return res.status(404).json({ error: "Link not found" });
+  const plan = db.plans.find((item) => item.id === link.planId);
+  const creatorId = plan?.creatorId ?? plan?.creatorUserId ?? "";
+  // Only the link's creator OR the plan's host may revoke.
+  if (link.createdByUserId !== userId && creatorId !== userId) {
+    return res.status(403).json({ error: "Only the link creator or plan host may revoke" });
+  }
+  link.revokedAt = new Date().toISOString();
+  writeDb(db);
+  return res.json({ token, revokedAt: link.revokedAt });
+});
+
 router.post("/friends/plans/join", (req, res) => {
   const db = readDb();
   const userId = authUserId(req, req.body.userId);
@@ -882,6 +1233,7 @@ router.post("/friends/plans/join", (req, res) => {
   const plan = db.plans.find((item) => item.id === planId);
   if (!plan) return res.status(404).json({ error: "Plan not found" });
   const creatorId = plan.creatorId ?? plan.creatorUserId ?? "";
+  if (creatorId && isBlocked(db, userId, creatorId)) return res.status(403).json({ error: "This plan is blocked" });
   if (creatorId === userId || db.planMembers.some((member) => member.planId === planId && member.userId === userId)) {
     const chat = db.chats.find((item) => item.id === plan.chatId || item.planId === plan.id) ?? joinPlanAsMember(db, plan, userId);
     writeDb(db);
@@ -909,6 +1261,7 @@ router.post("/friends/plans/request-join", (req, res) => {
   const plan = db.plans.find((item) => item.id === planId);
   if (!plan) return res.status(404).json({ error: "Plan not found" });
   const creatorId = plan.creatorId ?? plan.creatorUserId ?? "";
+  if (creatorId && isBlocked(db, userId, creatorId)) return res.status(403).json({ error: "This plan is blocked" });
   if (creatorId === userId || db.planMembers.some((member) => member.planId === planId && member.userId === userId)) {
     const chat = db.chats.find((item) => item.id === plan.chatId || item.planId === plan.id) ?? joinPlanAsMember(db, plan, userId);
     writeDb(db);
@@ -927,6 +1280,20 @@ router.post("/friends/plans/request-join", (req, res) => {
   if (!existing) db.planJoinRequests.push(request);
   writeDb(db);
   return res.status(existing ? 200 : 201).json({ plan: planSummary(db, plan), request, status: "pending" });
+});
+
+router.post("/friends/plans/cancel-join", (req, res) => {
+  const db = readDb();
+  const requestId = String(req.body.requestId ?? "");
+  const userId = authUserId(req, req.body.userId);
+  const request = (db.planJoinRequests ?? []).find((item) => item.id === requestId);
+  if (!request) return res.status(404).json({ error: "Plan request not found" });
+  if (request.fromUserId !== userId) return res.status(403).json({ error: "Only the requester can cancel this join request" });
+  if (request.status !== "pending") return res.status(409).json({ error: "Plan request is no longer pending" });
+  request.status = "canceled";
+  const plan = db.plans.find((item) => item.id === request.planId);
+  writeDb(db);
+  return res.json({ request, plan: plan ? planSummary(db, plan) : null });
 });
 
 router.post("/friends/plans/respond-join", (req, res) => {
@@ -965,6 +1332,7 @@ router.get("/friends/stories/:userId", (req, res) => {
   const viewerId = req.params.userId;
   ensureMockPeopleStories(db, viewerId);
   const stories = (db.friendStories ?? [])
+    .filter((story) => story.userId === viewerId || !isBlocked(db, viewerId, story.userId))
     .map((story) => ({
       ...story,
       user: userProfile(db, story.userId),
@@ -1021,6 +1389,7 @@ router.post("/friends/stories/react", (req, res) => {
   const storyId = String(req.body.storyId ?? "");
   const story = (db.friendStories ?? []).find((item) => item.id === storyId);
   if (!story) return res.status(404).json({ error: "Story not found" });
+  if (isBlocked(db, userId, story.userId)) return res.status(403).json({ error: "This story is blocked" });
   const reaction = {
     id: randomUUID(),
     storyId,
@@ -1057,6 +1426,105 @@ router.post("/friends/stories/reply", (req, res) => {
   }
 
   const request = ensurePendingRequest(db, userId, story.userId, { kind: "story_reply", message: text, storyId });
+  if (!request) return res.status(403).json({ error: "This connection is blocked" });
+  writeDb(db);
+  return res.status(201).json({ mode: "request", request });
+});
+
+router.post("/friends/icebreakers/generate", async (req, res) => {
+  const db = readDb();
+  const userId = authUserId(req, req.body.userId);
+  const context = icebreakerContextFromBody(db, req.body, userId);
+  const suggestions = await generateFriendIcebreakers(context);
+  return res.json({ suggestions });
+});
+
+router.post("/friends/icebreakers/send", (req, res) => {
+  const db = readDb();
+  const userId = authUserId(req, req.body.userId);
+  const text = String(req.body.text ?? "").trim();
+  if (!text) return res.status(400).json({ error: "text is required" });
+
+  const kind = String(req.body.kind ?? "person");
+  const targetUserId = typeof req.body.targetUserId === "string" ? req.body.targetUserId : "";
+  const storyId = typeof req.body.storyId === "string" ? req.body.storyId : "";
+  const planId = typeof req.body.planId === "string" ? req.body.planId : "";
+  const chatId = typeof req.body.chatId === "string" ? req.body.chatId : "";
+  const requestId = typeof req.body.requestId === "string" ? req.body.requestId : "";
+
+  if (kind === "chat" && chatId) {
+    const chat = db.chats.find((item) => item.id === chatId);
+    if (!chat) return res.status(404).json({ error: "Chat not found" });
+    ensureChatMember(db, chatId, userId);
+    const message = addChatMessage(db, chatId, userId, text);
+    writeDb(db);
+    return res.status(201).json({ mode: "chat", chat, message });
+  }
+
+  if (kind === "request" && requestId) {
+    const request = db.connectionRequests.find((item) => item.id === requestId);
+    if (!request) return res.status(404).json({ error: "Request not found" });
+    if (request.toUserId !== userId && request.fromUserId !== userId) return res.status(403).json({ error: "Request is not yours" });
+    request.status = "accepted";
+    const { connection, chat } = ensureConnection(db, request.fromUserId, request.toUserId);
+    const message = addChatMessage(db, chat.id, userId, text);
+    writeDb(db);
+    return res.status(201).json({ mode: "chat", request, connection, chat, message });
+  }
+
+  if (kind === "story" && storyId) {
+    const story = (db.friendStories ?? []).find((item) => item.id === storyId);
+    if (!story) return res.status(404).json({ error: "Story not found" });
+    if (areFriends(db, userId, story.userId)) {
+      const chat = ensureDirectChat(db, userId, story.userId);
+      const message = addChatMessage(db, chat.id, userId, text);
+      writeDb(db);
+      return res.status(201).json({ mode: "chat", chat, message });
+    }
+    const request = ensurePendingRequest(db, userId, story.userId, { kind: "story_reply", message: text, storyId });
+    if (!request) return res.status(403).json({ error: "This connection is blocked" });
+    writeDb(db);
+    return res.status(201).json({ mode: "request", request });
+  }
+
+  if (kind === "plan" && planId) {
+    const plan = db.plans.find((item) => item.id === planId);
+    if (!plan) return res.status(404).json({ error: "Plan not found" });
+    const creatorId = plan.creatorId ?? plan.creatorUserId ?? "";
+    const isMember = db.planMembers.some((member) => member.planId === plan.id && member.userId === userId);
+    if (isMember || creatorId === userId || areFriends(db, userId, creatorId)) {
+      const chat = db.chats.find((item) => item.id === plan.chatId || item.planId === plan.id) ?? joinPlanAsMember(db, plan, userId);
+      const message = addChatMessage(db, chat.id, userId, text);
+      writeDb(db);
+      return res.status(201).json({ mode: "plan", plan: planSummary(db, plan), chat, message });
+    }
+    db.planJoinRequests = db.planJoinRequests ?? [];
+    const existing = db.planJoinRequests.find((item) => item.planId === planId && item.fromUserId === userId && item.status === "pending");
+    const request =
+      existing ??
+      {
+        id: randomUUID(),
+        planId,
+        fromUserId: userId,
+        creatorId,
+        status: "pending" as const,
+        createdAt: new Date().toISOString(),
+      };
+    if (!existing) db.planJoinRequests.push(request);
+    writeDb(db);
+    return res.status(existing ? 200 : 201).json({ mode: "request", request, plan: planSummary(db, plan) });
+  }
+
+  if (!targetUserId) return res.status(400).json({ error: "targetUserId is required" });
+  if (isBlocked(db, userId, targetUserId)) return res.status(403).json({ error: "This connection is blocked" });
+  if (areFriends(db, userId, targetUserId)) {
+    const chat = ensureDirectChat(db, userId, targetUserId);
+    const message = addChatMessage(db, chat.id, userId, text);
+    writeDb(db);
+    return res.status(201).json({ mode: "chat", chat, message });
+  }
+  const request = ensurePendingRequest(db, userId, targetUserId, { kind: "friend", message: text });
+  if (!request) return res.status(403).json({ error: "This connection is blocked" });
   writeDb(db);
   return res.status(201).json({ mode: "request", request });
 });
@@ -1068,6 +1536,66 @@ router.delete("/friends/stories/:storyId", (req, res) => {
   db.friendStoryReactions = (db.friendStoryReactions ?? []).filter((reaction) => reaction.storyId !== storyId);
   writeDb(db);
   res.json({ success: true });
+});
+
+router.post("/friends/block", (req, res) => {
+  const db = readDb();
+  const userId = authUserId(req, req.body.userId);
+  const blockedUserId = String(req.body.blockedUserId ?? "");
+  if (!blockedUserId) return res.status(400).json({ error: "blockedUserId is required" });
+  if (blockedUserId === userId) return res.status(400).json({ error: "You cannot block yourself" });
+
+  db.blockedUsers = db.blockedUsers ?? [];
+  let block = db.blockedUsers.find((item) => item.userId === userId && item.blockedUserId === blockedUserId);
+  if (!block) {
+    block = { id: randomUUID(), userId, blockedUserId, createdAt: new Date().toISOString() };
+    db.blockedUsers.push(block);
+  }
+
+  db.connectionRequests.forEach((request) => {
+    if (
+      request.status === "pending" &&
+      ((request.fromUserId === userId && request.toUserId === blockedUserId) ||
+        (request.fromUserId === blockedUserId && request.toUserId === userId))
+    ) {
+      request.status = "canceled";
+    }
+  });
+  (db.planJoinRequests ?? []).forEach((request) => {
+    if (
+      request.status === "pending" &&
+      ((request.fromUserId === userId && request.creatorId === blockedUserId) ||
+        (request.fromUserId === blockedUserId && request.creatorId === userId))
+    ) {
+      request.status = "canceled";
+    }
+  });
+  db.connections = db.connections.filter((connection) => {
+    const ids = connection.userIds ?? [connection.userAId, connection.userBId];
+    return !(ids.includes(userId) && ids.includes(blockedUserId));
+  });
+
+  writeDb(db);
+  return res.json({ block });
+});
+
+router.post("/friends/report", (req, res) => {
+  const db = readDb();
+  const userId = authUserId(req, req.body.userId);
+  const reportedUserId = String(req.body.reportedUserId ?? "");
+  if (!reportedUserId) return res.status(400).json({ error: "reportedUserId is required" });
+  const report: FriendReport = {
+    id: randomUUID(),
+    userId,
+    reportedUserId,
+    reason: typeof req.body.reason === "string" ? req.body.reason : undefined,
+    context: typeof req.body.context === "string" ? req.body.context : undefined,
+    createdAt: new Date().toISOString(),
+  };
+  db.userReports = db.userReports ?? [];
+  db.userReports.push(report);
+  writeDb(db);
+  return res.status(201).json({ report });
 });
 
 router.get("/friends/feed/:userId", (req, res) => {
@@ -1120,10 +1648,12 @@ router.post("/friends/connect/request", (req, res) => {
   const db = readDb();
   const fromUserId = authUserId(req, req.body.fromUserId);
   const toUserId = String(req.body.toUserId ?? "");
+  if (isBlocked(db, fromUserId, toUserId)) return res.status(403).json({ error: "This connection is blocked" });
   const existing = pendingRequestBetween(db, fromUserId, toUserId);
   const request = ensurePendingRequest(db, fromUserId, toUserId);
+  if (!request) return res.status(403).json({ error: "This connection is blocked" });
   writeDb(db);
-  res.status(existing ? 200 : 201).json({ request });
+  return res.status(existing ? 200 : 201).json({ request });
 });
 
 router.post("/friends/connect/accept", (req, res) => {
@@ -1161,11 +1691,13 @@ router.get("/connect/:userId", (req, res) => {
   };
   const requests = db.connectionRequests
     .filter((request) => request.toUserId === userId && request.status === "pending")
+    .filter((request) => requestVisibleToViewer(db, userId, request))
     .map((request) => requestSummary(db, userId, request));
   const connections = db.connections
     .filter((connection) => {
       const ids = connection.userIds ?? [connection.userAId, connection.userBId];
-      return ids.includes(userId);
+      const otherUserId = ids.find((id) => id !== userId) ?? "";
+      return ids.includes(userId) && !isBlocked(db, userId, otherUserId);
     })
     .map((connection) => {
       const ids = connection.userIds ?? [connection.userAId, connection.userBId];
@@ -1186,7 +1718,10 @@ router.get("/connect/:userId", (req, res) => {
     (chat) => connectionChatIds.has(chat.id) || db.chatMembers.some((member) => member.chatId === chat.id && member.userId === userId),
   );
   const friendPlans = db.plans
-    .filter((plan) => db.planMembers.some((member) => member.planId === plan.id && member.userId === userId))
+    .filter((plan) => {
+      const creatorId = plan.creatorId ?? plan.creatorUserId ?? "";
+      return db.planMembers.some((member) => member.planId === plan.id && member.userId === userId) && !isBlocked(db, userId, creatorId);
+    })
     .map((plan) => planSummary(db, plan));
   const doubleDateMatches = (db.doubleDateMatches ?? [])
     .filter((match) => match.userIds.includes(userId))
@@ -1210,14 +1745,15 @@ router.get("/connect/:userId", (req, res) => {
       ...requests,
       ...(db.planJoinRequests ?? [])
         .filter((request) => request.creatorId === userId && request.status === "pending")
-        .map((request) => planJoinRequestSummary(db, request)),
+        .filter((request) => planJoinRequestVisibleToViewer(db, userId, request))
+        .map((request) => planJoinRequestSummary(db, userId, request)),
     ],
     connections,
     friends: connections,
     datingMatches: (db.datingMatches ?? []).filter((match) => match.userAId === userId || match.userBId === userId),
     friendPlans,
     plans: friendPlans,
-    opportunityChats: chats.filter((chat) => chat.type === "opportunity"),
+    opportunityChats: [],
     doubleDateMatches,
     chats,
     activePlans: friendPlans,
@@ -1235,7 +1771,12 @@ router.get("/chats/:chatId", (req, res) => {
     members,
     participants,
     messages: db.messages.filter((message) => message.chatId === chatId),
-    quickActions: chat?.type === "double_date" ? ["Drinks", "Dinner", "Event Tonight", "Pick a Spot"] : [],
+    quickActions:
+      chat?.type === "double_date"
+        ? ["Drinks", "Dinner", "Event Tonight", "Pick a Spot"]
+        : chat?.type === "friend_direct" || chat?.type === "friend_plan" || chat?.type === "plan"
+          ? ["AI opener", "Make a plan", "Pick a spot", "Invite more"]
+          : [],
   });
 });
 

@@ -31,11 +31,31 @@ node_modules
 /.sass-cache
 /connect.lock
 /coverage
+/api-runner.log
+/api-cmd-runner.log
+*.env
+*.env.local
+!.env.example
+!.env.sample
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log
 testem.log
 /typings
+
+# Local Codex / Expo run artifacts
+*.log
+*.out
+*.err
+*.png
+*.zip
+*.lnk
+db.json
+.cursor/
+.superpowers/
+ConnectSphere Official/
+artifacts/connectsphere-mobile/.tmp-test/
+artifacts/connectsphere-mobile/expo-tunnel-manifest-*.json
 
 # System Files
 .DS_Store

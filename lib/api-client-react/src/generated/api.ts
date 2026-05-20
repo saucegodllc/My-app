@@ -70,6 +70,8 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+type QueryOptionsWithoutKey<TQueryFnData, TError, TData> = Omit<UseQueryOptions<TQueryFnData, TError, TData>, "queryKey" | "queryFn"> & { queryKey?: QueryKey };
+
 /**
  * @summary Health check
  */
@@ -94,7 +96,7 @@ export const getHealthCheckQueryOptions = <
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -129,7 +131,7 @@ export function useHealthCheck<
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -167,7 +169,7 @@ export const getGetMyProfileQueryOptions = <
   TData = Awaited<ReturnType<typeof getMyProfile>>,
   TError = ErrorType<ErrorResponse>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getMyProfile>>,
     TError,
     TData
@@ -202,7 +204,7 @@ export function useGetMyProfile<
   TData = Awaited<ReturnType<typeof getMyProfile>>,
   TError = ErrorType<ErrorResponse>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getMyProfile>>,
     TError,
     TData
@@ -331,7 +333,7 @@ export const getGetProfileQueryOptions = <
 >(
   userId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getProfile>>,
       TError,
       TData
@@ -374,7 +376,7 @@ export function useGetProfile<
 >(
   userId: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getProfile>>,
       TError,
       TData
@@ -432,7 +434,7 @@ export const getGetDiscoveryFeedQueryOptions = <
 >(
   params?: GetDiscoveryFeedParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getDiscoveryFeed>>,
       TError,
       TData
@@ -471,7 +473,7 @@ export function useGetDiscoveryFeed<
 >(
   params?: GetDiscoveryFeedParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getDiscoveryFeed>>,
       TError,
       TData
@@ -613,7 +615,7 @@ export const getGetMatchesQueryOptions = <
 >(
   params?: GetMatchesParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getMatches>>,
       TError,
       TData
@@ -651,7 +653,7 @@ export function useGetMatches<
 >(
   params?: GetMatchesParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getMatches>>,
       TError,
       TData
@@ -799,7 +801,7 @@ export const getGetMessagesQueryOptions = <
   matchId: string,
   params?: GetMessagesParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getMessages>>,
       TError,
       TData
@@ -844,7 +846,7 @@ export function useGetMessages<
   matchId: string,
   params?: GetMessagesParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getMessages>>,
       TError,
       TData
@@ -972,7 +974,7 @@ export const getGetSubscriptionStatusQueryOptions = <
   TData = Awaited<ReturnType<typeof getSubscriptionStatus>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getSubscriptionStatus>>,
     TError,
     TData
@@ -1007,7 +1009,7 @@ export function useGetSubscriptionStatus<
   TData = Awaited<ReturnType<typeof getSubscriptionStatus>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getSubscriptionStatus>>,
     TError,
     TData
@@ -1214,7 +1216,7 @@ export const getGetProductsQueryOptions = <
   TData = Awaited<ReturnType<typeof getProducts>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getProducts>>,
     TError,
     TData
@@ -1249,7 +1251,7 @@ export function useGetProducts<
   TData = Awaited<ReturnType<typeof getProducts>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getProducts>>,
     TError,
     TData
@@ -1461,7 +1463,7 @@ export const getGetBlockedUsersQueryOptions = <
   TData = Awaited<ReturnType<typeof getBlockedUsers>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getBlockedUsers>>,
     TError,
     TData
@@ -1496,7 +1498,7 @@ export function useGetBlockedUsers<
   TData = Awaited<ReturnType<typeof getBlockedUsers>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getBlockedUsers>>,
     TError,
     TData
@@ -1536,7 +1538,7 @@ export const getGetDashboardSummaryQueryOptions = <
   TData = Awaited<ReturnType<typeof getDashboardSummary>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getDashboardSummary>>,
     TError,
     TData
@@ -1571,7 +1573,7 @@ export function useGetDashboardSummary<
   TData = Awaited<ReturnType<typeof getDashboardSummary>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getDashboardSummary>>,
     TError,
     TData
@@ -1611,7 +1613,7 @@ export const getGetWhoLikedMeQueryOptions = <
   TData = Awaited<ReturnType<typeof getWhoLikedMe>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getWhoLikedMe>>,
     TError,
     TData
@@ -1646,7 +1648,7 @@ export function useGetWhoLikedMe<
   TData = Awaited<ReturnType<typeof getWhoLikedMe>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionsWithoutKey<
     Awaited<ReturnType<typeof getWhoLikedMe>>,
     TError,
     TData
@@ -1775,7 +1777,7 @@ export const getGetObjectQueryOptions = <
 >(
   path: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getObject>>,
       TError,
       TData
@@ -1816,7 +1818,7 @@ export function useGetObject<
 >(
   path: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getObject>>,
       TError,
       TData
@@ -1860,7 +1862,7 @@ export const getGetPublicObjectQueryOptions = <
 >(
   path: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getPublicObject>>,
       TError,
       TData
@@ -1903,7 +1905,7 @@ export function useGetPublicObject<
 >(
   path: string,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getPublicObject>>,
       TError,
       TData
@@ -1959,7 +1961,7 @@ export const getGetEventsQueryOptions = <
 >(
   params?: GetEventsParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getEvents>>,
       TError,
       TData
@@ -1997,7 +1999,7 @@ export function useGetEvents<
 >(
   params?: GetEventsParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getEvents>>,
       TError,
       TData
@@ -2053,7 +2055,7 @@ export const getGetVenuesQueryOptions = <
 >(
   params?: GetVenuesParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getVenues>>,
       TError,
       TData
@@ -2091,7 +2093,7 @@ export function useGetVenues<
 >(
   params?: GetVenuesParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionsWithoutKey<
       Awaited<ReturnType<typeof getVenues>>,
       TError,
       TData
@@ -2127,7 +2129,7 @@ export const getGetSavedVenuesQueryOptions = <
   TData = Awaited<ReturnType<typeof getSavedVenues>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof getSavedVenues>>, TError, TData>;
+  query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getSavedVenues>>, TError, TData>;
   request?: SecondParameter<typeof customFetch>;
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
@@ -2145,7 +2147,7 @@ export function useGetSavedVenues<
   TData = Awaited<ReturnType<typeof getSavedVenues>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof getSavedVenues>>, TError, TData>;
+  query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getSavedVenues>>, TError, TData>;
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetSavedVenuesQueryOptions(options);
@@ -2253,7 +2255,7 @@ export const getGetNetworkDirectoryQueryOptions = <
 >(
   params?: GetNetworkDirectoryParams,
   options?: {
-    query?: UseQueryOptions<Awaited<ReturnType<typeof getNetworkDirectory>>, TError, TData>;
+    query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getNetworkDirectory>>, TError, TData>;
     request?: SecondParameter<typeof customFetch>;
   }
 ) => {
@@ -2274,7 +2276,7 @@ export function useGetNetworkDirectory<
 >(
   params?: GetNetworkDirectoryParams,
   options?: {
-    query?: UseQueryOptions<Awaited<ReturnType<typeof getNetworkDirectory>>, TError, TData>;
+    query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getNetworkDirectory>>, TError, TData>;
     request?: SecondParameter<typeof customFetch>;
   }
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -2297,7 +2299,7 @@ export const getGetNetworkConnectionsQueryOptions = <
   TData = Awaited<ReturnType<typeof getNetworkConnections>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof getNetworkConnections>>, TError, TData>;
+  query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getNetworkConnections>>, TError, TData>;
   request?: SecondParameter<typeof customFetch>;
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
@@ -2315,7 +2317,7 @@ export function useGetNetworkConnections<
   TData = Awaited<ReturnType<typeof getNetworkConnections>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof getNetworkConnections>>, TError, TData>;
+  query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getNetworkConnections>>, TError, TData>;
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetNetworkConnectionsQueryOptions(options);
@@ -2430,3 +2432,6 @@ export const useCreateNetworkChatMatch = <TError = ErrorType<unknown>, TContext 
   > = ({ data }) => createNetworkChatMatch(data, requestOptions);
   return useMutation({ mutationFn, ...mutationOptions });
 };
+
+
+

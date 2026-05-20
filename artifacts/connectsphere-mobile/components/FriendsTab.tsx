@@ -27,6 +27,7 @@ import {
   titleTag,
 } from "@/components/friends/friendsLabels";
 import FriendSignalsRow from "@/components/friends/FriendSignalsRow";
+import JoinedBurst from "@/components/friends/JoinedBurst";
 import PendingInboxSection from "@/components/friends/PendingInboxSection";
 import PlansHubSection from "@/components/friends/PlansHubSection";
 import TodayCommandCenter from "@/components/friends/TodayCommandCenter";
@@ -36,6 +37,7 @@ import {
   cancelFriendRequest,
   cancelPlanJoinRequest,
   createFriendPlan,
+  generateFriendIcebreakers,
   getFriendPeople,
   getFriendPlans,
   getFriendPlansFeed,
@@ -47,7 +49,11 @@ import {
   replyToFriendStory,
   respondPlanJoinRequest,
   respondFriendRequest,
+  sendFriendIcebreaker,
   sendFriendRequest,
+  sharePlanLink,
+  type FriendIcebreakerInput,
+  type FriendIcebreakerSuggestion,
   type FriendPerson,
   type FriendPlan,
   type FriendRequest,
@@ -61,6 +67,9 @@ type FriendsTabProps = {
 
 type FriendsView = "people" | "requests" | "plans";
 type PlanSourceTab = "map" | "event";
+type IcebreakerTarget =
+  | { title: string; subtitle?: string; input: FriendIcebreakerInput }
+  | null;
 const FRIENDS_PINK = "#ff2da8";
 const FRIENDS_BLACK = "#000000";
 const FRIENDS_TEXT = "#f4f4f5";
@@ -178,6 +187,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [planTargetPerson, setPlanTargetPerson] = useState<FriendPerson | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<FriendPerson | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<FriendPlan | null>(null);
+  const [joinedBurst, setJoinedBurst] = useState<{ plan: FriendPlan; chatId?: string } | null>(null);
+  const [icebreakerTarget, setIcebreakerTarget] = useState<IcebreakerTarget>(null);
+  const [icebreakerSuggestions, setIcebreakerSuggestions] = useState<FriendIcebreakerSuggestion[]>([]);
+  const [icebreakerText, setIcebreakerText] = useState("");
+  const [icebreakerLoading, setIcebreakerLoading] = useState(false);
+  const [icebreakerSending, setIcebreakerSending] = useState(false);
+  const [icebreakerError, setIcebreakerError] = useState("");
 
   const friends = useMemo(() => people.filter((person) => person.relationshipStatus === "friends"), [people]);
   const smartPick = useMemo(
@@ -246,6 +262,58 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     setTimeout(() => setNotice(""), 2400);
   }, []);
 
+  const loadIcebreakers = useCallback(async (target: Exclude<IcebreakerTarget, null>) => {
+    setIcebreakerLoading(true);
+    setIcebreakerError("");
+    try {
+      const result = await generateFriendIcebreakers(target.input);
+      const suggestions = result.suggestions ?? [];
+      setIcebreakerSuggestions(suggestions);
+      setIcebreakerText(suggestions[0]?.text ?? "");
+    } catch {
+      setIcebreakerError("Could not generate ideas. Try again in a second.");
+      setIcebreakerSuggestions([]);
+      setIcebreakerText("");
+    } finally {
+      setIcebreakerLoading(false);
+    }
+  }, []);
+
+  const openIcebreaker = useCallback(
+    (target: Exclude<IcebreakerTarget, null>) => {
+      setIcebreakerTarget(target);
+      setIcebreakerSuggestions([]);
+      setIcebreakerText("");
+      void loadIcebreakers(target);
+    },
+    [loadIcebreakers],
+  );
+
+  const sendIcebreaker = useCallback(async () => {
+    if (!icebreakerTarget || !icebreakerText.trim()) return;
+    setIcebreakerSending(true);
+    setIcebreakerError("");
+    try {
+      const result = await sendFriendIcebreaker({ ...icebreakerTarget.input, text: icebreakerText.trim() });
+      setIcebreakerTarget(null);
+      setIcebreakerSuggestions([]);
+      setIcebreakerText("");
+      await loadFriends();
+      successHaptic();
+      if (result.chat?.id) {
+        showNotice("Sent in Connect.");
+        openConnectThread(result.chat.id);
+      } else {
+        showNotice("Icebreaker sent.");
+        setActiveTab("requests");
+      }
+    } catch {
+      setIcebreakerError("Could not send that icebreaker.");
+    } finally {
+      setIcebreakerSending(false);
+    }
+  }, [icebreakerTarget, icebreakerText, loadFriends, showNotice]);
+
   const handleConnect = useCallback(
     async (person: FriendPerson) => {
       if (person.relationshipStatus === "requested") return;
@@ -286,9 +354,22 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
             ),
           );
           setRequests((current) => [optimisticRequest, ...current]);
-          await sendFriendRequest(userId, person.id);
-          showNotice(`Request sent to ${firstName(person.name)}.`);
-          setActiveTab("requests");
+          const result = await sendFriendRequest(userId, person.id);
+          if (result.relationshipStatus === "friends" && result.chat?.id) {
+            // Mutual match or already-friends — flip optimistic state and jump to Connect.
+            setPeople((current) =>
+              current.map((item) =>
+                item.id === person.id ? { ...item, relationshipStatus: "friends" as const, chatId: result.chat?.id } : item,
+              ),
+            );
+            setRequests((current) => current.filter((request) => request.id !== optimisticRequest.id));
+            successHaptic();
+            showNotice(`It's mutual with ${firstName(person.name)}. Say hi.`);
+            openConnectThread(result.chat.id);
+          } else {
+            showNotice(`Request sent to ${firstName(person.name)}.`);
+            setActiveTab("requests");
+          }
         }
         await loadFriends();
       } catch {
@@ -428,10 +509,11 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
             showNotice(`Plan invite sent to ${firstName(planTargetPerson.name)}.`);
           } else {
             successHaptic();
-            showNotice("Plan's live. Thread is in Connect.");
+            showNotice("Plan's live. Opening Connect...");
           }
           await loadFriends();
           setActiveTab("plans");
+          openConnectThread(result.chat?.id);
         } catch {
           showNotice("Plan was created, but the invite could not be sent.");
         } finally {
@@ -453,6 +535,20 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     }
   }, [showNotice]);
 
+  const openFindDuoBuddy = useCallback(() => {
+    setPlusMenuOpen(false);
+    router.push({ pathname: "/(tabs)", params: { intent: "dating", subtab: "Double Dates" } } as never);
+  }, []);
+
+  const openCreateGroup = useCallback(() => {
+    setPlusMenuOpen(false);
+    setPlanTargetPerson(null);
+    setPlanInviteIds(friends.slice(0, 3).map((friend) => friend.id));
+    setPlanInitialTitle("Friend group plan");
+    setPlanSourceTab("event");
+    setPlanSheetOpen(true);
+  }, [friends]);
+
   const handleRequestJoinPlan = useCallback(
     async (plan: FriendPlan) => {
       if (plan.joinRequestStatus === "pending") return;
@@ -466,10 +562,15 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
           ),
         );
         const result = await requestJoinFriendPlan(userId, plan.id);
-        if (result.status === "joined") successHaptic();
-        showNotice(result.status === "joined" ? "You're in. Plan thread is in Connect." : "Request sent to the creator.");
-        await loadFriends();
-        if (result.chat?.id) openConnectThread(result.chat.id);
+        if (result.status === "joined") {
+          successHaptic();
+          await loadFriends();
+          // Fire the celebration; routing to Connect happens when the burst dismisses.
+          setJoinedBurst({ plan: result.plan ?? plan, chatId: result.chat?.id });
+        } else {
+          showNotice("Request sent to the creator.");
+          await loadFriends();
+        }
       } catch {
         setPlanFeed(previousPlanFeed);
         showNotice("Could not request to join.");
@@ -528,17 +629,25 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
 
   const handleSharePlan = useCallback(
     async (plan: FriendPlan) => {
+      const whenLabel = plan.timeLabel ?? plan.time ?? "soon";
+      const placeLabel = plan.sourceName ?? plan.location ?? "Miami";
       try {
-        await shareOut(
-          `Join my ConnectSphere plan: ${plan.title} at ${plan.timeLabel ?? plan.time ?? "soon"} near ${
-            plan.sourceName ?? plan.location ?? "Miami"
-          }.`,
-        );
+        // Mint (or reuse) a tokenized share link the recipient can tap to
+        // jump straight into the plan + group chat — anyone with the link
+        // can RSVP, no friend gate.
+        const link = await sharePlanLink(plan.id, userId);
+        const message = `Join my ConnectSphere plan: ${plan.title}\n${whenLabel} · ${placeLabel}`;
+        await shareOut(message, link.url);
       } catch {
-        showNotice("Could not open the share sheet.");
+        // Fallback: link mint failed (offline, server down) — share without it.
+        try {
+          await shareOut(`Join my ConnectSphere plan: ${plan.title} at ${whenLabel} near ${placeLabel}.`);
+        } catch {
+          showNotice("Could not open the share sheet.");
+        }
       }
     },
-    [showNotice],
+    [showNotice, userId],
   );
 
   const handleTodayPrimary = useCallback(
@@ -728,6 +837,20 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
                 >
                   <Text style={styles.secondaryButtonText}>{buttonLabel("Plan", isActing(`plan:${person.id}`))}</Text>
                 </Pressable>
+                <Pressable
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    openIcebreaker({
+                      title: `Break the ice with ${firstName(person.name)}`,
+                      subtitle: personProfileLine(person),
+                      input: { userId, kind: "person", targetUserId: person.id },
+                    });
+                  }}
+                  style={styles.aiButton}
+                >
+                  <Ionicons name="sparkles" size={14} color="#0A0A0B" />
+                  <Text style={styles.aiButtonText}>AI</Text>
+                </Pressable>
               </View>
             </View>
           </Pressable>
@@ -751,6 +874,21 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         onAccept={(request) => handleRequest(request, "accept")}
         onIgnore={(request) => handleRequest(request, "ignore")}
         onCancel={handleCancelRequest}
+        onIcebreaker={(request) => {
+          const outgoing = request.direction === "outgoing";
+          const displayUser = outgoing ? request.toUser ?? request.fromUser : request.fromUser;
+          openIcebreaker({
+            title: `Reply to ${firstName(displayUser?.name)}`,
+            subtitle: request.message ?? request.plan?.title ?? "Keep it simple and friendly.",
+            input: {
+              userId,
+              kind: "request",
+              requestId: request.id,
+              targetUserId: displayUser?.id,
+              planId: request.plan?.id ?? request.planId,
+            },
+          });
+        }}
         onFindPeople={() => setActiveTab("people")}
       />
     );
@@ -790,16 +928,21 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
           </Pressable>
         </View>
 
-        <View style={styles.actionRow}>
-          <Pressable onPress={handleInviteFriends} style={styles.actionPrimary}>
-            <Ionicons name="share-social" size={17} color="#0A0A0B" />
-            <Text style={styles.actionPrimaryText}>Invite People</Text>
-          </Pressable>
-          <Pressable onPress={() => openCreatePlan()} style={styles.actionSecondary}>
-            <Ionicons name="calendar" size={17} color={FRIENDS_PINK} />
-            <Text style={styles.actionSecondaryText}>New Plan</Text>
-          </Pressable>
-        </View>
+        <CreateFirstPanel
+          onCreatePlan={() => openCreatePlan()}
+          onInviteFriend={handleInviteFriends}
+          onCreateGroup={openCreateGroup}
+          onFindDuoBuddy={openFindDuoBuddy}
+        />
+
+        {!loading ? (
+          <TonightsPeople
+            people={people}
+            onOpenPerson={setSelectedPerson}
+            onPlanForPerson={openPlanForPerson}
+            onFindDuoBuddy={openFindDuoBuddy}
+          />
+        ) : null}
 
         {!loading ? (
           <TodayCommandCenter command={todayCommand} onPrimary={handleTodayPrimary} onSecondary={handleTodaySecondary} />
@@ -811,6 +954,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
             onReact={handleSignalReact}
             onReply={handleSignalReply}
             onPlan={handleSignalPlan}
+            onIcebreaker={(story) =>
+              openIcebreaker({
+                title: `Reply to ${firstName(story.user?.name)}`,
+                subtitle: story.text ?? "Turn this signal into a simple plan.",
+                input: { userId, kind: "story", storyId: story.id, targetUserId: story.userId },
+              })
+            }
             isBusy={(story, action) => isActing(`signal:${action}:${story.id}`)}
           />
         ) : null}
@@ -874,17 +1024,59 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
             <View style={styles.plusMenuHeader}>
               <View>
                 <Text style={styles.plusTitle}>Make something happen</Text>
-                <Text style={styles.plusSubtitle}>Invite people or create a plan.</Text>
+                <Text style={styles.plusSubtitle}>Plans, invites, groups, or a duo buddy.</Text>
               </View>
               <Pressable onPress={() => setPlusMenuOpen(false)} style={styles.plusClose}>
                 <Ionicons name="close" size={18} color="#FFFFFF" />
               </Pressable>
             </View>
-            <PlusAction icon="share-social" title="Invite People" text="Share ConnectSphere outside the app." onPress={handleInviteFriends} />
             <PlusAction icon="calendar" title="Create Plan" text="Pick a place, time, and invite people." onPress={() => openCreatePlan("event")} />
+            <PlusAction icon="share-social" title="Invite Friend" text="Share ConnectSphere outside the app." onPress={handleInviteFriends} />
+            <PlusAction icon="people" title="Create Group" text="Start a small friend group around a plan." onPress={openCreateGroup} />
+            <PlusAction icon="heart" title="Find a Duo Buddy" text="Jump to Dating > Double Dates." onPress={openFindDuoBuddy} />
           </Pressable>
         </Pressable>
       </Modal>
+
+      <JoinedBurst
+        visible={!!joinedBurst}
+        planTitle={joinedBurst?.plan.title}
+        whenLabel={joinedBurst?.plan.timeLabel ?? joinedBurst?.plan.time}
+        locationLabel={joinedBurst?.plan.location ?? joinedBurst?.plan.sourceName}
+        ctaLabel={joinedBurst?.chatId ? "open the chat" : undefined}
+        onCtaPress={() => {
+          const chatId = joinedBurst?.chatId;
+          setJoinedBurst(null);
+          if (chatId) openConnectThread(chatId);
+        }}
+        onDismiss={() => {
+          const chatId = joinedBurst?.chatId;
+          setJoinedBurst(null);
+          if (chatId) openConnectThread(chatId);
+        }}
+      />
+
+      <IcebreakerSheet
+        visible={!!icebreakerTarget}
+        title={icebreakerTarget?.title ?? "AI Icebreaker"}
+        subtitle={icebreakerTarget?.subtitle}
+        suggestions={icebreakerSuggestions}
+        text={icebreakerText}
+        loading={icebreakerLoading}
+        sending={icebreakerSending}
+        error={icebreakerError}
+        bottomInset={bottomInset}
+        onChangeText={setIcebreakerText}
+        onPick={(text) => setIcebreakerText(text)}
+        onRegenerate={() => {
+          if (icebreakerTarget) void loadIcebreakers(icebreakerTarget);
+        }}
+        onSend={sendIcebreaker}
+        onClose={() => {
+          setIcebreakerTarget(null);
+          setIcebreakerError("");
+        }}
+      />
 
       <CreateFriendPlanSheet
         visible={planSheetOpen}
@@ -911,6 +1103,15 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
               setSelectedPerson(null);
               handleConnect(person);
             }}
+            onIcebreaker={() => {
+              const person = selectedPerson;
+              setSelectedPerson(null);
+              openIcebreaker({
+                title: `Break the ice with ${firstName(person.name)}`,
+                subtitle: personProfileLine(person),
+                input: { userId, kind: "person", targetUserId: person.id },
+              });
+            }}
             onPlan={() => {
               const person = selectedPerson;
               setSelectedPerson(null);
@@ -935,6 +1136,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
               openConnectThread(chatId);
             }}
             onShare={() => handleSharePlan(selectedPlan)}
+            onIcebreaker={() =>
+              openIcebreaker({
+                title: selectedPlan.title,
+                subtitle: planWhatLine(selectedPlan),
+                input: { userId, kind: "plan", planId: selectedPlan.id },
+              })
+            }
             onJoin={() => handleRequestJoinPlan(selectedPlan)}
           />
         ) : null}
@@ -1019,6 +1227,97 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   );
 }
 
+function IcebreakerSheet({
+  visible,
+  title,
+  subtitle,
+  suggestions,
+  text,
+  loading,
+  sending,
+  error,
+  bottomInset,
+  onChangeText,
+  onPick,
+  onRegenerate,
+  onSend,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  subtitle?: string;
+  suggestions: FriendIcebreakerSuggestion[];
+  text: string;
+  loading: boolean;
+  sending: boolean;
+  error: string;
+  bottomInset: number;
+  onChangeText: (value: string) => void;
+  onPick: (value: string) => void;
+  onRegenerate: () => void;
+  onSend: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.iceOverlay} onPress={onClose}>
+        <Pressable style={[styles.iceSheet, { paddingBottom: bottomInset + 20 }]} onPress={(event) => event.stopPropagation()}>
+          <View style={styles.iceHandle} />
+          <View style={styles.iceHeader}>
+            <View style={styles.iceIcon}>
+              <Ionicons name="sparkles" size={20} color="#0A0A0B" />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.iceTitle}>{title}</Text>
+              {subtitle ? <Text style={styles.iceSubtitle} numberOfLines={2}>{subtitle}</Text> : null}
+            </View>
+            <Pressable onPress={onClose} style={styles.iceClose}>
+              <Ionicons name="close" size={18} color="#FFFFFF" />
+            </Pressable>
+          </View>
+
+          {loading ? (
+            <View style={styles.iceLoading}>
+              <ActivityIndicator color="#FF8BC4" />
+              <Text style={styles.iceLoadingText}>Writing easy openers...</Text>
+            </View>
+          ) : (
+            <View style={styles.iceSuggestionStack}>
+              {suggestions.map((item) => (
+                <Pressable key={item.id} onPress={() => onPick(item.text)} style={[styles.iceSuggestion, text === item.text && styles.iceSuggestionActive]}>
+                  <Text style={styles.iceSuggestionText}>{item.text}</Text>
+                  <Text style={styles.iceSuggestionReason}>{item.reason}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          <TextInput
+            value={text}
+            onChangeText={onChangeText}
+            placeholder="Edit your icebreaker..."
+            placeholderTextColor="#777783"
+            multiline
+            maxLength={180}
+            style={styles.iceInput}
+          />
+          {error ? <Text style={styles.iceError}>{error}</Text> : null}
+
+          <View style={styles.iceActions}>
+            <Pressable onPress={onRegenerate} disabled={loading || sending} style={[styles.iceSecondary, (loading || sending) && styles.disabledButton]}>
+              <Ionicons name="refresh" size={17} color="#FFFFFF" />
+              <Text style={styles.iceSecondaryText}>Regenerate</Text>
+            </Pressable>
+            <Pressable onPress={onSend} disabled={!text.trim() || loading || sending} style={[styles.icePrimary, (!text.trim() || loading || sending) && styles.disabledButton]}>
+              <Text style={styles.icePrimaryText}>{sending ? "Sending..." : "Send in Connect"}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 function FriendProfileSheet({
   person,
   connectLabel,
@@ -1027,6 +1326,7 @@ function FriendProfileSheet({
   blockBusy,
   onClose,
   onConnect,
+  onIcebreaker,
   onPlan,
   onReport,
   onBlock,
@@ -1038,6 +1338,7 @@ function FriendProfileSheet({
   blockBusy: boolean;
   onClose: () => void;
   onConnect: () => void;
+  onIcebreaker: () => void;
   onPlan: () => void;
   onReport: () => void;
   onBlock: () => void;
@@ -1185,6 +1486,10 @@ function FriendProfileSheet({
           <Ionicons name={person.relationshipStatus === "friends" ? "chatbubble" : "person-add"} size={18} color="#0A0A0B" />
           <Text style={styles.profilePrimaryActionText}>{buttonLabel(connectLabel, connectBusy)}</Text>
         </Pressable>
+        <Pressable onPress={onIcebreaker} style={styles.profileSecondaryAction}>
+          <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+          <Text style={styles.profileSecondaryActionText}>AI</Text>
+        </Pressable>
         <Pressable onPress={onPlan} style={styles.profileSecondaryAction}>
           <Ionicons name="calendar" size={18} color="#FFFFFF" />
           <Text style={styles.profileSecondaryActionText}>Make Plan</Text>
@@ -1238,6 +1543,7 @@ function PlanDetailSheet({
   onClose,
   onOpenConnect,
   onShare,
+  onIcebreaker,
   onJoin,
 }: {
   plan: FriendPlan;
@@ -1246,6 +1552,7 @@ function PlanDetailSheet({
   onClose: () => void;
   onOpenConnect: () => void;
   onShare: () => void;
+  onIcebreaker: () => void;
   onJoin: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -1320,6 +1627,10 @@ function PlanDetailSheet({
               <Ionicons name="share-social" size={18} color="#FFFFFF" />
               <Text style={styles.profileSecondaryActionText}>Share</Text>
             </Pressable>
+            <Pressable onPress={onIcebreaker} style={styles.profileSecondaryAction}>
+              <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+              <Text style={styles.profileSecondaryActionText}>AI</Text>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -1333,6 +1644,93 @@ function PlanInfo({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap
       <Ionicons name={icon} size={17} color="#FF8BC4" />
       <Text style={styles.profileStatLabel}>{label}</Text>
       <Text style={styles.profileStatValue} numberOfLines={2}>{value}</Text>
+    </View>
+  );
+}
+
+function CreateFirstPanel({
+  onCreatePlan,
+  onInviteFriend,
+  onCreateGroup,
+  onFindDuoBuddy,
+}: {
+  onCreatePlan: () => void;
+  onInviteFriend: () => void;
+  onCreateGroup: () => void;
+  onFindDuoBuddy: () => void;
+}) {
+  return (
+    <View style={styles.createPanel}>
+      <Text style={styles.createPanelEyebrow}>Create first</Text>
+      <View style={styles.createGrid}>
+        <CreateTile icon="calendar" label="Create Plan" onPress={onCreatePlan} primary />
+        <CreateTile icon="share-social" label="Invite Friend" onPress={onInviteFriend} />
+        <CreateTile icon="people" label="Create Group" onPress={onCreateGroup} />
+        <CreateTile icon="heart" label="Find a Duo Buddy" onPress={onFindDuoBuddy} />
+      </View>
+    </View>
+  );
+}
+
+function CreateTile({ icon, label, onPress, primary }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; primary?: boolean }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.createTile, primary && styles.createTilePrimary]}>
+      <View style={[styles.createTileIcon, primary && styles.createTileIconPrimary]}>
+        <Ionicons name={icon} size={17} color={primary ? "#0A0A0B" : "#FF8BC4"} />
+      </View>
+      <Text style={[styles.createTileText, primary && styles.createTileTextPrimary]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function TonightsPeople({
+  people,
+  onOpenPerson,
+  onPlanForPerson,
+  onFindDuoBuddy,
+}: {
+  people: FriendPerson[];
+  onOpenPerson: (person: FriendPerson) => void;
+  onPlanForPerson: (person: FriendPerson) => void;
+  onFindDuoBuddy: () => void;
+}) {
+  const picks = people
+    .filter((person) => person.relationshipStatus !== "self")
+    .sort((a, b) => Number(b.activeTonight === true) - Number(a.activeTonight === true) || matchScore(b) - matchScore(a))
+    .slice(0, 6);
+  if (!picks.length) return null;
+  return (
+    <View style={styles.tonightWrap}>
+      <View style={styles.tonightHeader}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.tonightEyebrow}>Tonight's People</Text>
+          <Text style={styles.tonightTitle} numberOfLines={1}>Active friends, planners, and duo fits</Text>
+        </View>
+        <Pressable onPress={onFindDuoBuddy} style={styles.tonightDuoBtn}>
+          <Ionicons name="heart" size={14} color="#FF8BC4" />
+          <Text style={styles.tonightDuoText}>Duo</Text>
+        </Pressable>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tonightList}>
+        {picks.map((person) => (
+          <Pressable key={person.id} onPress={() => onOpenPerson(person)} style={styles.tonightCard}>
+            <Image source={{ uri: person.photoUrl ?? FALLBACK_PHOTO }} style={styles.tonightAvatar} contentFit="cover" />
+            <Text style={styles.tonightName} numberOfLines={1}>{firstName(person.name)}</Text>
+            <Text style={styles.tonightMeta} numberOfLines={1}>
+              {person.activeTonight ? "Active tonight" : person.suggestedPlanType ?? "Good planner"}
+            </Text>
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation();
+                onPlanForPerson(person);
+              }}
+              style={styles.tonightPlanBtn}
+            >
+              <Text style={styles.tonightPlanText}>Plan</Text>
+            </Pressable>
+          </Pressable>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -1458,6 +1856,149 @@ const styles = StyleSheet.create({
   actionSecondaryText: {
     color: FRIENDS_TEXT,
     fontSize: 14,
+    fontWeight: "900",
+  },
+  createPanel: {
+    backgroundColor: "#08080A",
+    borderColor: "rgba(255,45,168,0.22)",
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 12,
+    padding: 14,
+  },
+  createPanelEyebrow: {
+    color: "#FF8BC4",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  createGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  createTile: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.065)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 18,
+    borderWidth: 1,
+    flexBasis: "47%",
+    flexDirection: "row",
+    flexGrow: 1,
+    gap: 9,
+    minHeight: 56,
+    paddingHorizontal: 11,
+  },
+  createTilePrimary: {
+    backgroundColor: "#FF2D8D",
+    borderColor: "#FF2D8D",
+  },
+  createTileIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,45,168,0.12)",
+    borderRadius: 14,
+    height: 30,
+    justifyContent: "center",
+    width: 30,
+  },
+  createTileIconPrimary: {
+    backgroundColor: "rgba(0,0,0,0.12)",
+  },
+  createTileText: {
+    color: "#FFFFFF",
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  createTileTextPrimary: {
+    color: "#0A0A0B",
+  },
+  tonightWrap: {
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 12,
+    paddingVertical: 14,
+  },
+  tonightHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+  },
+  tonightEyebrow: {
+    color: "#FF8BC4",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+  },
+  tonightTitle: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+  tonightDuoBtn: {
+    alignItems: "center",
+    borderColor: "rgba(255,45,168,0.22)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  tonightDuoText: {
+    color: "#FFB6D9",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  tonightList: {
+    gap: 10,
+    paddingHorizontal: 14,
+  },
+  tonightCard: {
+    backgroundColor: "#050505",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 10,
+    width: 122,
+  },
+  tonightAvatar: {
+    borderRadius: 16,
+    height: 72,
+    width: "100%",
+  },
+  tonightName: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 8,
+  },
+  tonightMeta: {
+    color: "#A1A1AA",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  tonightPlanBtn: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,45,168,0.12)",
+    borderColor: "rgba(255,45,168,0.2)",
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 8,
+    paddingVertical: 7,
+  },
+  tonightPlanText: {
+    color: "#FFB6D9",
+    fontSize: 11,
     fontWeight: "900",
   },
   searchBox: {
@@ -1765,6 +2306,21 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: "#FFFFFF",
     fontSize: 13,
+    fontWeight: "900",
+  },
+  aiButton: {
+    alignItems: "center",
+    backgroundColor: "#FBBF24",
+    borderRadius: 14,
+    flexDirection: "row",
+    gap: 5,
+    justifyContent: "center",
+    minHeight: 42,
+    paddingHorizontal: 11,
+  },
+  aiButtonText: {
+    color: "#0A0A0B",
+    fontSize: 12,
     fontWeight: "900",
   },
   disabledButton: {
@@ -2544,5 +3100,150 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     lineHeight: 16,
+  },
+  iceOverlay: {
+    backgroundColor: "rgba(0,0,0,0.72)",
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  iceSheet: {
+    backgroundColor: "#09090B",
+    borderColor: "rgba(255,45,168,0.28)",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    gap: 14,
+    padding: 18,
+  },
+  iceHandle: {
+    alignSelf: "center",
+    backgroundColor: "rgba(255,255,255,0.22)",
+    borderRadius: 999,
+    height: 4,
+    width: 42,
+  },
+  iceHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  iceIcon: {
+    alignItems: "center",
+    backgroundColor: "#FBBF24",
+    borderRadius: 18,
+    height: 38,
+    justifyContent: "center",
+    width: 38,
+  },
+  iceTitle: {
+    color: "#FFFFFF",
+    fontSize: 19,
+    fontWeight: "900",
+  },
+  iceSubtitle: {
+    color: "#A1A1AA",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  iceClose: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 16,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
+  iceLoading: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 18,
+    flexDirection: "row",
+    gap: 10,
+    padding: 14,
+  },
+  iceLoadingText: {
+    color: "#EDEDF2",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  iceSuggestionStack: {
+    gap: 8,
+  },
+  iceSuggestion: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 5,
+    padding: 12,
+  },
+  iceSuggestionActive: {
+    backgroundColor: "rgba(251,191,36,0.16)",
+    borderColor: "rgba(251,191,36,0.46)",
+  },
+  iceSuggestionText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+    lineHeight: 19,
+  },
+  iceSuggestionReason: {
+    color: "#FFB6D9",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  iceInput: {
+    backgroundColor: "#050505",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderRadius: 16,
+    borderWidth: 1,
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 19,
+    minHeight: 84,
+    padding: 12,
+    textAlignVertical: "top",
+  },
+  iceError: {
+    color: "#FCA5A5",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  iceActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  iceSecondary: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 7,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 12,
+  },
+  iceSecondaryText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  icePrimary: {
+    alignItems: "center",
+    backgroundColor: "#FF2D8D",
+    borderRadius: 16,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  icePrimaryText: {
+    color: "#0A0A0B",
+    fontSize: 14,
+    fontWeight: "900",
   },
 });

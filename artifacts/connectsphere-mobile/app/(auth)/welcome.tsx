@@ -183,17 +183,20 @@ export default function WelcomeScreen() {
       {/* Poster image — shows instantly, video covers it once playing */}
       <Image
         source={welcomePosterSource}
-        style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}
+        style={StyleSheet.absoluteFill}
         resizeMode="cover"
       />
 
       {/* Looping video background — people networking, sharing drinks, dating */}
-      <VideoView
-        player={player}
-        style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}
-        contentFit="cover"
-        nativeControls={false}
-      />
+      {player ? (
+        <VideoView
+          player={player}
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          nativeControls={false}
+        />
+      ) : null}
 
       {/* Dark gradient overlay for text readability */}
       <LinearGradient
@@ -204,7 +207,8 @@ export default function WelcomeScreen() {
           "rgba(10,10,10,0.97)",
         ]}
         locations={[0, 0.4, 0.78, 1]}
-        style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
       />
 
       {/* Subtle pink accent orbs over the video */}

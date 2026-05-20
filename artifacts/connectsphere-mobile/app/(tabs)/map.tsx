@@ -2,7 +2,7 @@ import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as Location from "expo-location";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -697,6 +697,12 @@ export default function MapTab() {
         initialSource={planSource}
         initialTitle={planSource ? `${planSource.name} plan` : undefined}
         onClose={() => setPlanSource(null)}
+        onCreated={(result) => {
+          setPlanSource(null);
+          if (result.chat?.id) {
+            router.push({ pathname: "/(tabs)/matches", params: { openChatId: result.chat.id } } as never);
+          }
+        }}
       />
     </View>
   );

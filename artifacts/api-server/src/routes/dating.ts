@@ -9,7 +9,10 @@ import { db, matchesTable, messagesTable, profilesTable } from "@workspace/db";
 const router = Router();
 const PLAN_PREFIX = "Date idea:";
 const SHOT_LIMIT = 3;
-const dbPath = join(process.cwd(), "artifacts", "api-server", "db.json");
+const workspaceRoot = process.cwd().endsWith(join("artifacts", "api-server"))
+  ? join(process.cwd(), "..", "..")
+  : process.cwd();
+const dbPath = join(workspaceRoot, "artifacts", "api-server", "db.json");
 
 type DatingShotStatus = "pending" | "accepted" | "sparked_back" | "ignored";
 
