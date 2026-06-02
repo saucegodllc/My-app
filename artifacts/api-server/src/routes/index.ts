@@ -16,6 +16,10 @@ import venuesRouter from "./venues";
 import friendsRouter from "./friends";
 import datingRouter from "./dating";
 import doubleDateRouter from "./doubleDate";
+import notificationsRouter from "./notifications";
+import accountRouter from "./account";
+import meRouter from "./me";
+import stripeRouter from "./stripe";
 
 const router: IRouter = Router();
 
@@ -41,5 +45,6 @@ router.use(authServerRouter);
 router.use(bioRouter);
 router.use(eventsRouter);
 router.use(venuesRouter);
-
-export default router;
+router.use(notificationsRouter);
+router.use(accountRouter);
+rou
