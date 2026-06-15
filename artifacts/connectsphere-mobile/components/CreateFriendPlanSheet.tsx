@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 
@@ -10,12 +11,19 @@ import {
   type FriendPerson,
   type PlanLocationOption,
 } from "@/services/friendsApi";
+import { useFeedback } from "@/components/ActionFeedback";
 
 type SourceTab = "map" | "event";
 type TimeOption = {
   value: string;
   label: string;
   helper?: string;
+};
+
+export type PlanDraft = {
+  title: string;
+  timeLabel: string;
+  location: string;
 };
 
 type Props = {
@@ -28,6 +36,13 @@ type Props = {
   initialTitle?: string;
   onClose: () => void;
   onCreated?: (result: Awaited<ReturnType<typeof createFriendPlan>>) => void;
+  /**
+   * Request-only mode (spec 2.1): when set, the sheet does NOT create a plan
+   * or navigate — it hands the composed draft back so the caller can send it
+   * as a plan_request into the conversation. The plan is only created when
+   * the other person accepts.
+   */
+  onDraft?: (draft: PlanDraft) => void;
 };
 
 const EMPTY_INVITE_IDS: string[] = [];
@@ -188,6 +203,7 @@ export default function CreateFriendPlanSheet({
   initialTitle,
   onClose,
   onCreated,
+  onDraft,
 }: Props) {
   const [title, setTitle] = useState("");
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
@@ -201,12 +217,15 @@ export default function CreateFriendPlanSheet({
   const [loadingLocations, setLoadingLocations] = useState(false);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { trigger: triggerPlanFeedback } = useFeedback("plan");
 
   useEffect(() => {
     if (!visible) return;
     setTitle(initialTitle ?? "");
     setSelectedInviteIds(initialInviteIds);
     setSelectedSource(initialSource);
+    setError(null);
     setSourceTab(initialSource?.sourceType === "map" ? "map" : initialSourceTab);
     const eventStart = initialSource?.sourceType === "event" ? parseValidDate(initialSource.startDate) : null;
     const eventDateKey = initialSource?.sourceType === "event" ? dateKeyFromValue(initialSource.startDate) : null;
@@ -234,24 +253,14 @@ export default function CreateFriendPlanSheet({
   }, [visible]);
 
   useEffect(() => {
-    if (!visible || friends.length > 0) return;
+    if (!visible || friends.length > 0 || !userId) return;
     let cancelled = false;
     setLoadingFriends(true);
     getFriendPeople(userId)
       .then((result: { people?: FriendPerson[] }) => {
         if (cancelled) return;
         const friendResults = (result.people ?? []).filter((person: FriendPerson) => person.relationshipStatus === "friends");
-        if (friendResults.length > 0 || userId === "user_self") {
-          setLoadedFriends(friendResults);
-          return;
-        }
-        getFriendPeople("user_self")
-          .then((fallback: { people?: FriendPerson[] }) => {
-            if (!cancelled) {
-              setLoadedFriends((fallback.people ?? []).filter((person: FriendPerson) => person.relationshipStatus === "friends"));
-            }
-          })
-          .catch(() => {});
+        setLoadedFriends(friendResults);
       })
       .catch(() => {})
       .finally(() => {
@@ -279,16 +288,32 @@ export default function CreateFriendPlanSheet({
   );
   const visibleEvents = useMemo(() => {
     const matchingEvents = events.filter((event) => optionDateKey(event) === selectedDate);
-    if (
+
+    // Always prepend the currently-selected event so it's never hidden after picking
+    const withSelected =
       selectedSource?.sourceType === "event" &&
-      optionDateKey(selectedSource) === selectedDate &&
-      !matchingEvents.some((event) => event.id === selectedSource.id && event.sourceType === selectedSource.sourceType)
-    ) {
-      return [selectedSource, ...matchingEvents].slice(0, 12);
-    }
-    return matchingEvents.slice(0, 12);
+      !matchingEvents.some((e) => e.id === selectedSource.id && e.sourceType === selectedSource.sourceType)
+        ? [selectedSource, ...matchingEvents]
+        : matchingEvents;
+
+    // If there are matches for this date, return them
+    if (withSelected.length > 0) return withSelected.slice(0, 12);
+
+    // No events on the selected date — fall back to ALL upcoming events sorted by date
+    // (keeps Ticketmaster working even when mock events don't perfectly match the calendar)
+    const upcoming = [...events].sort((a, b) => {
+      const ta = a.startDate ? new Date(a.startDate).getTime() : 0;
+      const tb = b.startDate ? new Date(b.startDate).getTime() : 0;
+      return ta - tb;
+    });
+    return upcoming.slice(0, 12);
   }, [events, selectedDate, selectedSource]);
-  const selectedSourceMatchesDate = selectedSource?.sourceType !== "event" || optionDateKey(selectedSource) === selectedDate;
+  // A map spot always matches; an event matches when its date aligns OR when it has no date (allows any day)
+  const selectedSourceMatchesDate =
+    !selectedSource ||
+    selectedSource.sourceType !== "event" ||
+    !selectedSource.startDate ||
+    optionDateKey(selectedSource) === selectedDate;
   const selectedTimeText = `${selectedDateLabel} at ${selectedTime}`;
   const locationName = useMemo(() => {
     if (selectedSource) return selectedSource.name;
@@ -328,8 +353,22 @@ export default function CreateFriendPlanSheet({
   const handleCreate = useCallback(async (shareAfterCreate = false) => {
     if (!selectedSource || !selectedSourceMatchesDate) return;
     setSaving(true);
+    setError(null);
     try {
       const planTitle = title.trim() || locationName;
+
+      // Request-only mode — hand the draft back, create nothing (spec 2.1).
+      if (onDraft) {
+        onDraft({
+          title: planTitle,
+          timeLabel: selectedTimeText,
+          location: selectedSource?.subtitle || locationName,
+        });
+        triggerPlanFeedback();
+        onClose();
+        return;
+      }
+
       const result = await createFriendPlan({
         creatorId: userId,
         title: planTitle,
@@ -351,17 +390,32 @@ export default function CreateFriendPlanSheet({
           message: planInviteMessage(planTitle, selectedTimeText, selectedSource?.subtitle || locationName, result.plan.id),
         });
       }
+      triggerPlanFeedback();
       onCreated?.(result);
       onClose();
+      // Route sender to Connect > Matches so they can see the pending request
+      // and confirm it was sent. The receiver will see an accept/decline card
+      // in the same segment via getInboxRequests → buildIncomingActionCards.
+      router.push({ pathname: "/(tabs)/matches", params: { segment: "matches" } } as never);
+    } catch (createError: any) {
+      const message =
+        createError?.data?.message ??
+        createError?.message ??
+        "Could not send that plan request. Try again.";
+      setError(message);
     } finally {
       setSaving(false);
     }
-  }, [locationName, onClose, onCreated, selectedDate, selectedInviteIds, selectedSource, selectedSourceMatchesDate, selectedTime, selectedTimeText, sourcePlanType, title, userId]);
+  }, [locationName, onClose, onCreated, onDraft, selectedDate, selectedInviteIds, selectedSource, selectedSourceMatchesDate, selectedTime, selectedTimeText, sourcePlanType, title, userId, triggerPlanFeedback]);
 
   const locationOptions = sourceTab === "map" ? venues : visibleEvents;
+  // Show a date-aware hint only when there's truly nothing available at all
+  const noEventsAtAll = events.length === 0;
   const emptyLocationText =
     sourceTab === "event"
-      ? `No events on ${selectedDateLabel}. Pick another day or use a Map Spot.`
+      ? noEventsAtAll
+        ? "No events loaded yet. Try again in a moment or use a Map Spot."
+        : `No events on ${selectedDateLabel}. Showing all upcoming events below — pick one to lock the date.`
       : "No map spots loaded yet.";
 
   return (
@@ -369,12 +423,12 @@ export default function CreateFriendPlanSheet({
       <View style={styles.overlay}>
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <View>
+            <View style={styles.headerTitles}>
               <Text style={styles.title}>Create Plan</Text>
-              <Text style={styles.subtitle}>Pick a place, time, and people.</Text>
+              <Text style={styles.subtitle}>One plan request a day. They accept before it opens in Connect.</Text>
             </View>
-            <Pressable onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={19} color="#FFFFFF" />
+            <Pressable onPress={onClose} style={styles.closeButton} hitSlop={10}>
+              <Ionicons name="close" size={22} color="#FFFFFF" />
             </Pressable>
           </View>
 
@@ -458,9 +512,23 @@ export default function CreateFriendPlanSheet({
               </ScrollView>
             )}
 
+            {sourceTab === "map" && !loadingLocations ? (
+              <Pressable
+                style={styles.browseMapBtn}
+                onPress={() => {
+                  onClose();
+                  router.push({ pathname: "/(tabs)/map", params: { pickSpot: "1" } } as never);
+                }}
+              >
+                <Ionicons name="map" size={16} color="#FF2DA8" />
+                <Text style={styles.browseMapText}>Browse on Map — find spots in Miami & Broward</Text>
+                <Ionicons name="chevron-forward" size={15} color="#FF2DA8" />
+              </Pressable>
+            ) : null}
+
             <View style={styles.timeHeader}>
-              <Text style={styles.label}>Invite friends</Text>
-              <Text style={styles.timeValue}>{selectedInviteIds.length ? `${selectedInviteIds.length} invited` : "Optional"}</Text>
+              <Text style={styles.label}>Ask friends</Text>
+              <Text style={styles.timeValue}>{selectedInviteIds.length ? `${selectedInviteIds.length} request${selectedInviteIds.length === 1 ? "" : "s"}` : "Optional"}</Text>
             </View>
             <Pressable
               onPress={() => handleCreate(true)}
@@ -491,13 +559,14 @@ export default function CreateFriendPlanSheet({
                   </Pressable>
                 ))
               ) : (
-                <Text style={styles.muted}>Create and share a link, or people can request to join from the plans feed.</Text>
+                <Text style={styles.muted}>Pick someone to ask. They will see it in Requests and must accept first.</Text>
               )}
             </View>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </ScrollView>
 
           <Pressable onPress={() => handleCreate(false)} disabled={!canCreate} style={[styles.createButton, !canCreate && { opacity: 0.55 }]}>
-            <Text style={styles.createButtonText}>{saving ? "Creating..." : selectedSource ? "Create Plan" : "Pick a location first"}</Text>
+            <Text style={styles.createButtonText}>{saving ? "Sending..." : selectedSource ? "Send Plan Request" : "Pick a location first"}</Text>
           </Pressable>
         </View>
       </View>
@@ -526,6 +595,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 12,
+    gap: 12,
+  },
+  headerTitles: {
+    flex: 1,
   },
   title: {
     color: "#FFFFFF",
@@ -539,11 +612,14 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 16,
-    height: 34,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.45)",
+    height: 44,
     justifyContent: "center",
-    width: 34,
+    width: 44,
+    flexShrink: 0,
   },
   body: {
     gap: 13,
@@ -702,6 +778,11 @@ const styles = StyleSheet.create({
     color: "#A1A1AA",
     fontSize: 13,
   },
+  errorText: {
+    color: "#FDA4AF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
   locationRow: {
     gap: 10,
     paddingRight: 4,
@@ -731,6 +812,25 @@ const styles = StyleSheet.create({
   },
   emptyLocationText: {
     textAlign: "center",
+  },
+  // "Browse on Map" row — Map Spots tab only
+  browseMapBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,45,168,0.35)",
+    backgroundColor: "rgba(255,45,168,0.09)",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  browseMapText: {
+    flex: 1,
+    color: "#FF8BC4",
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
   },
   locationImage: {
     backgroundColor: "#17171D",

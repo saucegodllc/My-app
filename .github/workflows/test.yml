@@ -1,0 +1,108 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "18 8 * * *"
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Mobile unit and component coverage
+        run: >
+          pnpm --filter @workspace/connectsphere-mobile exec jest
+          __tests__/swipeCounter.test.ts
+          __tests__/discoverRewind.test.ts
+          __tests__/discoverActionRail.test.ts
+          __tests__/DatingMatchModal.test.tsx
+          __tests__/eventsScreenState.test.ts
+          __tests__/eventsScreenSmoke.test.tsx
+          __tests__/apiBase.test.ts
+          --runInBand
+          --coverage
+      - name: API auth integration coverage
+        run: >
+          pnpm --filter @workspace/api-server exec jest
+          src/auth401.test.ts
+          src/routes/events.test.ts
+          --runInBand
+          --coverage
+      - name: Render production smoke
+        if: github.event_name == 'schedule'
+        env:
+          RENDER_SMOKE_BASE_URL: ${{ secrets.RENDER_SMOKE_BASE_URL }}
+        run: |
+          if [ -z "$RENDER_SMOKE_BASE_URL" ]; then
+            echo "Skipping Render smoke: RENDER_SMOKE_BASE_URL secret is not set."
+            exit 0
+          fi
+          pnpm --filter @workspace/api-server run smoke:render
+
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: pnpm install --frozen-lockfile
+      - name: Firestore security rules
+        run: pnpm --filter @workspace/connectsphere-mobile run test:rules
+
+  e2e-nightly:
+    runs-on: macos-latest
+    if: github.event_name == 'schedule'
+    env:
+      APP_ID: com.connectsphere.mobile
+      EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EAS_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Boot iOS simulator
+        run: |
+          DEVICE_ID="$(xcrun simctl list devices available -j | node -e 'const data=JSON.parse(require("fs").readFileSync(0,"utf8")); for (const devices of Object.values(data.devices)) { const match=devices.find((d)=>d.name.includes("iPhone") && d.isAvailable); if (match) { console.log(match.udid); process.exit(0); } } process.exit(1);')"
+          xcrun simctl boot "$DEVICE_ID" || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+      - name: Build and install E2E simulator app
+        working-directory: artifacts/connectsphere-mobile
+        run: |
+          eas build --platform ios --profile e2e --non-interactive --wait
+          eas build:run --platform ios --profile e2e --latest --non-interactive
+      - name: Match to Chat smoke
+        run: maestro test e2e/connectsphere-match-chat.yaml

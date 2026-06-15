@@ -24,6 +24,17 @@ export type FriendPerson = {
   requestId?: string;
   chatId?: string;
   sharedInterests?: string[];
+  compatibility?: {
+    score: number;
+    signals: string[];
+    sharedInterests: string[];
+    sharedActivity: string[];
+  };
+  planSuggestions?: Array<{ type: string; reason: string }>;
+  smartReason?: string;
+  suggestedPlanType?: string;
+  suggestedPlanReason?: string;
+  blocked?: boolean;
 };
 
 export type FriendRequest = {
@@ -32,9 +43,9 @@ export type FriendRequest = {
   fromUserId: string;
   toUserId: string;
   direction?: "incoming" | "outgoing";
-  status: "pending" | "accepted" | "ignored" | "declined";
+  status: "pending" | "accepted" | "ignored" | "declined" | "canceled";
   message?: string;
-  kind?: "friend" | "story_reply" | "plan_invite" | "plan_join";
+  kind?: "friend" | "story_reply" | "plan_invite" | "plan_join" | "group_invite";
   planId?: string;
   storyId?: string;
   createdAt: string;
@@ -66,7 +77,7 @@ export type FriendPlan = {
   peopleGoing?: number;
   isCreator?: boolean;
   isMember?: boolean;
-  joinRequestStatus?: "pending" | "accepted" | "declined" | null;
+  joinRequestStatus?: "pending" | "accepted" | "declined" | "canceled" | null;
   joinRequestId?: string;
   creator?: FriendPerson;
   members?: Array<{ id: string; planId: string; userId: string; role: string; user?: FriendPerson }>;
@@ -82,6 +93,42 @@ export type PlanLocationOption = {
   latitude?: number;
   longitude?: number;
   startDate?: string;
+};
+
+export type FriendReaction = {
+  id: string;
+  type: "friend_like" | "best_friend";
+  createdAt: string;
+  locked: boolean;
+  displayText: string;
+  count?: number;
+  context?: string;
+  senderProfile?: {
+    id: string;
+    userId?: string;
+    name: string;
+    age?: number;
+    photos?: string[];
+    datingGoal?: string;
+    intent?: "friends";
+    interests?: string[];
+    bio?: string;
+  };
+};
+
+export type FriendActionResponse = {
+  ok?: boolean;
+  action?: "pass" | "connect" | "best_friend";
+  premiumRequired?: boolean;
+  limitType?: "friend_swipe" | "best_friend" | "reaction_reveal";
+  message?: string;
+  relationshipStatus?: RelationshipStatus;
+  request?: FriendRequest;
+  chat?: { id: string };
+  reaction?: FriendReaction;
+  matched?: boolean;
+  remaining?: number;
+  bestFriendRemaining?: number;
 };
 
 export type FriendStory = {
@@ -100,9 +147,74 @@ export type FriendStory = {
   reactions?: Array<{ id: string; reaction: string; userId: string; createdAt: string }>;
 };
 
+export type FriendIcebreakerKind = "person" | "story" | "request" | "plan" | "chat";
+
+export type FriendIcebreakerSuggestion = {
+  id: string;
+  text: string;
+  reason: string;
+};
+
+export type FriendIcebreakerInput = {
+  userId: string;
+  kind: FriendIcebreakerKind;
+  targetUserId?: string;
+  storyId?: string;
+  requestId?: string;
+  planId?: string;
+  chatId?: string;
+};
+
 export function getFriendPeople(userId: string, query?: string) {
   const suffix = query?.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
   return customFetch<{ people: FriendPerson[] }>(`/api/friends/people/${userId}${suffix}`);
+}
+
+export function sendFriendDeckAction(input: {
+  userId: string;
+  targetUserId: string;
+  action: "pass" | "connect" | "best_friend";
+  isPremium?: boolean;
+}) {
+  return customFetch<FriendActionResponse>("/api/friends/actions", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function getFriendReactions(userId: string, isPremium?: boolean) {
+  const suffix = isPremium ? "?premium=1" : "";
+  return customFetch<{ reactions: FriendReaction[]; premium: boolean }>(`/api/friends/reactions/${userId}${suffix}`);
+}
+
+export function respondFriendReaction(input: {
+  userId: string;
+  reactionId: string;
+  action: "friend_back" | "best_friend_back" | "pass";
+  isPremium?: boolean;
+}) {
+  return customFetch<FriendActionResponse>("/api/friends/reactions/respond", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function createFriendInvite(inviterUserId: string) {
+  return customFetch<{
+    invite: { id: string; token: string; inviterUserId: string; createdAt: string; acceptedByUserId?: string; acceptedAt?: string };
+    token: string;
+    url: string;
+  }>("/api/friends/invites/create", {
+    method: "POST",
+    body: JSON.stringify({ inviterUserId }),
+  });
+}
+
+export function acceptFriendInvite(token: string, userId: string) {
+  return customFetch<{ invite: unknown; connection: unknown; chat: { id: string } }>("/api/friends/invites/accept", {
+    method: "POST",
+    body: JSON.stringify({ token, userId }),
+  });
 }
 
 export function sendFriendRequest(fromUserId: string, toUserId: string, extras?: { message?: string; kind?: string; planId?: string; storyId?: string }) {
@@ -116,6 +228,13 @@ export function respondFriendRequest(requestId: string, action: "accept" | "igno
   return customFetch<{ request: FriendRequest; connection?: unknown; chat?: { id: string } }>("/api/friends/request/respond", {
     method: "POST",
     body: JSON.stringify({ requestId, action }),
+  });
+}
+
+export function cancelFriendRequest(requestId: string, userId: string) {
+  return customFetch<{ request: FriendRequest }>("/api/friends/request/cancel", {
+    method: "POST",
+    body: JSON.stringify({ requestId, userId }),
   });
 }
 
@@ -167,6 +286,38 @@ export function requestJoinFriendPlan(userId: string, planId: string) {
   });
 }
 
+export function sharePlanLink(planId: string, userId: string) {
+  return customFetch<{
+    token: string;
+    planId: string;
+    url: string;
+    reused: boolean;
+  }>("/api/friends/plans/share-link", {
+    method: "POST",
+    body: JSON.stringify({ planId, userId }),
+  });
+}
+
+export function rsvpPlanViaLink(token: string, userId: string) {
+  return customFetch<{
+    plan: FriendPlan;
+    chat: { id: string } | null;
+    joinedViaLink: true;
+    isFirstJoinForThisUser: boolean;
+    alreadyMember?: boolean;
+  }>("/api/friends/plans/rsvp-link", {
+    method: "POST",
+    body: JSON.stringify({ token, userId }),
+  });
+}
+
+export function revokePlanShareLink(token: string, userId: string) {
+  return customFetch<{ token: string; revokedAt: string }>("/api/friends/plans/share-link/revoke", {
+    method: "POST",
+    body: JSON.stringify({ token, userId }),
+  });
+}
+
 export function respondPlanJoinRequest(requestId: string, creatorId: string, action: "accept" | "decline") {
   return customFetch<{ request: unknown; plan: FriendPlan; chat?: { id: string } }>("/api/friends/plans/respond-join", {
     method: "POST",
@@ -174,10 +325,50 @@ export function respondPlanJoinRequest(requestId: string, creatorId: string, act
   });
 }
 
+export function cancelPlanJoinRequest(requestId: string, userId: string) {
+  return customFetch<{ request: unknown; plan: FriendPlan | null }>("/api/friends/plans/cancel-join", {
+    method: "POST",
+    body: JSON.stringify({ requestId, userId }),
+  });
+}
+
+export function blockFriendUser(userId: string, blockedUserId: string) {
+  return customFetch<{ block: unknown }>("/api/friends/block", {
+    method: "POST",
+    body: JSON.stringify({ userId, blockedUserId }),
+  });
+}
+
+export function reportFriendUser(userId: string, reportedUserId: string, extras?: { reason?: string; context?: string }) {
+  return customFetch<{ report: unknown }>("/api/friends/report", {
+    method: "POST",
+    body: JSON.stringify({ userId, reportedUserId, ...extras }),
+  });
+}
+
+// Fallback Miami events shown instantly if the server is unreachable or slow
+const LOCAL_EVENT_SEEDS: PlanLocationOption[] = [
+  { id: "local_ev_1", sourceType: "event", name: "Wynwood Art Walk", subtitle: "Wynwood Walls · Miami", imageUrl: undefined, latitude: 25.8007, longitude: -80.1994 },
+  { id: "local_ev_2", sourceType: "event", name: "Bayfront Park Sunset Social", subtitle: "Bayfront Park · Downtown Miami", imageUrl: undefined, latitude: 25.7739, longitude: -80.1868 },
+  { id: "local_ev_3", sourceType: "event", name: "Little Havana Night Market", subtitle: "Calle Ocho · Miami", imageUrl: undefined, latitude: 25.7721, longitude: -80.2205 },
+  { id: "local_ev_4", sourceType: "event", name: "Miami Rooftop Bar Crawl", subtitle: "Brickell · Miami", imageUrl: undefined, latitude: 25.7617, longitude: -80.1918 },
+  { id: "local_ev_5", sourceType: "event", name: "Las Olas Riverfront Festival", subtitle: "Las Olas Blvd · Fort Lauderdale", imageUrl: undefined, latitude: 26.1224, longitude: -80.1373 },
+  { id: "local_ev_6", sourceType: "event", name: "Broward Center Spotlight", subtitle: "Broward Ctr · Fort Lauderdale", imageUrl: undefined, latitude: 26.1195, longitude: -80.1406 },
+  { id: "local_ev_7", sourceType: "event", name: "South Beach Salsa Night", subtitle: "Ocean Drive · Miami Beach", imageUrl: undefined, latitude: 25.7823, longitude: -80.1300 },
+  { id: "local_ev_8", sourceType: "event", name: "Coconut Grove Jazz Brunch", subtitle: "Coconut Grove · Miami", imageUrl: undefined, latitude: 25.7250, longitude: -80.2380 },
+];
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+  ]);
+}
+
 export async function getPlanLocationOptions() {
   const [venuesResult, eventsResult] = await Promise.allSettled([
-    customFetch<{ venues: any[] }>("/api/venues?lat=25.7617&lng=-80.1918&radius=15000"),
-    customFetch<{ events: any[] }>("/api/events?page=1"),
+    withTimeout(customFetch<{ venues: any[] }>("/api/venues?lat=25.7617&lng=-80.1918&radius=15000"), 6000),
+    withTimeout(customFetch<{ events: any[] }>("/api/events?page=1"), 6000),
   ]);
   const venues =
     venuesResult.status === "fulfilled"
@@ -191,7 +382,7 @@ export async function getPlanLocationOptions() {
           longitude: typeof venue.longitude === "number" ? venue.longitude : undefined,
         }))
       : [];
-  const events =
+  const rawEvents =
     eventsResult.status === "fulfilled"
       ? (eventsResult.value.events ?? []).slice(0, 80).map((event: any) => ({
           id: String(event.id),
@@ -204,6 +395,9 @@ export async function getPlanLocationOptions() {
           startDate: event.startDate,
         }))
       : [];
+  // If server returned no events (or timed out), fall back to local seeds so the
+  // Events tab always shows content and never gets stuck on "Loading options..."
+  const events = rawEvents.length > 0 ? rawEvents : LOCAL_EVENT_SEEDS;
   return { venues: venues as PlanLocationOption[], events: events as PlanLocationOption[] };
 }
 
@@ -237,5 +431,25 @@ export function replyToFriendStory(userId: string, storyId: string, text: string
   return customFetch<{ mode: "chat" | "request"; chat?: { id: string }; request?: FriendRequest; message?: unknown }>("/api/friends/stories/reply", {
     method: "POST",
     body: JSON.stringify({ userId, storyId, text }),
+  });
+}
+
+export function generateFriendIcebreakers(input: FriendIcebreakerInput) {
+  return customFetch<{ suggestions: FriendIcebreakerSuggestion[] }>("/api/friends/icebreakers/generate", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function sendFriendIcebreaker(input: FriendIcebreakerInput & { text: string }) {
+  return customFetch<{
+    mode: "request" | "chat" | "plan";
+    request?: FriendRequest;
+    chat?: { id: string };
+    message?: unknown;
+    plan?: FriendPlan;
+  }>("/api/friends/icebreakers/send", {
+    method: "POST",
+    body: JSON.stringify(input),
   });
 }

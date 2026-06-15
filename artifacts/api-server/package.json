@@ -6,34 +6,51 @@
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
+    "prestart": "node ./scripts/check-production-env.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
+    "launch-check": "node ./scripts/check-production-env.mjs",
+    "smoke:render": "node ./scripts/smoke-render.mjs",
+    "test": "jest --passWithNoTests",
+    "test:integration": "jest --runInBand --passWithNoTests",
+    "test:coverage": "jest --coverage --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@clerk/express": "^2.1.5",
     "@google-cloud/storage": "^7.19.0",
+    "@huggingface/transformers": "^4.2.0",
+    "@sentry/node": "^10.26.0",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
     "drizzle-orm": "catalog:",
+    "drizzle-zod": "^0.8.3",
     "express": "^5",
     "google-auth-library": "^10.6.2",
     "http-proxy-middleware": "^3.0.5",
     "openai": "^6.34.0",
     "pino": "^9",
     "pino-http": "^10",
+    "pg": "^8.20.0",
     "socket.io": "^4.8.3",
-    "stripe-replit-sync": "1.0.0"
+    "stripe": "^17.0.0",
+    "stripe-replit-sync": "1.0.0",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jest": "^29.5.14",
     "@types/node": "catalog:",
+    "@types/supertest": "^7.2.0",
     "esbuild": "^0.27.3",
     "esbuild-plugin-pino": "^2.3.3",
+    "jest": "^29.7.0",
     "pino-pretty": "^13",
-    "thread-stream": "3.1.0"
+    "supertest": "^7.2.2",
+    "thread-stream": "3.1.0",
+    "ts-jest": "^29.4.11"
   }
 }

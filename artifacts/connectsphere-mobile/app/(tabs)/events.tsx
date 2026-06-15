@@ -25,7 +25,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useSessionState } from "@/hooks/useSessionState";
 import CreateFriendPlanSheet from "@/components/CreateFriendPlanSheet";
+import { useFeedback } from "@/components/ActionFeedback";
+import { eventContextIdsChanged, getEventsForScreen } from "@/lib/eventsScreenState";
+import { openChat as openChatRoute } from "@/lib/routes";
 import { requestJoinFriendPlan, type PlanLocationOption } from "@/services/friendsApi";
 import { getEventContexts, toggleEventInterest, type EventContext } from "@/services/eventsApi";
 import { useGetEvents } from "@workspace/api-client-react";
@@ -36,12 +40,27 @@ const POLL_INTERVAL = 60 * 1000;
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 type Event = EventsResponse["events"][number];
+type EventsPayload = EventsResponse & {
+  stale?: boolean;
+  refreshedAt?: string;
+  cacheTtlMs?: number;
+};
 type Timeframe = "all" | "week" | "weekend";
 type Category = "All" | "Nightlife" | "Arts" | "Sports" | "Food" | "Music" | "Business" | "Community" | "Other";
-type AreaFilter = "All" | "Near Me" | "Miami" | "Miami Beach" | "Wynwood" | "Brickell" | "Fort Lauderdale" | "Hollywood";
+type AreaFilter = "All" | "Near Me" | "Miami" | "Broward";
+type EventQuickFilter = "All" | "Near Me" | "Miami" | "Broward" | "This Week" | "Sports" | "Nightlife" | "Arts" | "Community";
 
-const CATEGORIES: Category[] = ["All", "Nightlife", "Arts", "Sports", "Food", "Music", "Business", "Community", "Other"];
-const AREAS: AreaFilter[] = ["All", "Near Me", "Miami", "Miami Beach", "Wynwood", "Brickell", "Fort Lauderdale", "Hollywood"];
+const EVENT_FILTERS: Array<{ value: EventQuickFilter; icon: keyof typeof Ionicons.glyphMap }> = [
+  { value: "All", icon: "apps-outline" },
+  { value: "Near Me", icon: "navigate-outline" },
+  { value: "Miami", icon: "location-outline" },
+  { value: "Broward", icon: "map-outline" },
+  { value: "This Week", icon: "calendar-outline" },
+  { value: "Sports", icon: "football-outline" },
+  { value: "Nightlife", icon: "moon-outline" },
+  { value: "Arts", icon: "color-palette-outline" },
+  { value: "Community", icon: "people-outline" },
+];
 
 const CATEGORY_ICONS: Record<Category, keyof typeof Ionicons.glyphMap> = {
   All: "apps-outline",
@@ -66,6 +85,30 @@ const CATEGORY_COLORS: Record<Category, string> = {
   Community: "#00C2A8",
   Other: "#8E8E93",
 };
+
+// ── No local seed events ─────────────────────────────────────────────────────
+// Events tab uses live Ticketmaster data only (EVENTS_USE_MOCKS=false in production).
+// On cold start the server signals stale=true; the client shows "Loading live events...".
+// Local seed arrays have been removed. Do not re-add them.
+
+
+function filterSettings(filter: EventQuickFilter): { timeframe: Timeframe; category: Category; freeOnly: boolean; area: AreaFilter } {
+  if (filter === "Near Me") return { timeframe: "week", category: "All", freeOnly: false, area: "Near Me" };
+  if (filter === "Miami") return { timeframe: "week", category: "All", freeOnly: false, area: "Miami" };
+  if (filter === "Broward") return { timeframe: "week", category: "All", freeOnly: false, area: "Broward" };
+  if (filter === "This Week") return { timeframe: "week", category: "All", freeOnly: false, area: "All" };
+  if (filter === "Sports" || filter === "Nightlife" || filter === "Arts" || filter === "Community") {
+    return { timeframe: filter === "Sports" ? "all" : "week", category: filter, freeOnly: false, area: "All" };
+  }
+  return { timeframe: "all", category: "All", freeOnly: false, area: "All" };
+}
+
+function ticketUrlForEvent(event: Event) {
+  const directUrl = String((event as any).url ?? "").trim();
+  if (/^https?:\/\//i.test(directUrl)) return directUrl;
+  const query = encodeURIComponent(`${event.name} ${event.venueName ?? ""} tickets`);
+  return `https://www.google.com/search?q=${query}`;
+}
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return "";
@@ -97,9 +140,9 @@ function eventSourceId(event: Event): string {
   return String((event as any).sourceId ?? event.id);
 }
 
-function eventSourceType(event: Event): "ticketmaster" | "eventbrite" | "posh" | "mock" {
+function eventSourceType(event: Event): "ticketmaster" | "eventbrite" | "posh" | "mlb" | "mock" {
   const source = String((event as any).source ?? "ticketmaster");
-  return ["ticketmaster", "eventbrite", "posh", "mock"].includes(source) ? source as any : "ticketmaster";
+  return ["ticketmaster", "eventbrite", "posh", "mlb", "mock"].includes(source) ? source as any : "ticketmaster";
 }
 
 function eventTimingLabel(event: Event): string {
@@ -130,6 +173,61 @@ function socialLine(context?: EventContext) {
   return "";
 }
 
+// ── Who's Going avatar strip ──────────────────────────────────────────────────
+// Shows up to 4 photo bubbles of friends/matches going to this event.
+function WhoGoingAvatars({ users, totalCount }: { users: { name: string; photoUrl?: string }[]; totalCount: number }) {
+  const MAX_SHOWN = 4;
+  const shown = users.slice(0, MAX_SHOWN);
+  const overflow = totalCount - shown.length;
+
+  if (shown.length === 0 && totalCount === 0) return null;
+
+  return (
+    <View style={whoGoingStyles.row}>
+      <View style={whoGoingStyles.bubbles}>
+        {shown.map((u, i) => (
+          <View
+            key={u.name + i}
+            style={[whoGoingStyles.bubble, { marginLeft: i === 0 ? 0 : -10, zIndex: MAX_SHOWN - i }]}
+          >
+            {u.photoUrl ? (
+              <Image source={{ uri: u.photoUrl }} style={whoGoingStyles.bubbleImg} contentFit="cover" />
+            ) : (
+              <View style={[whoGoingStyles.bubbleImg, whoGoingStyles.bubbleFallback]}>
+                <Text style={whoGoingStyles.bubbleInitial}>{u.name[0]?.toUpperCase() ?? "?"}</Text>
+              </View>
+            )}
+          </View>
+        ))}
+        {overflow > 0 && (
+          <View style={[whoGoingStyles.bubble, whoGoingStyles.overflowBubble, { marginLeft: -10 }]}>
+            <Text style={whoGoingStyles.overflowText}>+{overflow}</Text>
+          </View>
+        )}
+      </View>
+      <Text style={whoGoingStyles.label}>
+        {shown.length === 1
+          ? `${shown[0]!.name} is going`
+          : totalCount === 1
+          ? `${shown[0]!.name} is going`
+          : `${totalCount} going`}
+      </Text>
+    </View>
+  );
+}
+
+const whoGoingStyles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 2 },
+  bubbles: { flexDirection: "row", alignItems: "center" },
+  bubble: { width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, borderColor: "#0a0a0a", overflow: "hidden" },
+  bubbleImg: { width: 26, height: 26, borderRadius: 13 },
+  bubbleFallback: { backgroundColor: "#FF299B33", alignItems: "center", justifyContent: "center" },
+  bubbleInitial: { fontSize: 11, fontFamily: "Inter_700Bold", color: PINK },
+  overflowBubble: { backgroundColor: "#222", alignItems: "center", justifyContent: "center" },
+  overflowText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#aaa" },
+  label: { fontSize: 12, fontFamily: "Inter_500Medium", color: "#ccc", flex: 1 },
+});
+
 function getProviderEmptyMessage(data: EventsResponse | undefined): string | null {
   const providers = ((data as any)?.providers ?? []) as Array<{
     label?: string;
@@ -139,15 +237,23 @@ function getProviderEmptyMessage(data: EventsResponse | undefined): string | nul
   }>;
 
   const ticketmaster = providers.find((provider) => provider.label === "Ticketmaster");
-  if (ticketmaster?.configured === false) {
-    return "Ticketmaster is not connected yet. Add a Ticketmaster API key to unlock broad public events around Miami and Broward.";
-  }
-
-  if (ticketmaster?.message && ticketmaster.status === "error") {
-    return ticketmaster.message;
+  // In production, never expose provider configuration details to users — show generic copy only
+  if (ticketmaster?.configured === false || (ticketmaster?.message && ticketmaster.status === "error")) {
+    return null; // Fall through to the normal empty state; no user-visible config errors
   }
 
   return null;
+}
+
+function getProvider(data: EventsResponse | undefined, label: string) {
+  const providers = ((data as any)?.providers ?? []) as Array<{
+    label?: string;
+    status?: string;
+    configured?: boolean;
+    count?: number;
+    message?: string;
+  }>;
+  return providers.find((provider) => provider.label === label);
 }
 
 function MapThumbnail({ latitude, longitude }: { latitude: number; longitude: number }) {
@@ -177,10 +283,12 @@ function EventCard({
   event,
   context,
   onPress,
+  onCreatePlan,
 }: {
   event: Event;
   context?: EventContext;
   onPress: () => void;
+  onCreatePlan?: (event: Event) => void;
 }) {
   const categoryColor = CATEGORY_COLORS[event.category as Category] ?? PINK;
   const sourceLabel = getEventSourceLabel(event);
@@ -234,7 +342,13 @@ function EventCard({
         <Text style={styles.cardTitle} numberOfLines={2}>
           {event.name}
         </Text>
-        {social ? (
+        {/* Who's going — avatar bubbles when friends/matches are attending */}
+        {context && (context.friendInterestedUsers.length > 0 || context.interestedCount > 0) ? (
+          <WhoGoingAvatars
+            users={context.friendInterestedUsers}
+            totalCount={context.interestedCount}
+          />
+        ) : social ? (
           <View style={styles.eventSocialStrip}>
             <Ionicons name="people" size={13} color={PINK} />
             <Text style={styles.eventSocialText} numberOfLines={1}>{social}</Text>
@@ -253,25 +367,22 @@ function EventCard({
             </Text>
           </View>
         ) : null}
+        <View style={styles.cardFooterRow}>
+          <Pressable
+            onPress={(e) => { e?.stopPropagation?.(); onCreatePlan ? onCreatePlan(event) : onPress(); }}
+            style={styles.cardPlanPill}
+            hitSlop={6}
+          >
+            <Ionicons name="add-circle" size={13} color={PINK} />
+            <Text style={styles.cardPlanPillText}>Start a Plan</Text>
+          </Pressable>
+          <Pressable onPress={onPress} style={styles.cardDetailLink} hitSlop={6}>
+            <Text style={styles.cardDetailLinkText}>Details</Text>
+            <Ionicons name="chevron-forward" size={12} color="#666" />
+          </Pressable>
+        </View>
       </View>
     </Pressable>
-  );
-}
-
-function EventAreaChips({ value, onChange }: { value: AreaFilter; onChange: (value: AreaFilter) => void }) {
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-      {AREAS.map((area) => (
-        <Pressable
-          key={area}
-          onPress={() => onChange(area)}
-          style={[styles.areaChip, value === area && styles.areaChipActive]}
-        >
-          <Ionicons name={area === "Near Me" ? "navigate" : "location-outline"} size={13} color={value === area ? "#FFFFFF" : "#999"} />
-          <Text style={[styles.chipText, value === area && styles.chipTextActive]}>{area}</Text>
-        </Pressable>
-      ))}
-    </ScrollView>
   );
 }
 
@@ -433,20 +544,19 @@ function EventDetailSheet({
     [closeWithSlide, slideAnim]
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      if (visible) {
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          damping: 18,
-          stiffness: 180,
-          useNativeDriver: true,
-        }).start();
-      } else {
-        slideAnim.setValue(SCREEN_HEIGHT);
-      }
-    }, [visible, slideAnim])
-  );
+  useEffect(() => {
+    if (visible) {
+      slideAnim.setValue(SCREEN_HEIGHT);
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        damping: 18,
+        stiffness: 180,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      slideAnim.setValue(SCREEN_HEIGHT);
+    }
+  }, [visible, slideAnim]);
 
   if (!event) return null;
 
@@ -457,9 +567,12 @@ function EventDetailSheet({
   const primaryIcon: keyof typeof Ionicons.glyphMap = context?.myPlan?.chatId ? "chatbubbles" : hasJoinablePlans ? "people" : "add-circle";
 
   const handleGetTickets = () => {
-    if (event.url) {
-      Linking.openURL(event.url);
+    const url = ticketUrlForEvent(event);
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
     }
+    Linking.openURL(url).catch(() => {});
   };
 
   return (
@@ -619,26 +732,28 @@ export default function EventsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useUser();
+  const { userId } = useSessionState();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
-  const [timeframe, setTimeframe] = useState<Timeframe>("all");
-  const [category, setCategory] = useState<Category>("All");
-  const [freeOnly, setFreeOnly] = useState(false);
-  const [area, setArea] = useState<AreaFilter>("All");
+  const [activeFilter, setActiveFilter] = useState<EventQuickFilter>("This Week");
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
   const [planSource, setPlanSource] = useState<PlanLocationOption | null>(null);
   const [eventContexts, setEventContexts] = useState<Record<string, EventContext>>({});
-  const currentUserId = user?.id ?? "user_self";
+  const currentUserId = userId ?? user?.id ?? "";
 
-  const queryParams = {
+  const { trigger: triggerInterest } = useFeedback("interest");
+
+  const { timeframe, category, freeOnly, area } = filterSettings(activeFilter);
+
+  const queryParams = useMemo(() => ({
     page: 1,
     ...(timeframe !== "all" ? { timeframe: timeframe as "week" | "weekend" } : {}),
     ...(category !== "All" ? { category } : {}),
     ...(freeOnly ? { freeOnly: true } : {}),
     ...(area !== "All" ? { area } : {}),
     ...(currentUserId ? { userId: currentUserId } : {}),
-  } as any;
+  }) as any, [area, category, currentUserId, freeOnly, timeframe]);
 
   const { data, isLoading, isError, refetch, isRefetching } = useGetEvents(queryParams, {
     query: {
@@ -659,13 +774,66 @@ export default function EventsScreen() {
     }, [refetch])
   );
 
-  const events = useMemo(() => data?.events ?? [], [data?.events]);
-  const isConfigured = data?.configured !== false;
-  const providerEmptyMessage = getProviderEmptyMessage(data);
+  const eventsData = data as EventsPayload | undefined;
+  const apiEvents = getEventsForScreen(eventsData) as Event[];
+  // Always live Ticketmaster data — no client-side mock fallback
+  const events = apiEvents;
+  const usingLocalEvents = false; // local seeds removed; empty state handles no-data case
+
+  // `isConfigured` — show the feed as long as we have ANY events to display or the server
+  // says TM is configured. Only show the "not set up" placeholder when there's truly nothing.
+  const isConfigured = events.length > 0 || eventsData?.configured !== false;
+
+  // Server-side stale flag: true while first TM refresh is still running after cold boot
+  const isServerStale = eventsData?.stale === true;
+
+  // Server-side loading flag: true only on the very first cold-start before any events
+  // have been fetched (distinct from stale, which means we have data but it may be old).
+  const isServerLoading = (eventsData as any)?.loading === true;
+
+  const providerEmptyMessage = getProviderEmptyMessage(eventsData);
+  const ticketmasterProvider = getProvider(eventsData, "Ticketmaster");
+  const marlinsProvider = getProvider(eventsData, "Marlins Games");
+
+  // Build a human-readable "last refreshed" label
+  const refreshedAt = eventsData?.refreshedAt;
+  const refreshedLabel = useMemo(() => {
+    if (!refreshedAt) return null;
+    const ms = Date.now() - new Date(refreshedAt).getTime();
+    if (ms < 60_000) return "just now";
+    if (ms < 3600_000) return `${Math.floor(ms / 60_000)}m ago`;
+    if (ms < 86400_000) return `${Math.floor(ms / 3600_000)}h ago`;
+    return `${Math.floor(ms / 86400_000)}d ago`;
+  }, [refreshedAt]);
+
+  const tmCount = ticketmasterProvider?.count ?? 0;
+  const marlinsCount = marlinsProvider?.count ?? 0;
+  const feedSourceTitle = isError
+    ? "Reconnecting…"
+    : (isServerLoading || isServerStale)
+      ? "Loading live events..."
+      : tmCount > 0
+        ? `${tmCount} Ticketmaster events`
+        : "Live events";
+  const feedSourceDetail = isError
+    ? "Couldn't reach the server — tap retry to reload live Miami & Broward events."
+    : (isServerLoading || isServerStale)
+      ? "Fetching Ticketmaster events — live Miami & Broward events will appear shortly."
+      : `${tmCount} Ticketmaster · ${marlinsCount} Marlins games · Miami & Broward${refreshedLabel ? ` · refreshed ${refreshedLabel}` : ""}`;
   const eventSourceIds = useMemo(() => events.map(eventSourceId), [events]);
+  const loadedEventContextUserRef = useRef("");
+  const loadedEventSourceIdsRef = useRef<string[]>([]);
 
   const loadEventContexts = useCallback(async () => {
-    if (!eventSourceIds.length) {
+    if (
+      loadedEventContextUserRef.current === currentUserId &&
+      !eventContextIdsChanged(loadedEventSourceIdsRef.current, eventSourceIds)
+    ) {
+      return;
+    }
+    loadedEventContextUserRef.current = currentUserId;
+    loadedEventSourceIdsRef.current = eventSourceIds;
+    if (!currentUserId || !eventSourceIds.length) {
       setEventContexts({});
       return;
     }
@@ -706,7 +874,7 @@ export default function EventsScreen() {
 
   const openChat = useCallback((chatId: string) => {
     setDetailVisible(false);
-    router.push(`/chat/${chatId}` as never);
+    openChatRoute(chatId);
   }, []);
 
   const shareEvent = useCallback(async (event: Event) => {
@@ -717,6 +885,8 @@ export default function EventsScreen() {
 
   const handleToggleInterest = useCallback(async (event: Event) => {
     const sourceId = eventSourceId(event);
+    const wasInterested = !!eventContexts[sourceId]?.myInterestStatus;
+    if (!wasInterested) triggerInterest(); // burst only when marking interested
     setEventContexts((current) => ({
       ...current,
       [sourceId]: {
@@ -730,6 +900,7 @@ export default function EventsScreen() {
       },
     }));
     try {
+      if (!currentUserId) return;
       await toggleEventInterest({
         userId: currentUserId,
         sourceId,
@@ -742,7 +913,7 @@ export default function EventsScreen() {
     } catch {
       loadEventContexts();
     }
-  }, [currentUserId, eventContexts, loadEventContexts]);
+  }, [currentUserId, eventContexts, loadEventContexts, triggerInterest]);
 
   const handleRequestJoinPlan = useCallback(async (planId: string) => {
     setEventContexts((current) => {
@@ -759,6 +930,7 @@ export default function EventsScreen() {
       return next;
     });
     try {
+      if (!currentUserId) return;
       await requestJoinFriendPlan(currentUserId, planId);
       loadEventContexts();
     } catch {
@@ -773,78 +945,66 @@ export default function EventsScreen() {
         style={styles.livePanel}
       >
         <View style={styles.livePanelTop}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.liveKicker}>TONIGHT'S MOVES</Text>
             <Text style={styles.liveTitle}>Find the energy. Build the plan.</Text>
-            <Text style={styles.liveSubcopy}>Concerts, parties, games, pop-ups, and real reasons to get outside.</Text>
+            <Text style={styles.liveSubcopy}>Concerts, games, pop-ups — tap any event to start a plan with your crew.</Text>
+
+            {/* Source status pill + detail */}
+            <View style={styles.feedStatusRow}>
+              <View style={[
+                styles.feedSourcePill,
+                isError ? styles.feedSourcePillError : isServerStale ? styles.feedSourcePillStale : styles.feedSourcePillLive,
+              ]}>
+                {isRefetching || isServerStale || isError ? (
+                  <ActivityIndicator size="small" color={isError ? "#FF6B6B" : isServerStale ? "#FFA940" : "#1DB954"} style={{ marginRight: 2 }} />
+                ) : (
+                  <View style={[
+                    styles.feedSourceDot,
+                    isServerStale ? styles.feedSourceDotStale : styles.feedSourceDotLive,
+                  ]} />
+                )}
+                <Text style={styles.feedSourceText}>{feedSourceTitle}</Text>
+              </View>
+              {/* Manual refresh button */}
+              {!isRefetching ? (
+                <TouchableOpacity
+                  onPress={() => refetch()}
+                  style={styles.refreshBtn}
+                  hitSlop={8}
+                >
+                  <Ionicons name="refresh" size={14} color="rgba(255,255,255,0.5)" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <Text style={styles.feedSourceDetail}>{feedSourceDetail}</Text>
           </View>
         </View>
       </LinearGradient>
 
-      <EventAreaChips value={area} onChange={setArea} />
-
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterScroll}
       >
-        <Pressable
-          style={[styles.chip, timeframe === "all" && styles.chipActive]}
-          onPress={() => setTimeframe("all")}
-        >
-          <Text style={[styles.chipText, timeframe === "all" && styles.chipTextActive]}>
-            All Upcoming
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.chip, timeframe === "week" && styles.chipActive]}
-          onPress={() => setTimeframe("week")}
-        >
-          <Text style={[styles.chipText, timeframe === "week" && styles.chipTextActive]}>
-            This Week
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.chip, timeframe === "weekend" && styles.chipActive]}
-          onPress={() => setTimeframe("weekend")}
-        >
-          <Text style={[styles.chipText, timeframe === "weekend" && styles.chipTextActive]}>
-            This Weekend
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.chip, freeOnly && styles.chipActive]}
-          onPress={() => setFreeOnly((v) => !v)}
-        >
-          <Ionicons
-            name="pricetag-outline"
-            size={13}
-            color={freeOnly ? "#fff" : "#999"}
-            style={{ marginRight: 4 }}
-          />
-          <Text style={[styles.chipText, freeOnly && styles.chipTextActive]}>Free Only</Text>
-        </Pressable>
-      </ScrollView>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        {CATEGORIES.map((cat) => {
-          const isActive = category === cat;
-          const color = CATEGORY_COLORS[cat];
+        {EVENT_FILTERS.map((filter) => {
+          const isActive = activeFilter === filter.value;
+          const color = filter.value === "All" || filter.value === "This Week" || filter.value === "Near Me" || filter.value === "Miami" || filter.value === "Broward"
+            ? PINK
+            : CATEGORY_COLORS[filter.value as Category] ?? PINK;
           return (
             <Pressable
-              key={cat}
+              key={filter.value}
+              testID={`event-filter-${filter.value.toLowerCase().replace(/\s+/g, "-")}`}
               style={[
-                styles.categoryChip,
+                styles.chip,
                 isActive && { backgroundColor: color, borderColor: color },
               ]}
-              onPress={() => setCategory(cat)}
+              onPress={() => setActiveFilter(filter.value)}
             >
               <Ionicons
-                name={CATEGORY_ICONS[cat]}
+                name={filter.icon}
                 size={13}
                 color={isActive ? "#fff" : "#999"}
                 style={{ marginRight: 4 }}
@@ -852,10 +1012,10 @@ export default function EventsScreen() {
               <Text
                 style={[
                   styles.chipText,
-                  isActive && styles.chipTextActive,
-                ]}
+                isActive && styles.chipTextActive,
+              ]}
               >
-                {cat}
+                {filter.value}
               </Text>
             </Pressable>
           );
@@ -878,10 +1038,13 @@ export default function EventsScreen() {
           >
             <Ionicons name="calendar-outline" size={48} color="#555" />
           </LinearGradient>
-          <Text style={styles.placeholderTitle}>Events coming soon</Text>
+          <Text style={styles.placeholderTitle}>Events loading</Text>
           <Text style={styles.placeholderText}>
-            Ticketmaster is not connected on the API yet. Add the Ticketmaster key to unlock live Miami and Broward events.
+            Connecting to Ticketmaster. Live Miami & Broward events will appear in a moment.
           </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       ) : isLoading ? (
         <>
@@ -889,17 +1052,6 @@ export default function EventsScreen() {
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={PINK} />
             <Text style={styles.loadingText}>Loading events…</Text>
-          </View>
-        </>
-      ) : isError ? (
-        <>
-          {renderHeader()}
-          <View style={styles.centered}>
-            <Ionicons name="alert-circle-outline" size={48} color="#555" />
-            <Text style={styles.errorText}>Couldn't load events</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-              <Text style={styles.retryButtonText}>Try Again</Text>
-            </TouchableOpacity>
           </View>
         </>
       ) : (
@@ -914,7 +1066,12 @@ export default function EventsScreen() {
               events.length === 0 && styles.listContentEmpty,
             ]}
             renderItem={({ item }) => (
-              <EventCard event={item} context={eventContexts[eventSourceId(item)]} onPress={() => openDetail(item)} />
+              <EventCard
+                event={item}
+                context={eventContexts[eventSourceId(item)]}
+                onPress={() => openDetail(item)}
+                onCreatePlan={openPlanFromEvent}
+              />
             )}
             refreshControl={
               <RefreshControl
@@ -927,16 +1084,23 @@ export default function EventsScreen() {
             ListEmptyComponent={
               <View style={styles.centered}>
                 <Ionicons
-                  name={providerEmptyMessage ? "key-outline" : "search-outline"}
+                  name={isError ? "wifi-outline" : providerEmptyMessage ? "key-outline" : "search-outline"}
                   size={48}
-                  color="#555"
+                  color="#444"
                 />
                 <Text style={styles.emptyTitle}>
-                  {providerEmptyMessage ? "Connect a live event source" : "No events found"}
+                  {isError ? "Couldn't reach the server" : providerEmptyMessage ? "Events are warming up" : "No events found"}
                 </Text>
                 <Text style={styles.emptyText}>
-                  {providerEmptyMessage ?? "Try a different category or check back after the next refresh."}
+                  {isError
+                    ? "Check your connection or tap below — the server may be waking up."
+                    : providerEmptyMessage
+                      ? "Try refresh, widen your area, or create a plan with friends while local listings sync."
+                      : "Try a different category, widen your area, or check back after the next refresh."}
                 </Text>
+                <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+                  <Text style={styles.retryButtonText}>{isError ? "Try Again" : "Refresh"}</Text>
+                </TouchableOpacity>
               </View>
             }
             showsVerticalScrollIndicator={false}
@@ -965,7 +1129,7 @@ export default function EventsScreen() {
           setPlanSource(null);
           loadEventContexts();
           if (result.chat?.id) {
-            router.push({ pathname: "/(tabs)/matches", params: { openChatId: result.chat.id } } as never);
+            openChat(result.chat.id);
           }
         }}
       />
@@ -985,9 +1149,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 30,
-    fontWeight: "900",
+    fontFamily: "Sora_800ExtraBold",
     color: "#fff",
-    letterSpacing: 0,
+    letterSpacing: -0.5,
   },
   filterContainer: {
     paddingTop: 4,
@@ -1014,24 +1178,96 @@ const styles = StyleSheet.create({
   },
   liveKicker: {
     color: PINK,
-    fontSize: 14,
-    fontWeight: "900",
-    letterSpacing: 1,
+    fontSize: 11,
+    fontFamily: "Inter_800ExtraBold",
+    letterSpacing: 1.8,
+    textTransform: "uppercase",
   },
   liveTitle: {
     color: "#fff",
     flexShrink: 1,
-    fontSize: 26,
-    fontWeight: "900",
-    lineHeight: 31,
-    marginTop: 1,
+    fontSize: 24,
+    fontFamily: "Sora_800ExtraBold",
+    lineHeight: 30,
+    marginTop: 3,
   },
   liveSubcopy: {
     color: "#B7B7C2",
-    fontSize: 12.5,
-    fontWeight: "700",
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
     lineHeight: 18,
-    marginTop: 2,
+    marginTop: 4,
+  },
+  feedStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+    gap: 8,
+  },
+  feedSourcePill: {
+    alignItems: "center",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  feedSourcePillLive: {
+    backgroundColor: "rgba(29,185,84,0.12)",
+    borderColor: "rgba(29,185,84,0.38)",
+  },
+  feedSourcePillBackup: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  feedSourcePillStale: {
+    backgroundColor: "rgba(255,169,64,0.12)",
+    borderColor: "rgba(255,169,64,0.38)",
+  },
+  feedSourcePillError: {
+    backgroundColor: "rgba(255,107,107,0.12)",
+    borderColor: "rgba(255,107,107,0.38)",
+  },
+  feedSourceDotError: {
+    backgroundColor: "#FF6B6B",
+  },
+  feedSourceDot: {
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  feedSourceDotLive: {
+    backgroundColor: "#1DB954",
+  },
+  feedSourceDotBackup: {
+    backgroundColor: "#FFB4D9",
+  },
+  feedSourceDotStale: {
+    backgroundColor: "#FFA940",
+  },
+  feedSourceText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  feedSourceDetail: {
+    color: "#D7D7DF",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 15,
+    marginTop: 6,
+  },
+  refreshBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.07)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   filterScroll: {
     paddingHorizontal: 16,
@@ -1221,7 +1457,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: "700",
+    fontFamily: "Inter_800ExtraBold",
     color: "#fff",
     lineHeight: 22,
   },
@@ -1251,6 +1487,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#999",
     flex: 1,
+  },
+  cardFooterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(255,255,255,0.08)",
+  },
+  cardPlanPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255,41,155,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,41,155,0.28)",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  cardPlanPillText: {
+    color: PINK,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  cardDetailLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  cardDetailLinkText: {
+    color: "#666",
+    fontSize: 12,
+    fontWeight: "600",
   },
   centered: {
     flex: 1,
@@ -1383,7 +1654,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     color: "#fff",
     fontSize: 22,
-    fontWeight: "700",
+    fontFamily: "Sora_800ExtraBold",
     lineHeight: 28,
     marginBottom: 14,
   },
@@ -1559,7 +1830,7 @@ const styles = StyleSheet.create({
   planButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "900",
+    fontFamily: "Inter_800ExtraBold",
   },
   ticketButton: {
     marginHorizontal: 20,

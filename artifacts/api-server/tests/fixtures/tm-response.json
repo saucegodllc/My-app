@@ -1,0 +1,154 @@
+{
+  "_embedded": {
+    "events": [
+      {
+        "id": "vvG1VZ9abc123",
+        "name": "Miami Summer Concert",
+        "url": "https://www.ticketmaster.com/miami-summer-concert-miami-florida-06-20-2026/event/vvG1VZ9abc123",
+        "images": [
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/example_16_9.jpg",
+            "width": 1024,
+            "height": 576
+          }
+        ],
+        "dates": {
+          "start": {
+            "localDate": "2026-06-20",
+            "localTime": "20:00:00",
+            "dateTime": "2026-06-21T00:00:00Z"
+          },
+          "end": {
+            "localDate": "2026-06-20",
+            "localTime": "23:00:00"
+          },
+          "status": {
+            "code": "onsale"
+          }
+        },
+        "priceRanges": [
+          {
+            "type": "standard",
+            "currency": "USD",
+            "min": 35,
+            "max": 95
+          }
+        ],
+        "classifications": [
+          {
+            "segment": {
+              "name": "Music"
+            },
+            "genre": {
+              "name": "Latin"
+            },
+            "subGenre": {
+              "name": "Latin Pop"
+            }
+          }
+        ],
+        "_embedded": {
+          "venues": [
+            {
+              "name": "Kaseya Center",
+              "city": {
+                "name": "Miami"
+              },
+              "state": {
+                "name": "Florida",
+                "stateCode": "FL"
+              },
+              "postalCode": "33132",
+              "address": {
+                "line1": "601 Biscayne Blvd"
+              },
+              "location": {
+                "latitude": "25.7814",
+                "longitude": "-80.1870"
+              }
+            }
+          ]
+        },
+        "info": "A live music event in downtown Miami."
+      },
+      {
+        "id": "vvG1VZ9sports456",
+        "name": "Florida Panthers Watch Party",
+        "url": "https://www.ticketmaster.com/florida-panthers-watch-party-sunrise-florida-06-21-2026/event/vvG1VZ9sports456",
+        "images": [
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/example_sports_16_9.jpg",
+            "width": 1024,
+            "height": 576
+          }
+        ],
+        "dates": {
+          "start": {
+            "localDate": "2026-06-21",
+            "localTime": "19:30:00",
+            "dateTime": "2026-06-21T23:30:00Z"
+          },
+          "end": {
+            "localDate": "2026-06-21",
+            "localTime": "22:30:00"
+          },
+          "status": {
+            "code": "onsale"
+          }
+        },
+        "priceRanges": [
+          {
+            "type": "standard",
+            "currency": "USD",
+            "min": 0,
+            "max": 0
+          }
+        ],
+        "classifications": [
+          {
+            "segment": {
+              "name": "Sports"
+            },
+            "genre": {
+              "name": "Hockey"
+            },
+            "subGenre": {
+              "name": "NHL"
+            }
+          }
+        ],
+        "_embedded": {
+          "venues": [
+            {
+              "name": "Amerant Bank Arena",
+              "city": {
+                "name": "Sunrise"
+              },
+              "state": {
+                "name": "Florida",
+                "stateCode": "FL"
+              },
+              "postalCode": "33323",
+              "address": {
+                "line1": "1 Panther Parkway"
+              },
+              "location": {
+                "latitude": "26.1585",
+                "longitude": "-80.3256"
+              }
+            }
+          ]
+        },
+        "description": "A real Ticketmaster-shaped fixture sanitized for regression tests."
+      }
+    ]
+  },
+  "page": {
+    "size": 2,
+    "totalElements": 2,
+    "totalPages": 1,
+    "number": 0
+  }
+}

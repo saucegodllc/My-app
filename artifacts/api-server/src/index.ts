@@ -7,8 +7,12 @@ import { getStripeSync } from "./lib/stripeClient";
 import { runMigrations } from "stripe-replit-sync";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
+import { startEventsBackgroundRefresh } from "./routes/events";
+import { assertProductionLaunchSafety, shouldUseLocalDbFallback } from "./launchGuards";
 
 const rawPort = process.env["PORT"];
+
+assertProductionLaunchSafety();
 
 if (!rawPort) {
   throw new Error("PORT environment variable is required but was not provided.");
@@ -92,6 +96,14 @@ httpServer.listen(port, async (err?: Error) => {
     process.exit(1);
   }
   logger.info({ port }, "Server listening");
+
+  // Start Ticketmaster 24h background refresh immediately
+  startEventsBackgroundRefresh();
+
+  if (shouldUseLocalDbFallback()) {
+    logger.warn("DATABASE_URL not set; running JSON-backed routes without Postgres startup tasks");
+    return;
+  }
   await runLivenessMigrations();
   await initStripe();
 });

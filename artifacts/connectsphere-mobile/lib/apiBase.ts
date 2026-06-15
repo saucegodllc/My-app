@@ -68,6 +68,9 @@ export function getApiBaseUrl() {
     const apiPort = portFromAuthority(authority);
 
     if (expoHost && !isLocalHost(expoHost)) {
+      if (expoHost.endsWith(".exp.direct")) {
+        return `https://${expoHost}`;
+      }
       return `http://${expoHost}:${apiPort}`;
     }
 
