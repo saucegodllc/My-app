@@ -1,8 +1,9 @@
+import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as Location from "expo-location";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -13,13 +14,16 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import CreateFriendPlanSheet from "@/components/CreateFriendPlanSheet";
 import VenueMapView from "@/components/VenueMapView";
+import type { PlanLocationOption } from "@/services/friendsApi";
 import {
   useGetMyProfile,
   useGetVenues,
@@ -76,11 +80,15 @@ export default function MapTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { user } = useUser();
+  const { pickSpot } = useLocalSearchParams<{ pickSpot?: string }>();
 
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("All");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
   const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
+  const [planSource, setPlanSource] = useState<PlanLocationOption | null>(null);
   const [isListView, setIsListView] = useState(Platform.OS === "web");
   const cardAnim = useRef(new Animated.Value(0)).current;
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -109,6 +117,13 @@ export default function MapTab() {
     requestLocation();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (pickSpot === "1") {
+      setIsListView(false);
+      setSelectedVenue(null);
+    }
+  }, [pickSpot]);
 
   const { data: profileData } = useGetMyProfile();
   const userLat =
@@ -212,9 +227,18 @@ export default function MapTab() {
   const configured = data?.configured ?? true;
 
   // Apply saved-only filter on top of the server-side filters
-  const venues = showSavedOnly
+  const baseVenues = showSavedOnly
     ? allVenues.filter((v) => savedIds.has(v.id))
     : allVenues;
+  const venues = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return baseVenues;
+    return baseVenues.filter((venue) =>
+      [venue.name, venue.address, venue.category, venue.priceTier]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query)),
+    );
+  }, [baseVenues, searchQuery]);
 
   useFocusEffect(
     useCallback(() => {
@@ -250,6 +274,19 @@ export default function MapTab() {
       default: `https://www.google.com/maps/dir/?api=1&destination=${venue.latitude},${venue.longitude}`,
     });
     Linking.openURL(url ?? "");
+  };
+
+  const openPlanFromVenue = (venue: Venue) => {
+    setPlanSource({
+      id: String(venue.id),
+      sourceType: "map",
+      name: venue.name,
+      subtitle: venue.address ?? venue.category ?? "Miami",
+      imageUrl: venue.photoUrl,
+      latitude: venue.latitude,
+      longitude: venue.longitude,
+    });
+    closeVenueCard();
   };
 
   const cardTranslateY = cardAnim.interpolate({
@@ -294,6 +331,26 @@ export default function MapTab() {
             {isListView ? "Map" : "List"}
           </Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.searchWrap}>
+        <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="search" size={17} color={colors.mutedForeground} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search spots, sushi, rooftops..."
+            placeholderTextColor={colors.mutedForeground}
+            style={[styles.searchInput, { color: colors.foreground }]}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {searchQuery.trim() ? (
+            <Pressable onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.filterSection}>
@@ -442,14 +499,53 @@ export default function MapTab() {
           )}
         />
       ) : (
-        <VenueMapView
-          key={`${userLat.toFixed(4)}-${userLng.toFixed(4)}`}
-          venues={venues}
-          lat={userLat}
-          lng={userLng}
-          onVenuePress={openVenueCard}
-          selectedVenue={selectedVenue}
-        />
+        <View style={styles.mapPane}>
+          <VenueMapView
+            key={`${userLat.toFixed(4)}-${userLng.toFixed(4)}`}
+            venues={venues}
+            lat={userLat}
+            lng={userLng}
+            onVenuePress={openVenueCard}
+            selectedVenue={selectedVenue}
+          />
+          <View style={styles.mapPickRail}>
+            <Text style={[styles.mapPickTitle, { color: colors.foreground }]}>Tap a listed spot to pin it</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mapPickRow}>
+              {venues.slice(0, 12).map((venue) => (
+                <Pressable
+                  key={venue.id}
+                  onPress={() => openVenueCard(venue)}
+                  style={[
+                    styles.mapPickChip,
+                    {
+                      backgroundColor: selectedVenue?.id === venue.id ? PINK : colors.card,
+                      borderColor: selectedVenue?.id === venue.id ? PINK : colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.mapPickChipText,
+                      { color: selectedVenue?.id === venue.id ? "#fff" : colors.foreground },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {venue.name}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.mapPickChipMeta,
+                      { color: selectedVenue?.id === venue.id ? "rgba(255,255,255,0.78)" : colors.mutedForeground },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {venue.category}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
       )}
 
       {selectedVenue && (
@@ -585,8 +681,29 @@ export default function MapTab() {
             <Ionicons name="navigate" size={16} color="#fff" />
             <Text style={styles.directionsBtnText}>Get Directions</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.createPlanBtn}
+            onPress={() => openPlanFromVenue(selectedVenue)}
+          >
+            <Ionicons name="checkmark-circle" size={16} color="#0A0A0B" />
+            <Text style={styles.createPlanBtnText}>Pick This Spot</Text>
+          </TouchableOpacity>
         </Animated.View>
       )}
+      <CreateFriendPlanSheet
+        visible={!!planSource}
+        userId={user?.id ?? "user_self"}
+        initialSource={planSource}
+        initialTitle={planSource ? `${planSource.name} plan` : undefined}
+        onClose={() => setPlanSource(null)}
+        onCreated={(result) => {
+          setPlanSource(null);
+          if (result.chat?.id) {
+            router.push({ pathname: "/(tabs)/matches", params: { openChatId: result.chat.id } } as never);
+          }
+        }}
+      />
     </View>
   );
 }
@@ -723,6 +840,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_600SemiBold",
   },
+  searchWrap: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    zIndex: 11,
+  },
+  searchBox: {
+    minHeight: 46,
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingHorizontal: 13,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    paddingVertical: 0,
+  },
   filterSection: {
     zIndex: 10,
     paddingBottom: 8,
@@ -764,6 +901,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     gap: 12,
+  },
+  mapPane: {
+    flex: 1,
+    minHeight: 0,
+    position: "relative",
+  },
+  mapPickRail: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 10,
+    zIndex: 20,
+  },
+  mapPickTitle: {
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 8,
+    paddingHorizontal: 16,
+    textShadowColor: "rgba(0,0,0,0.55)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
+  },
+  mapPickRow: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  mapPickChip: {
+    width: 150,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  mapPickChipText: {
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
+  },
+  mapPickChipMeta: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    marginTop: 2,
   },
   listCard: {
     flexDirection: "row",
@@ -922,6 +1104,21 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 15,
     fontFamily: "Inter_600SemiBold",
+  },
+  createPlanBtn: {
+    alignItems: "center",
+    backgroundColor: "#FF2D8D",
+    borderRadius: 12,
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "center",
+    marginTop: 10,
+    paddingVertical: 12,
+  },
+  createPlanBtnText: {
+    color: "#0A0A0B",
+    fontSize: 15,
+    fontWeight: "900",
   },
   placeholderTitle: {
     fontSize: 20,

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, type ReactNode } from "react";
 import { useVideoPlayer, type VideoPlayer } from "expo-video";
 
-const videoSource = require("@/assets/videos/success_club_party.mp4");
+const videoSource = require("@/assets/videos/champagne_cheers_welcome.mp4");
 
 // Hardcoded — player.duration becomes Infinity with loop=true
 export const SUCCESS_CLIP_S = 8;
@@ -33,7 +33,6 @@ export function SuccessVideoProvider({ children }: { children: ReactNode }) {
   // They play silently in the background; VideoViews are only rendered in success.tsx.
   useEffect(() => {
     playerA.play();
-    playerB.currentTime = SUCCESS_CLIP_S / 2; // offset B by half a clip
     playerB.play();
   }, []);
 

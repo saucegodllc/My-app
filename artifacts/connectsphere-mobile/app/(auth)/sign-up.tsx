@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { usePrimeCongratsVideo } from "@/contexts/CongratsVideoContext";
 import { apiUrl } from "@/lib/apiBase";
+import { setPendingAutoSignIn } from "@/lib/pendingAuth";
 import Svg, { Path } from "react-native-svg";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -57,6 +58,21 @@ function usernameFromIdentifier(identifier: string): string {
 
   return `${base || "user"}_${Math.random().toString(36).slice(2, 7)}`;
 }
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
+}
+
+type ServerSignupResponse = {
+  success?: boolean;
+  userId?: string;
+  ticket?: string;
+  error?: string;
+};
 
 export default function SignUpScreen() {
   const { signUp, setActive, isLoaded } = useSignUp();
@@ -106,45 +122,87 @@ export default function SignUpScreen() {
     }
   }
 
-  async function tryPasswordSignIn(email: string, password: string): Promise<boolean> {
-    if (!signIn || !setActiveSignIn) return false;
+  async function activateCreatedSession(sessionId: string | null | undefined, destination: "/congrats" | "/(tabs)" = "/congrats"): Promise<boolean> {
+    if (!sessionId || !setActiveSignIn) return false;
+    await setActiveSignIn({ session: sessionId });
+    router.replace(destination);
+    return true;
+  }
+
+  async function tryTicketSignIn(_email: string, ticket?: string): Promise<boolean> {
+    if (!ticket || !signIn || !setActiveSignIn) return false;
     try {
-      const result = await signIn.create({ strategy: "password", identifier: email, password });
-      if (result.status === "complete") {
-        await setActiveSignIn({ session: result.createdSessionId });
-        router.replace("/congrats");
-        return true;
-      }
-      if (result.status === "needs_first_factor") {
-        const attempt = await signIn.attemptFirstFactor({ strategy: "password", password });
-        if (attempt.status === "complete") {
-          await setActiveSignIn({ session: attempt.createdSessionId });
-          router.replace("/congrats");
-          return true;
-        }
-      }
+      const result = await signIn.create({ strategy: "ticket", ticket });
+      if (result.status === "complete" && await activateCreatedSession(result.createdSessionId)) return true;
+      console.warn("[sign-up] ticket sign-in incomplete:", result.status, result.createdSessionId);
     } catch (err) {
-      console.warn("[sign-up] password sign-in attempt:", err);
+      console.warn("[sign-up] ticket sign-in failed:", extractClerkError(err, String(err)));
     }
     return false;
   }
 
-  async function beginEmailVerification(email: string, password: string) {
-    if (!signUp) throw new Error("Sign-up is not ready yet.");
-    try {
-      await signUp.create({
-        emailAddress: email,
-        password,
-        username: usernameFromIdentifier(email),
-      });
-    } catch (err) {
-      const message = extractClerkError(err, "");
-      if (!message.toLowerCase().includes("username")) throw err;
-      await signUp.create({ emailAddress: email, password });
+  async function tryPasswordSignIn(email: string, password: string, destination: "/congrats" | "/(tabs)" = "/congrats"): Promise<boolean> {
+    if (!signIn || !setActiveSignIn) return false;
+    for (let attemptNumber = 0; attemptNumber < 3; attemptNumber += 1) {
+      try {
+        const result = await signIn.create({ identifier: email, password });
+        if (result.status === "complete" && await activateCreatedSession(result.createdSessionId, destination)) return true;
+        if (result.status === "needs_first_factor") {
+          const attempt = await signIn.attemptFirstFactor({ strategy: "password", password });
+          if (attempt.status === "complete" && await activateCreatedSession(attempt.createdSessionId, destination)) return true;
+        }
+      } catch (err) {
+        console.warn("[sign-up] password sign-in attempt:", extractClerkError(err, String(err)));
+      }
+      await wait(700 * (attemptNumber + 1));
     }
-    await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-    setVerifyMode("email");
-    setPendingVerification(true);
+    return false;
+  }
+
+  async function createAccountWithoutEmailVerification(email: string, password: string) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8_000);
+    let resp: Response;
+    try {
+      resp = await fetch(apiUrl("/api/auth/signup-bypass"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        signal: controller.signal,
+      });
+    } catch (networkErr) {
+      console.warn("[sign-up] signup-bypass unavailable:", networkErr);
+      if (isAbortError(networkErr)) {
+        throw new Error("ConnectSphere sign-up is taking too long. Make sure the API server is running, then try again.");
+      }
+      throw new Error("ConnectSphere could not reach the sign-up server. Please reload Expo and try again.");
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    const data = await resp.json().catch(() => ({})) as ServerSignupResponse;
+
+    if (resp.status === 409) {
+      const signedIn = await tryPasswordSignIn(email, password, "/(tabs)");
+      if (signedIn) return;
+      setPendingAutoSignIn({ email, password, destination: "/congrats" });
+      router.replace("/congrats");
+      return;
+    }
+
+    if (!resp.ok) {
+      throw new Error(data.error ?? "Account setup could not finish. Please try again.");
+    }
+
+    setPendingAutoSignIn({ email, password, ticket: data.ticket, destination: "/congrats" });
+
+    const ticketSignedIn = await tryTicketSignIn(email, data.ticket);
+    if (ticketSignedIn) return;
+
+    const signedIn = await tryPasswordSignIn(email, password, "/congrats");
+    if (signedIn) return;
+
+    router.replace("/congrats");
   }
 
   async function handleSignUp() {
@@ -167,98 +225,19 @@ export default function SignUpScreen() {
       if (mode === "email") {
         const email = identifier.trim().toLowerCase();
         try {
-          await beginEmailVerification(email, password);
+          await createAccountWithoutEmailVerification(email, password);
           return;
         } catch (emailErr) {
           const message = extractClerkError(emailErr, "Something went wrong. Please try again.");
-          if (!isExistingAccountError(message)) throw emailErr;
-
-          const signedIn = await tryPasswordSignIn(email, password);
-          if (signedIn) return;
-
-          Alert.alert(
-            "Account already exists",
-            "You already have a ConnectSphere account with that email. Please sign in instead.",
-            [{ text: "Sign In", onPress: () => router.replace("/(auth)/sign-in") }]
-          );
-          return;
-        }
-
-        let resp: Response;
-        try {
-          resp = await fetch(apiUrl("/api/auth/signup-bypass"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          });
-        } catch (networkErr) {
-          console.warn("[sign-up] signup-bypass unavailable, using Clerk email verification:", networkErr);
-          await beginEmailVerification(email, password);
-          return;
-        }
-        const data = await resp.json().catch(() => ({})) as { success?: boolean; ticket?: string; error?: string };
-
-        // ── 409: email already registered ────────────────────────────────────
-        if (resp.status === 409) {
-          // Try signing in with the password the user just entered — they may
-          // have forgotten they already have an account.
-          try {
-            const siResult = await signIn!.create({ strategy: "password", identifier: email, password });
-            if (siResult.status === "complete" && setActiveSignIn) {
-              await setActiveSignIn({ session: siResult.createdSessionId });
-              // Go to tabs — layout will redirect to onboarding if not yet complete
-              router.replace("/(tabs)/");
-              return;
-            }
-          } catch {
-            // Password didn't match their existing account — send them to sign-in
+          if (isExistingAccountError(message)) {
+            const signedIn = await tryPasswordSignIn(email, password, "/(tabs)");
+            if (signedIn) return;
+            setPendingAutoSignIn({ email, password, destination: "/congrats" });
+            router.replace("/congrats");
+            return;
           }
-          Alert.alert(
-            "Account already exists",
-            "You already have a ConnectSphere account with that email. Please sign in instead.",
-            [{ text: "Sign In", onPress: () => router.replace("/(auth)/sign-in") }]
-          );
-          return;
+          throw emailErr;
         }
-
-        if (!resp.ok && resp.status >= 500) {
-          console.warn("[sign-up] signup-bypass server error, using Clerk email verification:", data.error);
-          await beginEmailVerification(email, password);
-          return;
-        }
-
-        if (!resp.ok) {
-          Alert.alert("Sign Up Failed", data.error ?? "Something went wrong. Please try again.");
-          return;
-        }
-
-        // ── Sign in via password (most reliable across all environments) ──────
-        // Ticket-based sign-in is skipped: tokens can expire in transit and
-        // behave unpredictably in Expo Go / development environments.
-        const signedIn = await tryPasswordSignIn(email, password);
-        if (signedIn) return;
-
-        // ── Ticket fallback: only if password sign-in didn't work ─────────────
-        if (data.ticket && signIn) {
-          try {
-            const result = await signIn.create({ strategy: "ticket", ticket: data.ticket });
-            if (result.status === "complete" && setActiveSignIn) {
-              await setActiveSignIn({ session: result.createdSessionId });
-              router.replace("/congrats");
-              return;
-            }
-          } catch (ticketErr) {
-            console.warn("[sign-up] ticket sign-in skipped:", ticketErr);
-            // expected in dev/Expo Go — not surfaced to user
-          }
-        }
-
-        // ── Last resort: ask user to sign in manually ─────────────────────────
-        Alert.alert(
-          "Almost there!",
-          "Your account was created. Please sign in with the email and password you just used.",
-          [{ text: "Sign In", onPress: () => router.replace("/(auth)/sign-in") }]
-        );
       } else {
         const phone = identifier.trim().startsWith("+") ? identifier.trim() : `+1${identifier.trim().replace(/\D/g, "")}`;
         try {
@@ -274,10 +253,16 @@ export default function SignUpScreen() {
       }
     } catch (err: unknown) {
       const message = extractClerkError(err, "Something went wrong. Please try again.");
-      if (message.toLowerCase().includes("network request failed")) {
+      const lowerMessage = message.toLowerCase();
+      if (lowerMessage.includes("data breach") || lowerMessage.includes("online data breach")) {
+        Alert.alert(
+          "Use a stronger password",
+          "For security, that password is blocked. Try a unique password you have not used anywhere else."
+        );
+      } else if (lowerMessage.includes("network request failed")) {
         Alert.alert(
           "Connection Problem",
-          "The app could not reach the sign-up service. Please check your connection, reload Expo, and try again."
+          "ConnectSphere could not reach the internet right now. Please check your connection, reload Expo, and try again."
         );
       } else {
         Alert.alert("Sign Up Failed", message);

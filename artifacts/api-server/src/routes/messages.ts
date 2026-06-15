@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { matchesTable, messagesTable } from "@workspace/db";
 import { GetMessagesQueryParams, SendMessageBody } from "@workspace/api-zod";
@@ -86,7 +85,6 @@ router.post("/messages/:matchId", async (req, res) => {
   const [message] = await db
     .insert(messagesTable)
     .values({
-      id: randomUUID(),
       matchId,
       senderId: userId,
       content: parsed.data.content,

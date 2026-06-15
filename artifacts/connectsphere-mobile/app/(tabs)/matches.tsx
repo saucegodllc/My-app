@@ -21,7 +21,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { IncomingShotsSection, SentShotsSection } from "@/components/ShotSections";
+import { useConnections } from "@/contexts/ConnectionsContext";
 import { useDatingMatches, type DatingPlan } from "@/contexts/DatingMatchContext";
+import type { ConnectionDocument } from "@/services/connections/types";
 import { getConnect, type DoubleDateMatch } from "@/services/doubleDateApi";
 import { respondFriendRequest, respondPlanJoinRequest } from "@/services/friendsApi";
 import { useGetMatches } from "@workspace/api-client-react";
@@ -37,7 +39,7 @@ const TEXT = "#ffffff";
 const MUTED = "rgba(255,255,255,0.55)";
 const FAINT = "rgba(255,255,255,0.32)";
 
-type IntentType = "dating" | "friends" | "networking";
+type IntentType = "dating" | "friends";
 
 type Conversation = {
   id: string;
@@ -101,7 +103,7 @@ const INITIAL_REQUESTS: ConnectionRequest[] = [
     userId: "u_diego",
     name: "Diego",
     photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80",
-    intentType: "networking",
+    intentType: "friends",
     reason: "Founder · Real Estate · Brickell",
     createdAt: new Date(Date.now() - 38 * 60_000).toISOString(),
   },
@@ -131,7 +133,7 @@ function timeAgo(input: string | number | undefined): string {
 }
 
 function intentColor(t: IntentType): string {
-  return t === "dating" ? PINK : t === "networking" ? "#34D399" : "#60A5FA";
+  return t === "dating" ? PINK : "#60A5FA";
 }
 
 function intentLabel(t: IntentType): string {
@@ -139,9 +141,17 @@ function intentLabel(t: IntentType): string {
 }
 
 function normalizeIntent(value: unknown): IntentType {
-  if (value === "networking") return "networking";
   if (value === "friends" || value === "friendship") return "friends";
   return "dating";
+}
+
+function intentFromConnectionType(type: ConnectionDocument["type"]): IntentType {
+  return type === "dating" ? "dating" : "friends";
+}
+
+function connectionPeer(connection: ConnectionDocument, currentUserId: string) {
+  const peerId = connection.participantUserIds.find((id) => id !== currentUserId) ?? connection.participantUserIds[0] ?? connection.id;
+  return connection.participantPreviews[peerId];
 }
 
 export default function ConnectScreen() {
@@ -166,6 +176,7 @@ export default function ConnectScreen() {
   );
 
   const dating = useDatingMatches();
+  const realtimeConnections = useConnections();
   const connectUserId = user?.id ?? dating.currentUserId;
   const [connectData, setConnectData] = useState<Awaited<ReturnType<typeof getConnect>> | null>(null);
   const [tab, setTab] = useState<InboxTab>("primary");
@@ -290,14 +301,39 @@ export default function ConnectScreen() {
       }
     }
 
+    for (const connection of realtimeConnections.connections) {
+      if (convs.some((item) => item.id === connection.id)) continue;
+      const peer = connectionPeer(connection, connectUserId);
+      const unread = connection.unreadByUserId[connectUserId];
+      const intent = intentFromConnectionType(connection.type);
+      convs.push({
+        id: connection.id,
+        userId: peer?.userId ?? connection.id,
+        name: connection.type === "plan" ? connection.previewTitle : peer?.displayName ?? connection.previewTitle,
+        photoUrl: peer?.photoUrl,
+        lastMessage:
+          connection.lastMessage.senderUserId === connectUserId
+            ? `You: ${connection.lastMessage.text}`
+            : connection.lastMessage.text,
+        lastMessageAt: timeAgo(connection.lastMessage.createdAt),
+        rawTime: new Date(connection.lastMessage.createdAt).getTime(),
+        unreadCount: unread?.count ?? 0,
+        intentType: intent,
+        isOnline: false,
+        isPinned: !!pinned[connection.id],
+        isMuted: !!muted[connection.id],
+        source: "server",
+      });
+    }
+
     for (const chat of ((connectData?.chats ?? []) as any[])) {
-      if (!["friend_direct", "friend_plan", "opportunity"].includes(chat.type)) continue;
+      if (!["friend_direct", "friend_plan"].includes(chat.type)) continue;
       if (convs.some((item) => item.id === chat.id)) continue;
       const participants = chat.participants ?? [];
       const other = participants.find((person: any) => person.id !== connectUserId) ?? participants[0];
       const lastMessage = chat.lastMessage;
       const isPlan = chat.type === "friend_plan";
-      const intent = chat.type === "opportunity" ? "networking" : "friends";
+      const intent: IntentType = "friends";
       convs.push({
         id: chat.id,
         userId: other?.id ?? chat.id,
@@ -316,7 +352,7 @@ export default function ConnectScreen() {
     }
 
     return { conversations: convs, matches: ms };
-  }, [connectData?.chats, connectUserId, data, dating.matches, dating.chats, dating.currentUserId, user?.id, pinned, muted]);
+  }, [connectData?.chats, connectUserId, data, dating.matches, dating.chats, dating.currentUserId, realtimeConnections.connections, user?.id, pinned, muted]);
 
   const serverRequests = useMemo<ConnectionRequest[]>(() => {
     return ((connectData?.requests ?? []) as any[]).map((request) => {
@@ -389,7 +425,7 @@ export default function ConnectScreen() {
   const visibleRequests = useMemo(() => {
     let list = requests;
     if (storyFilter) {
-      if (storyFilter === "dating" || storyFilter === "friends" || storyFilter === "networking") {
+      if (storyFilter === "dating" || storyFilter === "friends") {
         list = list.filter((r) => r.intentType === storyFilter);
       } else if (storyFilter === "new" || storyFilter === "active" || storyFilter === "double") {
         list = [];
@@ -752,7 +788,7 @@ function StoryConnectionRow({
     { key: "active", label: "Active Now", emoji: "⚡" },
     { key: "dating", label: "Dating", emoji: "💖" },
     { key: "friends", label: "Friends", emoji: "👯" },
-    { key: "networking", label: "Opportunities", emoji: "💼" },
+    { key: "networking", label: "Friends", emoji: "👯" },
     { key: "double", label: "Double Date", emoji: "✨" },
   ];
 
@@ -776,7 +812,7 @@ function StoryConnectionRow({
 
         <View style={styles.storyDivider} />
 
-        {filters.map((f) => {
+        {filters.filter((f) => f.key !== "networking").map((f) => {
           const active = activeFilter === f.key;
           return (
             <StoryBubble

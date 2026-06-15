@@ -58,6 +58,7 @@ const INTENT_OPTIONS: {
 ];
 
 function IntentLabel(intent: string): string {
+  if (intent === "networking") return "Friends";
   const opt = INTENT_OPTIONS.find((o) => o.value === intent);
   return opt?.label ?? (intent.charAt(0).toUpperCase() + intent.slice(1));
 }
@@ -118,7 +119,7 @@ export default function SettingsScreen() {
     setSelectedSubtype(profile?.connectionSubtype ?? "");
   }, [profile?.connectionSubtype, profile?.bio]);
 
-  const intent = profile?.intent ?? "";
+  const intent = profile?.intent === "networking" ? "friendship" : profile?.intent ?? "";
   const subtypeOptions: string[] = SUBTYPES_BY_INTENT[intent] ?? [];
 
   function handleSubtypeSelect(subtype: string) {

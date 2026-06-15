@@ -122,7 +122,7 @@ export default function Index() {
     }).start(() => {
       if (isSignedIn) {
         const onboardingComplete = user?.unsafeMetadata?.onboardingComplete === true;
-        router.replace(onboardingComplete ? "/(tabs)/" : "/onboarding");
+        router.replace(onboardingComplete ? "/(tabs)" : "/onboarding");
       } else {
         router.replace("/(auth)/welcome");
       }

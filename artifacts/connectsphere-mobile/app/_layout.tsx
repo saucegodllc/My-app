@@ -10,7 +10,7 @@ import {
   Sora_800ExtraBold,
 } from "@expo-google-fonts/sora";
 import { Yellowtail_400Regular } from "@expo-google-fonts/yellowtail";
-import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
+import { ClerkProvider, useAuth, useUser } from "@clerk/clerk-expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { Stack } from "expo-router";
@@ -22,6 +22,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CongratsVideoProvider } from "@/contexts/CongratsVideoContext";
+import { ConnectionsProvider } from "@/contexts/ConnectionsContext";
 import { DatingMatchProvider } from "@/contexts/DatingMatchContext";
 import { DiscoveryModeProvider } from "@/contexts/DiscoveryModeContext";
 import { SuccessVideoProvider } from "@/contexts/SuccessVideoContext";
@@ -95,6 +96,11 @@ function RootLayoutNav() {
   );
 }
 
+function CurrentUserConnectionsProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useUser();
+  return <ConnectionsProvider currentUserId={user?.id ?? "user_self"}>{children}</ConnectionsProvider>;
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -131,18 +137,20 @@ export default function RootLayout() {
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
                 <DiscoveryModeProvider>
-                  <DatingMatchProvider>
-                    <WelcomeVideoProvider>
-                      <CongratsVideoProvider>
-                        <SuccessVideoProvider>
-                          <TransitionOverlayProvider>
-                            <AuthTokenSetter />
-                            <RootLayoutNav />
-                          </TransitionOverlayProvider>
-                        </SuccessVideoProvider>
-                      </CongratsVideoProvider>
-                    </WelcomeVideoProvider>
-                  </DatingMatchProvider>
+                  <CurrentUserConnectionsProvider>
+                    <DatingMatchProvider>
+                      <WelcomeVideoProvider>
+                        <CongratsVideoProvider>
+                          <SuccessVideoProvider>
+                            <TransitionOverlayProvider>
+                              <AuthTokenSetter />
+                              <RootLayoutNav />
+                            </TransitionOverlayProvider>
+                          </SuccessVideoProvider>
+                        </CongratsVideoProvider>
+                      </WelcomeVideoProvider>
+                    </DatingMatchProvider>
+                  </CurrentUserConnectionsProvider>
                 </DiscoveryModeProvider>
               </KeyboardProvider>
             </GestureHandlerRootView>

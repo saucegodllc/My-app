@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -19,18 +19,45 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
+  connectLabel,
+  firstName,
+  personLocation,
+  planVenue,
+  planWhen,
+  titleTag,
+} from "@/components/friends/friendsLabels";
+import FriendSignalsRow from "@/components/friends/FriendSignalsRow";
+import JoinedBurst from "@/components/friends/JoinedBurst";
+import PendingInboxSection from "@/components/friends/PendingInboxSection";
+import PlansHubSection from "@/components/friends/PlansHubSection";
+import TodayCommandCenter from "@/components/friends/TodayCommandCenter";
+import { selectTodayCommand, type TodayCommand } from "@/components/friends/friendsMissionControl";
+import {
+  blockFriendUser,
+  cancelFriendRequest,
+  cancelPlanJoinRequest,
   createFriendPlan,
+  generateFriendIcebreakers,
   getFriendPeople,
   getFriendPlans,
   getFriendPlansFeed,
   getFriendRequests,
+  getFriendStories,
+  reportFriendUser,
   requestJoinFriendPlan,
+  reactToFriendStory,
+  replyToFriendStory,
   respondPlanJoinRequest,
   respondFriendRequest,
+  sendFriendIcebreaker,
   sendFriendRequest,
+  sharePlanLink,
+  type FriendIcebreakerInput,
+  type FriendIcebreakerSuggestion,
   type FriendPerson,
   type FriendPlan,
   type FriendRequest,
+  type FriendStory,
 } from "@/services/friendsApi";
 import CreateFriendPlanSheet from "@/components/CreateFriendPlanSheet";
 
@@ -40,6 +67,9 @@ type FriendsTabProps = {
 
 type FriendsView = "people" | "requests" | "plans";
 type PlanSourceTab = "map" | "event";
+type IcebreakerTarget =
+  | { title: string; subtitle?: string; input: FriendIcebreakerInput }
+  | null;
 const FRIENDS_PINK = "#ff2da8";
 const FRIENDS_BLACK = "#000000";
 const FRIENDS_TEXT = "#f4f4f5";
@@ -48,10 +78,6 @@ const APP_SHARE_URL = "https://connectsphere.app";
 
 const FALLBACK_PHOTO =
   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=85";
-
-function firstName(name?: string) {
-  return (name ?? "Someone").split(" ")[0] || "Someone";
-}
 
 function openConnectThread(chatId?: string) {
   if (!chatId) return;
@@ -62,20 +88,8 @@ function shareOut(message: string, url = APP_SHARE_URL) {
   return Share.share({ message: `${message}\n${url}` });
 }
 
-function titleTag(value?: string) {
-  return (value ?? "")
-    .split(/[\s_-]+/)
-    .filter(Boolean)
-    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
-    .join(" ");
-}
-
 function uniqueTags(values: Array<string | undefined | false | null>) {
   return Array.from(new Set(values.filter(Boolean).map((value) => titleTag(String(value)))));
-}
-
-function personLocation(person: FriendPerson) {
-  return person.location ?? person.neighborhood ?? person.city ?? "Miami";
 }
 
 function personProfileLine(person: FriendPerson) {
@@ -91,14 +105,6 @@ function seededCount(seed: string, min: number, max: number) {
   const chars = seed.split("");
   const hash = chars.reduce((total, char, index) => total + char.charCodeAt(0) * (index + 7), 0);
   return min + (hash % Math.max(1, max - min + 1));
-}
-
-function planVenue(plan: FriendPlan) {
-  return plan.sourceName ?? plan.location ?? "Miami";
-}
-
-function planWhen(plan: FriendPlan) {
-  return plan.timeLabel ?? plan.time ?? "Soon";
 }
 
 function planPeopleCount(plan: FriendPlan) {
@@ -127,6 +133,30 @@ function planWhatLine(plan: FriendPlan) {
   return `${type} at ${planVenue(plan)}. Meet there, use the plan thread in Connect, and keep the details in one place.`;
 }
 
+function bestNextMove(person: FriendPerson) {
+  if (person.relationshipStatus === "friends") return "Message in Connect";
+  if (person.relationshipStatus === "requested") return "Wait for their reply";
+  if (person.relationshipStatus === "incoming") return "Accept and say hi";
+  if (person.suggestedPlanType) return `Invite to ${person.suggestedPlanType.toLowerCase()}`;
+  const interests = (person.sharedInterests?.length ? person.sharedInterests : person.interests ?? []).map((item) => item.toLowerCase());
+  if (interests.some((item) => item.includes("coffee"))) return "Invite to coffee";
+  if (person.activeTonight || (person.energy ?? "").toLowerCase().includes("plan")) return "Plan something tonight";
+  return "Start with a low-pressure plan";
+}
+
+function matchScore(person: FriendPerson) {
+  const score = person.compatibility?.score ?? seededCount(person.id, 52, 91);
+  return Math.max(52, Math.min(98, Math.round(score)));
+}
+
+function smartReason(person: FriendPerson) {
+  return person.smartReason ?? person.compatibility?.signals?.slice(0, 2).join(" • ") ?? "Good local fit";
+}
+
+function buttonLabel(label: string, busy: boolean) {
+  return busy ? "..." : label;
+}
+
 function successHaptic() {
   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 }
@@ -141,8 +171,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [plans, setPlans] = useState<FriendPlan[]>([]);
   const [planFeed, setPlanFeed] = useState<FriendPlan[]>([]);
+  const [stories, setStories] = useState<FriendStory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
+  const [activeActions, setActiveActions] = useState<string[]>([]);
+  const activeActionsRef = useRef(new Set<string>());
+  const loadSeqRef = useRef(0);
 
   const [planSheetOpen, setPlanSheetOpen] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
@@ -152,26 +187,63 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   const [planTargetPerson, setPlanTargetPerson] = useState<FriendPerson | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<FriendPerson | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<FriendPlan | null>(null);
+  const [joinedBurst, setJoinedBurst] = useState<{ plan: FriendPlan; chatId?: string } | null>(null);
+  const [icebreakerTarget, setIcebreakerTarget] = useState<IcebreakerTarget>(null);
+  const [icebreakerSuggestions, setIcebreakerSuggestions] = useState<FriendIcebreakerSuggestion[]>([]);
+  const [icebreakerText, setIcebreakerText] = useState("");
+  const [icebreakerLoading, setIcebreakerLoading] = useState(false);
+  const [icebreakerSending, setIcebreakerSending] = useState(false);
+  const [icebreakerError, setIcebreakerError] = useState("");
 
   const friends = useMemo(() => people.filter((person) => person.relationshipStatus === "friends"), [people]);
+  const smartPick = useMemo(
+    () => people.find((person) => person.relationshipStatus === "incoming") ?? people.find((person) => person.relationshipStatus === "none") ?? people[0],
+    [people],
+  );
+  const todayCommand: TodayCommand = useMemo(
+    () => selectTodayCommand({ people, requests, plans, planFeed, stories }),
+    [people, requests, plans, planFeed, stories],
+  );
+  const pendingCount = requests.length;
+
+  const isActing = useCallback((key: string) => activeActionsRef.current.has(key) || activeActions.includes(key), [activeActions]);
+  const beginAction = useCallback((key: string) => {
+    if (activeActionsRef.current.has(key)) return false;
+    activeActionsRef.current.add(key);
+    setActiveActions((current) => (current.includes(key) ? current : [...current, key]));
+    return true;
+  }, []);
+  const endAction = useCallback((key: string) => {
+    activeActionsRef.current.delete(key);
+    setActiveActions((current) => current.filter((item) => item !== key));
+  }, []);
 
   const loadFriends = useCallback(async () => {
+    const sequence = loadSeqRef.current + 1;
+    loadSeqRef.current = sequence;
     setLoading(true);
+    setLoadError("");
     try {
-      const [peopleResult, requestResult, planResult, feedResult] = await Promise.all([
+      const [peopleResult, requestResult, planResult, feedResult, storiesResult] = await Promise.all([
         getFriendPeople(userId, search),
         getFriendRequests(userId),
         getFriendPlans(userId),
         getFriendPlansFeed(userId),
+        getFriendStories(userId).catch(() => ({ stories: [] })),
       ]);
+      if (sequence !== loadSeqRef.current) return;
       setPeople(peopleResult.people ?? []);
       setRequests(requestResult.requests ?? []);
       setPlans(planResult.plans ?? []);
       setPlanFeed(feedResult.plans ?? []);
+      setStories(storiesResult.stories ?? []);
     } catch {
-      setNotice("Friends could not load. Check the API server and try again.");
+      if (sequence !== loadSeqRef.current) return;
+      setLoadError("Friends could not load. Check the API server and try again.");
     } finally {
-      setLoading(false);
+      if (sequence === loadSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [search, userId]);
 
@@ -190,38 +262,140 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     setTimeout(() => setNotice(""), 2400);
   }, []);
 
+  const loadIcebreakers = useCallback(async (target: Exclude<IcebreakerTarget, null>) => {
+    setIcebreakerLoading(true);
+    setIcebreakerError("");
+    try {
+      const result = await generateFriendIcebreakers(target.input);
+      const suggestions = result.suggestions ?? [];
+      setIcebreakerSuggestions(suggestions);
+      setIcebreakerText(suggestions[0]?.text ?? "");
+    } catch {
+      setIcebreakerError("Could not generate ideas. Try again in a second.");
+      setIcebreakerSuggestions([]);
+      setIcebreakerText("");
+    } finally {
+      setIcebreakerLoading(false);
+    }
+  }, []);
+
+  const openIcebreaker = useCallback(
+    (target: Exclude<IcebreakerTarget, null>) => {
+      setIcebreakerTarget(target);
+      setIcebreakerSuggestions([]);
+      setIcebreakerText("");
+      void loadIcebreakers(target);
+    },
+    [loadIcebreakers],
+  );
+
+  const sendIcebreaker = useCallback(async () => {
+    if (!icebreakerTarget || !icebreakerText.trim()) return;
+    setIcebreakerSending(true);
+    setIcebreakerError("");
+    try {
+      const result = await sendFriendIcebreaker({ ...icebreakerTarget.input, text: icebreakerText.trim() });
+      setIcebreakerTarget(null);
+      setIcebreakerSuggestions([]);
+      setIcebreakerText("");
+      await loadFriends();
+      successHaptic();
+      if (result.chat?.id) {
+        showNotice("Sent in Connect.");
+        openConnectThread(result.chat.id);
+      } else {
+        showNotice("Icebreaker sent.");
+        setActiveTab("requests");
+      }
+    } catch {
+      setIcebreakerError("Could not send that icebreaker.");
+    } finally {
+      setIcebreakerSending(false);
+    }
+  }, [icebreakerTarget, icebreakerText, loadFriends, showNotice]);
+
   const handleConnect = useCallback(
     async (person: FriendPerson) => {
       if (person.relationshipStatus === "requested") return;
+      const key = `connect:${person.id}`;
+      if (!beginAction(key)) return;
+      const previousPeople = people;
+      const previousRequests = requests;
       try {
         if (person.relationshipStatus === "friends") {
           if (person.chatId) openConnectThread(person.chatId);
           return;
         }
         if (person.relationshipStatus === "incoming" && person.requestId) {
+          setRequests((current) => current.filter((request) => request.id !== person.requestId));
+          setPeople((current) =>
+            current.map((item) => (item.id === person.id ? { ...item, relationshipStatus: "friends" as const } : item)),
+          );
           const result = await respondFriendRequest(person.requestId, "accept");
           successHaptic();
           showNotice("They'll see you in Connect.");
           if (result.chat?.id) openConnectThread(result.chat.id);
         } else {
-          await sendFriendRequest(userId, person.id);
-          showNotice(`Request sent to ${firstName(person.name)}.`);
-          setActiveTab("requests");
+          const optimisticRequest: FriendRequest = {
+            id: `optimistic-${person.id}`,
+            fromUserId: userId,
+            toUserId: person.id,
+            direction: "outgoing",
+            status: "pending",
+            kind: "friend",
+            createdAt: new Date().toISOString(),
+            fromUser: { id: userId, name: user?.fullName ?? "You", relationshipStatus: "self" },
+            toUser: { ...person, relationshipStatus: "requested" },
+            sharedInterests: person.sharedInterests,
+          };
+          setPeople((current) =>
+            current.map((item) =>
+              item.id === person.id ? { ...item, relationshipStatus: "requested" as const, requestId: optimisticRequest.id } : item,
+            ),
+          );
+          setRequests((current) => [optimisticRequest, ...current]);
+          const result = await sendFriendRequest(userId, person.id);
+          if (result.relationshipStatus === "friends" && result.chat?.id) {
+            // Mutual match or already-friends — flip optimistic state and jump to Connect.
+            setPeople((current) =>
+              current.map((item) =>
+                item.id === person.id ? { ...item, relationshipStatus: "friends" as const, chatId: result.chat?.id } : item,
+              ),
+            );
+            setRequests((current) => current.filter((request) => request.id !== optimisticRequest.id));
+            successHaptic();
+            showNotice(`It's mutual with ${firstName(person.name)}. Say hi.`);
+            openConnectThread(result.chat.id);
+          } else {
+            showNotice(`Request sent to ${firstName(person.name)}.`);
+            setActiveTab("requests");
+          }
         }
         await loadFriends();
       } catch {
+        setPeople(previousPeople);
+        setRequests(previousRequests);
         showNotice("Could not update this connection.");
+      } finally {
+        endAction(key);
       }
     },
-    [loadFriends, showNotice, userId],
+    [beginAction, endAction, loadFriends, people, requests, showNotice, user, userId],
   );
 
   const handleRequest = useCallback(
     async (request: FriendRequest, action: "accept" | "ignore") => {
+      const key = `request:${action}:${request.id}`;
+      if (!beginAction(key)) return;
+      const previousPeople = people;
+      const previousRequests = requests;
+      const previousPlans = plans;
       try {
+        setRequests((current) => current.filter((item) => item.id !== request.id));
         if (request.requestType === "plan_join" || request.kind === "plan_join") {
           const result = await respondPlanJoinRequest(request.id, userId, action === "accept" ? "accept" : "decline");
           if (action === "accept") {
+            setPlans((current) => current.map((plan) => (plan.id === request.plan?.id && result.plan ? result.plan : plan)));
             successHaptic();
             showNotice("You're in. Plan thread is in Connect.");
             if (result.chat?.id) openConnectThread(result.chat.id);
@@ -231,6 +405,10 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         } else {
           const result = await respondFriendRequest(request.id, action);
           if (action === "accept") {
+            const friendId = request.fromUserId === userId ? request.toUserId : request.fromUserId;
+            setPeople((current) =>
+              current.map((person) => (person.id === friendId ? { ...person, relationshipStatus: "friends" as const } : person)),
+            );
             successHaptic();
             showNotice("They'll see you in Connect.");
             if (result.chat?.id) openConnectThread(result.chat.id);
@@ -240,10 +418,56 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         }
         await loadFriends();
       } catch {
+        setPeople(previousPeople);
+        setRequests(previousRequests);
+        setPlans(previousPlans);
         showNotice("Could not update that request.");
+      } finally {
+        endAction(key);
       }
     },
-    [loadFriends, showNotice, userId],
+    [beginAction, endAction, loadFriends, people, plans, requests, showNotice, userId],
+  );
+
+  const handleCancelRequest = useCallback(
+    async (request: FriendRequest) => {
+      const key = `cancel:${request.id}`;
+      if (!beginAction(key)) return;
+      const previousPeople = people;
+      const previousRequests = requests;
+      const previousPlanFeed = planFeed;
+      try {
+        setRequests((current) => current.filter((item) => item.id !== request.id));
+        if (request.requestType === "plan_join" || request.kind === "plan_join") {
+          const planId = request.plan?.id ?? request.planId;
+          setPlanFeed((current) =>
+            current.map((plan) =>
+              plan.id === planId ? { ...plan, joinRequestStatus: null, joinRequestId: undefined } : plan,
+            ),
+          );
+          await cancelPlanJoinRequest(request.id, userId);
+          showNotice("Join request canceled.");
+        } else {
+          const otherUserId = request.toUserId === userId ? request.fromUserId : request.toUserId;
+          setPeople((current) =>
+            current.map((person) =>
+              person.id === otherUserId ? { ...person, relationshipStatus: "none" as const, requestId: undefined } : person,
+            ),
+          );
+          await cancelFriendRequest(request.id, userId);
+          showNotice("Friend request canceled.");
+        }
+        await loadFriends();
+      } catch {
+        setPeople(previousPeople);
+        setRequests(previousRequests);
+        setPlanFeed(previousPlanFeed);
+        showNotice("Could not cancel that request.");
+      } finally {
+        endAction(key);
+      }
+    },
+    [beginAction, endAction, loadFriends, people, planFeed, requests, showNotice, userId],
   );
 
   const openCreatePlan = useCallback((sourceTab: PlanSourceTab = "event") => {
@@ -259,7 +483,8 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     setPlusMenuOpen(false);
     setPlanTargetPerson(person);
     setPlanInviteIds([person.id]);
-    setPlanInitialTitle(`Plan with ${firstName(person.name)}`);
+    const type = person.suggestedPlanType ?? "Plan";
+    setPlanInitialTitle(`${type} with ${firstName(person.name)}`);
     setPlanSourceTab("event");
     setPlanSheetOpen(true);
   }, []);
@@ -284,10 +509,11 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
             showNotice(`Plan invite sent to ${firstName(planTargetPerson.name)}.`);
           } else {
             successHaptic();
-            showNotice("Plan's live. Thread is in Connect.");
+            showNotice("Plan's live. Opening Connect...");
           }
           await loadFriends();
           setActiveTab("plans");
+          openConnectThread(result.chat?.id);
         } catch {
           showNotice("Plan was created, but the invite could not be sent.");
         } finally {
@@ -309,51 +535,245 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
     }
   }, [showNotice]);
 
+  const openFindDuoBuddy = useCallback(() => {
+    setPlusMenuOpen(false);
+    router.push({ pathname: "/(tabs)", params: { intent: "dating", subtab: "Double Dates" } } as never);
+  }, []);
+
+  const openCreateGroup = useCallback(() => {
+    setPlusMenuOpen(false);
+    setPlanTargetPerson(null);
+    setPlanInviteIds(friends.slice(0, 3).map((friend) => friend.id));
+    setPlanInitialTitle("Friend group plan");
+    setPlanSourceTab("event");
+    setPlanSheetOpen(true);
+  }, [friends]);
+
   const handleRequestJoinPlan = useCallback(
     async (plan: FriendPlan) => {
       if (plan.joinRequestStatus === "pending") return;
+      const key = `join:${plan.id}`;
+      if (!beginAction(key)) return;
+      const previousPlanFeed = planFeed;
       try {
+        setPlanFeed((current) =>
+          current.map((item) =>
+            item.id === plan.id ? { ...item, joinRequestStatus: "pending" as const, joinRequestId: item.joinRequestId ?? `optimistic-${plan.id}` } : item,
+          ),
+        );
         const result = await requestJoinFriendPlan(userId, plan.id);
-        if (result.status === "joined") successHaptic();
-        showNotice(result.status === "joined" ? "You're in. Plan thread is in Connect." : "Request sent to the creator.");
-        await loadFriends();
-        if (result.chat?.id) openConnectThread(result.chat.id);
+        if (result.status === "joined") {
+          successHaptic();
+          await loadFriends();
+          // Fire the celebration; routing to Connect happens when the burst dismisses.
+          setJoinedBurst({ plan: result.plan ?? plan, chatId: result.chat?.id });
+        } else {
+          showNotice("Request sent to the creator.");
+          await loadFriends();
+        }
       } catch {
+        setPlanFeed(previousPlanFeed);
         showNotice("Could not request to join.");
+      } finally {
+        endAction(key);
       }
     },
-    [loadFriends, showNotice, userId],
+    [beginAction, endAction, loadFriends, planFeed, showNotice, userId],
+  );
+
+  const handleBlockPerson = useCallback(
+    async (person: FriendPerson) => {
+      const key = `block:${person.id}`;
+      if (!beginAction(key)) return;
+      const previousPeople = people;
+      const previousRequests = requests;
+      const previousPlans = plans;
+      const previousPlanFeed = planFeed;
+      setSelectedPerson(null);
+      try {
+        setPeople((current) => current.filter((item) => item.id !== person.id));
+        setRequests((current) => current.filter((request) => request.fromUserId !== person.id && request.toUserId !== person.id));
+        setPlans((current) => current.filter((plan) => (plan.creatorId ?? plan.creatorUserId) !== person.id));
+        setPlanFeed((current) => current.filter((plan) => (plan.creatorId ?? plan.creatorUserId) !== person.id));
+        await blockFriendUser(userId, person.id);
+        showNotice(`${firstName(person.name)} is blocked.`);
+        await loadFriends();
+      } catch {
+        setPeople(previousPeople);
+        setRequests(previousRequests);
+        setPlans(previousPlans);
+        setPlanFeed(previousPlanFeed);
+        showNotice("Could not block this person.");
+      } finally {
+        endAction(key);
+      }
+    },
+    [beginAction, endAction, loadFriends, people, planFeed, plans, requests, showNotice, userId],
+  );
+
+  const handleReportPerson = useCallback(
+    async (person: FriendPerson) => {
+      const key = `report:${person.id}`;
+      if (!beginAction(key)) return;
+      try {
+        await reportFriendUser(userId, person.id, { reason: "profile_review", context: "friends_profile" });
+        showNotice("Thanks. We saved your report.");
+      } catch {
+        showNotice("Could not send that report.");
+      } finally {
+        endAction(key);
+      }
+    },
+    [beginAction, endAction, showNotice, userId],
   );
 
   const handleSharePlan = useCallback(
     async (plan: FriendPlan) => {
+      const whenLabel = plan.timeLabel ?? plan.time ?? "soon";
+      const placeLabel = plan.sourceName ?? plan.location ?? "Miami";
       try {
-        await shareOut(
-          `Join my ConnectSphere plan: ${plan.title} at ${plan.timeLabel ?? plan.time ?? "soon"} near ${
-            plan.sourceName ?? plan.location ?? "Miami"
-          }.`,
-        );
+        // Mint (or reuse) a tokenized share link the recipient can tap to
+        // jump straight into the plan + group chat — anyone with the link
+        // can RSVP, no friend gate.
+        const link = await sharePlanLink(plan.id, userId);
+        const message = `Join my ConnectSphere plan: ${plan.title}\n${whenLabel} · ${placeLabel}`;
+        await shareOut(message, link.url);
       } catch {
-        showNotice("Could not open the share sheet.");
+        // Fallback: link mint failed (offline, server down) — share without it.
+        try {
+          await shareOut(`Join my ConnectSphere plan: ${plan.title} at ${whenLabel} near ${placeLabel}.`);
+        } catch {
+          showNotice("Could not open the share sheet.");
+        }
       }
     },
-    [showNotice],
+    [showNotice, userId],
   );
 
-  const connectLabel = (person: FriendPerson) => {
-    if (person.relationshipStatus === "friends") return "Message";
-    if (person.relationshipStatus === "requested") return "Requested";
-    if (person.relationshipStatus === "incoming") return "Accept";
-    return "Connect";
-  };
+  const handleTodayPrimary = useCallback(
+    (command: TodayCommand) => {
+      if (command.kind === "request") {
+        setActiveTab("requests");
+        return;
+      }
+      if (command.kind === "plan") {
+        if (command.plan.chatId && (command.plan.isMember || command.plan.isCreator)) {
+          openConnectThread(command.plan.chatId);
+        } else {
+          setSelectedPlan(command.plan);
+        }
+        return;
+      }
+      if (command.kind === "person") {
+        handleConnect(command.person);
+        return;
+      }
+      if (command.kind === "signal") {
+        setActiveTab("people");
+        return;
+      }
+      openCreatePlan();
+    },
+    [handleConnect, openCreatePlan],
+  );
+
+  const handleTodaySecondary = useCallback(
+    (command: TodayCommand) => {
+      if (command.kind === "person") {
+        openPlanForPerson(command.person);
+      }
+      if (command.kind === "plan") {
+        handleSharePlan(command.plan);
+      }
+    },
+    [handleSharePlan, openPlanForPerson],
+  );
+
+  const handleSignalReact = useCallback(
+    async (story: FriendStory) => {
+      const key = `signal:react:${story.id}`;
+      if (!beginAction(key)) return;
+      try {
+        await reactToFriendStory(userId, story.id, "spark");
+        successHaptic();
+        showNotice("Signal sparked.");
+        await loadFriends();
+      } catch {
+        showNotice("Could not react to that signal.");
+      } finally {
+        endAction(key);
+      }
+    },
+    [beginAction, endAction, loadFriends, showNotice, userId],
+  );
+
+  const handleSignalReply = useCallback(
+    async (story: FriendStory) => {
+      const key = `signal:reply:${story.id}`;
+      if (!beginAction(key)) return;
+      try {
+        const result = await replyToFriendStory(userId, story.id, "I'm down. Want to make a plan?");
+        await loadFriends();
+        if (result.chat?.id) {
+          successHaptic();
+          showNotice("Reply sent in Connect.");
+          openConnectThread(result.chat.id);
+        } else {
+          showNotice("Reply sent as a request.");
+          setActiveTab("requests");
+        }
+      } catch {
+        showNotice("Could not reply to that signal.");
+      } finally {
+        endAction(key);
+      }
+    },
+    [beginAction, endAction, loadFriends, showNotice, userId],
+  );
+
+  const handleSignalPlan = useCallback(
+    (story: FriendStory) => {
+      const key = `signal:plan:${story.id}`;
+      if (!beginAction(key)) return;
+      if (story.user) {
+        openPlanForPerson(story.user);
+      } else {
+        openCreatePlan();
+      }
+      setTimeout(() => endAction(key), 300);
+    },
+    [beginAction, endAction, openCreatePlan, openPlanForPerson],
+  );
 
   const renderPeople = (showEmpty = true) => {
     if (loading) return <LoadingState />;
     if (!people.length) {
-      return showEmpty ? <EmptyState title="No people yet" text="Try searching another interest or check back soon." /> : null;
+      return showEmpty ? (
+        <EmptyState
+          title="No people yet"
+          text="Try another interest, invite someone in, or check back soon."
+          actionLabel="Invite People"
+          onAction={handleInviteFriends}
+        />
+      ) : null;
     }
     return (
       <View style={styles.stack}>
+        {smartPick ? (
+          <Pressable onPress={() => setSelectedPerson(smartPick)} style={styles.smartPickCard}>
+            <View style={styles.smartPickIcon}>
+              <Ionicons name="sparkles" size={18} color="#0A0A0B" />
+            </View>
+            <View style={styles.smartPickCopy}>
+              <Text style={styles.smartPickLabel}>Smart pick</Text>
+              <Text style={styles.smartPickTitle} numberOfLines={1}>{firstName(smartPick.name)} • {matchScore(smartPick)}% fit</Text>
+              <Text style={styles.smartPickText} numberOfLines={2}>
+                {smartReason(smartPick)}. {bestNextMove(smartPick)}.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={19} color="#FFB6D9" />
+          </Pressable>
+        ) : null}
         {people.map((person) => (
           <Pressable key={person.id} onPress={() => setSelectedPerson(person)} style={styles.personCard}>
             <Image source={{ uri: person.photoUrl ?? FALLBACK_PHOTO }} style={styles.avatar} contentFit="cover" />
@@ -366,8 +786,16 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
                 <View style={styles.statusBadge}>
                   <Text style={styles.statusText}>{person.statusBadge ?? "Looking for Plans"}</Text>
                 </View>
+                <View style={styles.matchBadge}>
+                  <Ionicons name="sparkles" size={11} color="#0A0A0B" />
+                  <Text style={styles.matchBadgeText}>{matchScore(person)}%</Text>
+                </View>
               </View>
               <Text style={styles.personCity}>{person.location ?? person.city ?? "Miami"}</Text>
+              <View style={styles.smartReasonRow}>
+                <Ionicons name="bulb-outline" size={13} color="#FF8BC4" />
+                <Text style={styles.smartReasonText} numberOfLines={2}>{smartReason(person)}</Text>
+              </View>
               <View style={styles.interestRow}>
                 {(person.interests ?? []).slice(0, 3).map((interest) => (
                   <View key={interest} style={styles.interestChip}>
@@ -375,6 +803,14 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
                   </View>
                 ))}
               </View>
+              {person.suggestedPlanType ? (
+                <View style={styles.suggestedPlanPill}>
+                  <Ionicons name="calendar-outline" size={13} color="#FFB6D9" />
+                  <Text style={styles.suggestedPlanText} numberOfLines={1}>
+                    {person.suggestedPlanType}: {person.suggestedPlanReason ?? "Easy first plan"}
+                  </Text>
+                </View>
+              ) : null}
               <View style={styles.profileCue}>
                 <Ionicons name="sparkles" size={13} color="#FF8BC4" />
                 <Text style={styles.profileCueText}>Tap to see profile</Text>
@@ -386,19 +822,34 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
                     event.stopPropagation();
                     handleConnect(person);
                   }}
-                  style={[styles.primaryButton, person.relationshipStatus === "requested" && styles.disabledButton]}
-                  disabled={person.relationshipStatus === "requested"}
+                  style={[styles.primaryButton, (person.relationshipStatus === "requested" || isActing(`connect:${person.id}`)) && styles.disabledButton]}
+                  disabled={person.relationshipStatus === "requested" || isActing(`connect:${person.id}`)}
                 >
-                  <Text style={styles.primaryButtonText}>{connectLabel(person)}</Text>
+                  <Text style={styles.primaryButtonText}>{buttonLabel(connectLabel(person), isActing(`connect:${person.id}`))}</Text>
                 </Pressable>
                 <Pressable
                   onPress={(event) => {
                     event.stopPropagation();
                     openPlanForPerson(person);
                   }}
-                  style={styles.secondaryButton}
+                  style={[styles.secondaryButton, isActing(`plan:${person.id}`) && styles.disabledButton]}
+                  disabled={isActing(`plan:${person.id}`)}
                 >
-                  <Text style={styles.secondaryButtonText}>Plan</Text>
+                  <Text style={styles.secondaryButtonText}>{buttonLabel("Plan", isActing(`plan:${person.id}`))}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    openIcebreaker({
+                      title: `Break the ice with ${firstName(person.name)}`,
+                      subtitle: personProfileLine(person),
+                      input: { userId, kind: "person", targetUserId: person.id },
+                    });
+                  }}
+                  style={styles.aiButton}
+                >
+                  <Ionicons name="sparkles" size={14} color="#0A0A0B" />
+                  <Text style={styles.aiButtonText}>AI</Text>
                 </Pressable>
               </View>
             </View>
@@ -410,185 +861,53 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
 
   const renderRequests = (showEmpty = true) => {
     if (loading) return <LoadingState />;
-    if (!requests.length) {
-      return showEmpty ? <EmptyState title="No requests" text="Friend requests and plan joins will show here." /> : null;
-    }
+    if (!requests.length && !showEmpty) return null;
     return (
-      <View style={styles.stack}>
-        {requests.map((request) => {
+      <PendingInboxSection
+        requests={requests}
+        isActing={isActing}
+        onOpenProfile={(request) => {
           const outgoing = request.direction === "outgoing";
           const displayUser = outgoing ? request.toUser ?? request.fromUser : request.fromUser;
-          const isPlanJoin = request.requestType === "plan_join" || request.kind === "plan_join";
-          const isPlanInvite = request.kind === "plan_invite";
-          const title = outgoing ? `Sent to ${firstName(displayUser?.name)}` : displayUser?.name ?? "Someone";
-          const message = outgoing
-            ? isPlanJoin
-              ? `Waiting on ${firstName(request.toUser?.name)} to approve ${request.plan?.title ?? "the plan"}.`
-              : isPlanInvite
-                ? `Plan invite sent for ${request.plan?.title ?? "your plan"}.`
-                : "Friend request sent. They'll see it in Connect."
-            : isPlanJoin
-              ? `Wants to join ${request.plan?.title ?? "your plan"}`
-              : request.message ?? "Wants to connect";
-          const chips = (isPlanJoin
-            ? [request.plan?.timeLabel ?? request.plan?.time ?? "Soon", request.plan ? planVenue(request.plan) : "Miami"]
-            : request.sharedInterests ?? []).filter(Boolean).slice(0, 3);
-
-          return (
-            <View key={request.id} style={[styles.requestCard, outgoing && styles.requestCardSent]}>
-              <Image source={{ uri: displayUser?.photoUrl ?? FALLBACK_PHOTO }} style={styles.avatar} contentFit="cover" />
-              <View style={styles.personMain}>
-                <View style={styles.requestTopRow}>
-                  <Text style={styles.personName}>
-                    {title}
-                    {!outgoing && displayUser?.age ? `, ${displayUser.age}` : ""}
-                  </Text>
-                  <View style={[styles.statusBadge, outgoing && styles.sentBadge]}>
-                    <Text style={[styles.statusText, outgoing && styles.sentBadgeText]}>{outgoing ? "Sent" : "New"}</Text>
-                  </View>
-                </View>
-                <Text style={styles.personCity}>{personLocation(displayUser ?? request.fromUser)}</Text>
-                <Text style={styles.requestMessage} numberOfLines={2}>{message}</Text>
-                <View style={styles.interestRow}>
-                  {chips.map((interest) => (
-                    <View key={String(interest)} style={styles.interestChip}>
-                      <Text style={styles.interestText}>{String(interest)}</Text>
-                    </View>
-                  ))}
-                </View>
-                {outgoing ? (
-                  <View style={styles.pendingSentRow}>
-                    <Ionicons name="time-outline" size={15} color="#FF8BC4" />
-                    <Text style={styles.pendingSentText}>Waiting for them</Text>
-                  </View>
-                ) : (
-                  <View style={styles.buttonRow}>
-                    <Pressable onPress={() => handleRequest(request, "accept")} style={styles.primaryButton}>
-                      <Text style={styles.primaryButtonText}>Accept</Text>
-                    </Pressable>
-                    <Pressable onPress={() => handleRequest(request, "ignore")} style={styles.secondaryButton}>
-                      <Text style={styles.secondaryButtonText}>{isPlanJoin ? "Decline" : "Ignore"}</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            </View>
-          );
-        })}
-      </View>
+          if (displayUser) setSelectedPerson(displayUser);
+        }}
+        onAccept={(request) => handleRequest(request, "accept")}
+        onIgnore={(request) => handleRequest(request, "ignore")}
+        onCancel={handleCancelRequest}
+        onIcebreaker={(request) => {
+          const outgoing = request.direction === "outgoing";
+          const displayUser = outgoing ? request.toUser ?? request.fromUser : request.fromUser;
+          openIcebreaker({
+            title: `Reply to ${firstName(displayUser?.name)}`,
+            subtitle: request.message ?? request.plan?.title ?? "Keep it simple and friendly.",
+            input: {
+              userId,
+              kind: "request",
+              requestId: request.id,
+              targetUserId: displayUser?.id,
+              planId: request.plan?.id ?? request.planId,
+            },
+          });
+        }}
+        onFindPeople={() => setActiveTab("people")}
+      />
     );
   };
 
   const renderPlans = (showEmpty = true) => {
     if (loading) return <LoadingState />;
-    if (!plans.length && !planFeed.length) {
-      return showEmpty ? (
-        <EmptyState
-          title="No plans yet"
-          text="Create a plan or request to join one nearby."
-          actionLabel="+ Create Plan"
-          onAction={() => openCreatePlan()}
-        />
-      ) : null;
-    }
+    if (!showEmpty && !plans.length && !planFeed.length) return null;
     return (
-      <View style={styles.stack}>
-        <Pressable onPress={() => openCreatePlan()} style={styles.createPlanInline}>
-          <Ionicons name="add" size={18} color="#0A0A0B" />
-          <Text style={styles.createPlanInlineText}>Create Plan</Text>
-        </Pressable>
-        {planFeed.length ? (
-          <>
-            <Text style={styles.sectionLabel}>Plans to join</Text>
-            {planFeed.map((plan) => (
-              <Pressable key={`feed-${plan.id}`} onPress={() => setSelectedPlan(plan)} style={styles.planCard}>
-                {plan.sourceImageUrl ? (
-                  <Image source={{ uri: plan.sourceImageUrl }} style={styles.planThumb} contentFit="cover" />
-                ) : (
-                  <View style={styles.planIcon}>
-                    <Ionicons name={plan.sourceType === "event" ? "calendar" : "location"} size={18} color="#FF2D8D" />
-                  </View>
-                )}
-                <View style={styles.personMain}>
-                  <Text style={styles.planTitle}>{plan.title}</Text>
-                  <Text style={styles.planMeta}>
-                    {planWhen(plan)} - {planVenue(plan)}
-                  </Text>
-                  <View style={styles.planSocialRow}>
-                    <View style={[styles.planPulsePill, planIsLive(plan) && styles.planPulsePillLive]}>
-                      <View style={[styles.planPulseDot, planIsLive(plan) && styles.planPulseDotLive]} />
-                      <Text style={styles.planPulseText}>{planSocialLabel(plan)}</Text>
-                    </View>
-                    <View style={styles.planMiniPill}>
-                      <Text style={styles.planMiniPillText}>{planInterestLabel(plan)}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.personCity}>
-                    Hosted by {firstName(plan.creator?.name)} - tap for details
-                  </Text>
-                  <Pressable
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      handleRequestJoinPlan(plan);
-                    }}
-                    style={[styles.primaryButton, plan.joinRequestStatus === "pending" && styles.disabledButton]}
-                    disabled={plan.joinRequestStatus === "pending"}
-                  >
-                    <Text style={styles.primaryButtonText}>
-                      {plan.joinRequestStatus === "pending" ? "Requested" : "Request to Join"}
-                    </Text>
-                  </Pressable>
-                </View>
-              </Pressable>
-            ))}
-          </>
-        ) : null}
-        {plans.length ? <Text style={styles.sectionLabel}>Your plans</Text> : null}
-        {plans.map((plan) => (
-          <Pressable key={plan.id} onPress={() => setSelectedPlan(plan)} style={styles.planCard}>
-            <View style={styles.planIcon}>
-              <Ionicons name="calendar" size={18} color="#FF2D8D" />
-            </View>
-            <View style={styles.personMain}>
-              <Text style={styles.planTitle}>{plan.title}</Text>
-              <Text style={styles.planMeta}>
-                {plan.time ?? "Soon"} · {plan.location ?? "Miami"}
-              </Text>
-              <Text style={styles.personCity}>
-                {plan.peopleGoing ?? plan.members?.length ?? 1} going · Created by {firstName(plan.creator?.name)}
-              </Text>
-              <View style={styles.planSocialRow}>
-                <View style={[styles.planPulsePill, planIsLive(plan) && styles.planPulsePillLive]}>
-                  <View style={[styles.planPulseDot, planIsLive(plan) && styles.planPulseDotLive]} />
-                  <Text style={styles.planPulseText}>{planSocialLabel(plan)}</Text>
-                </View>
-                <View style={styles.planMiniPill}>
-                  <Text style={styles.planMiniPillText}>{planInterestLabel(plan)}</Text>
-                </View>
-              </View>
-              <Pressable
-                onPress={(event) => {
-                  event.stopPropagation();
-                  openConnectThread(plan.chatId);
-                }}
-                style={[styles.primaryButton, !plan.chatId && styles.disabledButton]}
-                disabled={!plan.chatId}
-              >
-                <Text style={styles.primaryButtonText}>Open in Connect</Text>
-              </Pressable>
-              <Pressable
-                onPress={(event) => {
-                  event.stopPropagation();
-                  handleSharePlan(plan);
-                }}
-                style={styles.secondaryButton}
-              >
-                <Text style={styles.secondaryButtonText}>Share Plan</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        ))}
-      </View>
+      <PlansHubSection
+        plans={plans}
+        planFeed={planFeed}
+        isActing={isActing}
+        onCreatePlan={() => openCreatePlan()}
+        onOpenPlan={setSelectedPlan}
+        onJoinPlan={handleRequestJoinPlan}
+        onOpenConnect={(plan) => openConnectThread(plan.chatId)}
+        onSharePlan={handleSharePlan}
+      />
     );
   };
 
@@ -609,16 +928,42 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
           </Pressable>
         </View>
 
-        <View style={styles.actionRow}>
-          <Pressable onPress={handleInviteFriends} style={styles.actionPrimary}>
-            <Ionicons name="share-social" size={17} color="#0A0A0B" />
-            <Text style={styles.actionPrimaryText}>Invite People</Text>
-          </Pressable>
-          <Pressable onPress={() => openCreatePlan()} style={styles.actionSecondary}>
-            <Ionicons name="calendar" size={17} color={FRIENDS_PINK} />
-            <Text style={styles.actionSecondaryText}>New Plan</Text>
-          </Pressable>
-        </View>
+        <CreateFirstPanel
+          onCreatePlan={() => openCreatePlan()}
+          onInviteFriend={handleInviteFriends}
+          onCreateGroup={openCreateGroup}
+          onFindDuoBuddy={openFindDuoBuddy}
+        />
+
+        {!loading ? (
+          <TonightsPeople
+            people={people}
+            onOpenPerson={setSelectedPerson}
+            onPlanForPerson={openPlanForPerson}
+            onFindDuoBuddy={openFindDuoBuddy}
+          />
+        ) : null}
+
+        {!loading ? (
+          <TodayCommandCenter command={todayCommand} onPrimary={handleTodayPrimary} onSecondary={handleTodaySecondary} />
+        ) : null}
+
+        {!loading ? (
+          <FriendSignalsRow
+            stories={stories}
+            onReact={handleSignalReact}
+            onReply={handleSignalReply}
+            onPlan={handleSignalPlan}
+            onIcebreaker={(story) =>
+              openIcebreaker({
+                title: `Reply to ${firstName(story.user?.name)}`,
+                subtitle: story.text ?? "Turn this signal into a simple plan.",
+                input: { userId, kind: "story", storyId: story.id, targetUserId: story.userId },
+              })
+            }
+            isBusy={(story, action) => isActing(`signal:${action}:${story.id}`)}
+          />
+        ) : null}
 
         <View style={styles.searchBox}>
           <Ionicons name="search" size={17} color="#8E8E99" />
@@ -634,14 +979,23 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
         <View style={styles.tabs}>
           {(["people", "requests", "plans"] as FriendsView[]).map((tab) => (
             <Pressable key={tab} onPress={() => setActiveTab(tab)} style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}>
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab === "people" ? "People" : tab === "requests" ? "Pending" : "Plans"}
-              </Text>
+              <View style={styles.tabContent}>
+                <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                  {tab === "people" ? "People" : tab === "requests" ? "Pending" : "Plans"}
+                </Text>
+                {tab === "requests" && pendingCount > 0 ? (
+                  <View style={[styles.tabBadge, activeTab === tab && styles.tabBadgeActive]}>
+                    <Text style={[styles.tabBadgeText, activeTab === tab && styles.tabBadgeTextActive]}>{pendingCount}</Text>
+                  </View>
+                ) : null}
+              </View>
             </Pressable>
           ))}
         </View>
 
-        {loading ? (
+        {loadError && !loading ? (
+          <EmptyState title="Could not load Friends" text={loadError} actionLabel="Retry" onAction={loadFriends} />
+        ) : loading ? (
           <LoadingState />
         ) : activeTab === "people" ? (
           renderPeople()
@@ -653,8 +1007,14 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
       </ScrollView>
 
       {notice ? (
-        <View style={[styles.notice, { bottom: bottomInset + 18 }]}>
-          <Text style={styles.noticeText}>{notice}</Text>
+        <View pointerEvents="none" style={styles.noticeOverlay}>
+          <View style={[styles.notice, { marginBottom: bottomInset + 18 }]}>
+            <View style={styles.noticeIcon}>
+              <Ionicons name="checkmark" size={24} color="#0A0A0B" />
+            </View>
+            <Text style={styles.noticeTitle}>Done</Text>
+            <Text style={styles.noticeText}>{notice}</Text>
+          </View>
         </View>
       ) : null}
 
@@ -664,17 +1024,59 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
             <View style={styles.plusMenuHeader}>
               <View>
                 <Text style={styles.plusTitle}>Make something happen</Text>
-                <Text style={styles.plusSubtitle}>Invite people or create a plan.</Text>
+                <Text style={styles.plusSubtitle}>Plans, invites, groups, or a duo buddy.</Text>
               </View>
               <Pressable onPress={() => setPlusMenuOpen(false)} style={styles.plusClose}>
                 <Ionicons name="close" size={18} color="#FFFFFF" />
               </Pressable>
             </View>
-            <PlusAction icon="share-social" title="Invite People" text="Share ConnectSphere outside the app." onPress={handleInviteFriends} />
             <PlusAction icon="calendar" title="Create Plan" text="Pick a place, time, and invite people." onPress={() => openCreatePlan("event")} />
+            <PlusAction icon="share-social" title="Invite Friend" text="Share ConnectSphere outside the app." onPress={handleInviteFriends} />
+            <PlusAction icon="people" title="Create Group" text="Start a small friend group around a plan." onPress={openCreateGroup} />
+            <PlusAction icon="heart" title="Find a Duo Buddy" text="Jump to Dating > Double Dates." onPress={openFindDuoBuddy} />
           </Pressable>
         </Pressable>
       </Modal>
+
+      <JoinedBurst
+        visible={!!joinedBurst}
+        planTitle={joinedBurst?.plan.title}
+        whenLabel={joinedBurst?.plan.timeLabel ?? joinedBurst?.plan.time}
+        locationLabel={joinedBurst?.plan.location ?? joinedBurst?.plan.sourceName}
+        ctaLabel={joinedBurst?.chatId ? "open the chat" : undefined}
+        onCtaPress={() => {
+          const chatId = joinedBurst?.chatId;
+          setJoinedBurst(null);
+          if (chatId) openConnectThread(chatId);
+        }}
+        onDismiss={() => {
+          const chatId = joinedBurst?.chatId;
+          setJoinedBurst(null);
+          if (chatId) openConnectThread(chatId);
+        }}
+      />
+
+      <IcebreakerSheet
+        visible={!!icebreakerTarget}
+        title={icebreakerTarget?.title ?? "AI Icebreaker"}
+        subtitle={icebreakerTarget?.subtitle}
+        suggestions={icebreakerSuggestions}
+        text={icebreakerText}
+        loading={icebreakerLoading}
+        sending={icebreakerSending}
+        error={icebreakerError}
+        bottomInset={bottomInset}
+        onChangeText={setIcebreakerText}
+        onPick={(text) => setIcebreakerText(text)}
+        onRegenerate={() => {
+          if (icebreakerTarget) void loadIcebreakers(icebreakerTarget);
+        }}
+        onSend={sendIcebreaker}
+        onClose={() => {
+          setIcebreakerTarget(null);
+          setIcebreakerError("");
+        }}
+      />
 
       <CreateFriendPlanSheet
         visible={planSheetOpen}
@@ -692,17 +1094,31 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
           <FriendProfileSheet
             person={selectedPerson}
             connectLabel={connectLabel(selectedPerson)}
+            connectBusy={isActing(`connect:${selectedPerson.id}`)}
+            reportBusy={isActing(`report:${selectedPerson.id}`)}
+            blockBusy={isActing(`block:${selectedPerson.id}`)}
             onClose={() => setSelectedPerson(null)}
             onConnect={() => {
               const person = selectedPerson;
               setSelectedPerson(null);
               handleConnect(person);
             }}
+            onIcebreaker={() => {
+              const person = selectedPerson;
+              setSelectedPerson(null);
+              openIcebreaker({
+                title: `Break the ice with ${firstName(person.name)}`,
+                subtitle: personProfileLine(person),
+                input: { userId, kind: "person", targetUserId: person.id },
+              });
+            }}
             onPlan={() => {
               const person = selectedPerson;
               setSelectedPerson(null);
               openPlanForPerson(person);
             }}
+            onReport={() => handleReportPerson(selectedPerson)}
+            onBlock={() => handleBlockPerson(selectedPerson)}
           />
         ) : null}
       </Modal>
@@ -712,6 +1128,7 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
           <PlanDetailSheet
             plan={selectedPlan}
             bottomInset={bottomInset}
+            joinBusy={isActing(`join:${selectedPlan.id}`)}
             onClose={() => setSelectedPlan(null)}
             onOpenConnect={() => {
               const chatId = selectedPlan.chatId;
@@ -719,6 +1136,13 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
               openConnectThread(chatId);
             }}
             onShare={() => handleSharePlan(selectedPlan)}
+            onIcebreaker={() =>
+              openIcebreaker({
+                title: selectedPlan.title,
+                subtitle: planWhatLine(selectedPlan),
+                input: { userId, kind: "plan", planId: selectedPlan.id },
+              })
+            }
             onJoin={() => handleRequestJoinPlan(selectedPlan)}
           />
         ) : null}
@@ -803,20 +1227,124 @@ export default function FriendsTab({ bottomInset = 0 }: FriendsTabProps) {
   );
 }
 
+function IcebreakerSheet({
+  visible,
+  title,
+  subtitle,
+  suggestions,
+  text,
+  loading,
+  sending,
+  error,
+  bottomInset,
+  onChangeText,
+  onPick,
+  onRegenerate,
+  onSend,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  subtitle?: string;
+  suggestions: FriendIcebreakerSuggestion[];
+  text: string;
+  loading: boolean;
+  sending: boolean;
+  error: string;
+  bottomInset: number;
+  onChangeText: (value: string) => void;
+  onPick: (value: string) => void;
+  onRegenerate: () => void;
+  onSend: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.iceOverlay} onPress={onClose}>
+        <Pressable style={[styles.iceSheet, { paddingBottom: bottomInset + 20 }]} onPress={(event) => event.stopPropagation()}>
+          <View style={styles.iceHandle} />
+          <View style={styles.iceHeader}>
+            <View style={styles.iceIcon}>
+              <Ionicons name="sparkles" size={20} color="#0A0A0B" />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.iceTitle}>{title}</Text>
+              {subtitle ? <Text style={styles.iceSubtitle} numberOfLines={2}>{subtitle}</Text> : null}
+            </View>
+            <Pressable onPress={onClose} style={styles.iceClose}>
+              <Ionicons name="close" size={18} color="#FFFFFF" />
+            </Pressable>
+          </View>
+
+          {loading ? (
+            <View style={styles.iceLoading}>
+              <ActivityIndicator color="#FF8BC4" />
+              <Text style={styles.iceLoadingText}>Writing easy openers...</Text>
+            </View>
+          ) : (
+            <View style={styles.iceSuggestionStack}>
+              {suggestions.map((item) => (
+                <Pressable key={item.id} onPress={() => onPick(item.text)} style={[styles.iceSuggestion, text === item.text && styles.iceSuggestionActive]}>
+                  <Text style={styles.iceSuggestionText}>{item.text}</Text>
+                  <Text style={styles.iceSuggestionReason}>{item.reason}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          <TextInput
+            value={text}
+            onChangeText={onChangeText}
+            placeholder="Edit your icebreaker..."
+            placeholderTextColor="#777783"
+            multiline
+            maxLength={180}
+            style={styles.iceInput}
+          />
+          {error ? <Text style={styles.iceError}>{error}</Text> : null}
+
+          <View style={styles.iceActions}>
+            <Pressable onPress={onRegenerate} disabled={loading || sending} style={[styles.iceSecondary, (loading || sending) && styles.disabledButton]}>
+              <Ionicons name="refresh" size={17} color="#FFFFFF" />
+              <Text style={styles.iceSecondaryText}>Regenerate</Text>
+            </Pressable>
+            <Pressable onPress={onSend} disabled={!text.trim() || loading || sending} style={[styles.icePrimary, (!text.trim() || loading || sending) && styles.disabledButton]}>
+              <Text style={styles.icePrimaryText}>{sending ? "Sending..." : "Send in Connect"}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 function FriendProfileSheet({
   person,
   connectLabel,
+  connectBusy,
+  reportBusy,
+  blockBusy,
   onClose,
   onConnect,
+  onIcebreaker,
   onPlan,
+  onReport,
+  onBlock,
 }: {
   person: FriendPerson;
   connectLabel: string;
+  connectBusy: boolean;
+  reportBusy: boolean;
+  blockBusy: boolean;
   onClose: () => void;
   onConnect: () => void;
+  onIcebreaker: () => void;
   onPlan: () => void;
+  onReport: () => void;
+  onBlock: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const [safetyOpen, setSafetyOpen] = useState(false);
   const bottomPad = Math.max(insets.bottom, 8) + 8;
   const location = personLocation(person);
   const interests = uniqueTags(person.interests?.length ? person.interests : ["plans", "friends", "miami"]);
@@ -849,10 +1377,41 @@ function FriendProfileSheet({
             <Pressable onPress={onClose} style={styles.profileIconButton}>
               <Ionicons name="close" size={25} color="#FFFFFF" />
             </Pressable>
-            <View style={styles.profileHeroPill}>
-              <Ionicons name="people" size={14} color="#FF8BC4" />
-              <Text style={styles.profileHeroPillText}>Friends</Text>
+            <View style={styles.profileTopRight}>
+              <View style={styles.profileHeroPill}>
+                <Ionicons name="people" size={14} color="#FF8BC4" />
+                <Text style={styles.profileHeroPillText}>Friends</Text>
+              </View>
+              <Pressable onPress={() => setSafetyOpen((current) => !current)} style={styles.profileIconButton}>
+                <Ionicons name="ellipsis-horizontal" size={24} color="#FFFFFF" />
+              </Pressable>
             </View>
+            {safetyOpen ? (
+              <View style={styles.safetyMenu}>
+                <Pressable
+                  onPress={() => {
+                    setSafetyOpen(false);
+                    onReport();
+                  }}
+                  style={[styles.safetyAction, reportBusy && styles.disabledButton]}
+                  disabled={reportBusy}
+                >
+                  <Ionicons name="flag-outline" size={17} color="#FFFFFF" />
+                  <Text style={styles.safetyActionText}>{buttonLabel("Report", reportBusy)}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setSafetyOpen(false);
+                    onBlock();
+                  }}
+                  style={[styles.safetyAction, styles.safetyActionDanger, blockBusy && styles.disabledButton]}
+                  disabled={blockBusy}
+                >
+                  <Ionicons name="ban-outline" size={17} color="#FFFFFF" />
+                  <Text style={styles.safetyActionText}>{buttonLabel("Block", blockBusy)}</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.profileHeroBottom}>
@@ -881,8 +1440,19 @@ function FriendProfileSheet({
         <View style={styles.profileContent}>
           <Text style={styles.profileBio}>{personProfileLine(person)}</Text>
 
+          <View style={styles.bestMoveCard}>
+            <View style={styles.bestMoveIcon}>
+              <Ionicons name="sparkles" size={17} color="#0A0A0B" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.profileHighlightTitle}>Best next move</Text>
+              <Text style={styles.profileHighlightText}>{bestNextMove(person)}</Text>
+            </View>
+          </View>
+
           <View style={styles.profileStatsRow}>
             <ProfileStat icon="sparkles" label="Energy" value={person.energy ?? "Ready for plans"} />
+            <ProfileStat icon="analytics-outline" label="Match" value={`${matchScore(person)}% fit`} />
             <ProfileStat icon="navigate" label="Area" value={location} />
           </View>
 
@@ -910,11 +1480,15 @@ function FriendProfileSheet({
       <View style={[styles.profileBottomBar, { paddingBottom: bottomPad }]}>
         <Pressable
           onPress={onConnect}
-          style={[styles.profilePrimaryAction, primaryDisabled && styles.disabledButton]}
-          disabled={primaryDisabled}
+          style={[styles.profilePrimaryAction, (primaryDisabled || connectBusy) && styles.disabledButton]}
+          disabled={primaryDisabled || connectBusy}
         >
           <Ionicons name={person.relationshipStatus === "friends" ? "chatbubble" : "person-add"} size={18} color="#0A0A0B" />
-          <Text style={styles.profilePrimaryActionText}>{connectLabel}</Text>
+          <Text style={styles.profilePrimaryActionText}>{buttonLabel(connectLabel, connectBusy)}</Text>
+        </Pressable>
+        <Pressable onPress={onIcebreaker} style={styles.profileSecondaryAction}>
+          <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+          <Text style={styles.profileSecondaryActionText}>AI</Text>
         </Pressable>
         <Pressable onPress={onPlan} style={styles.profileSecondaryAction}>
           <Ionicons name="calendar" size={18} color="#FFFFFF" />
@@ -965,16 +1539,20 @@ function ProfileTagGroup({
 function PlanDetailSheet({
   plan,
   bottomInset,
+  joinBusy,
   onClose,
   onOpenConnect,
   onShare,
+  onIcebreaker,
   onJoin,
 }: {
   plan: FriendPlan;
   bottomInset: number;
+  joinBusy: boolean;
   onClose: () => void;
   onOpenConnect: () => void;
   onShare: () => void;
+  onIcebreaker: () => void;
   onJoin: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -1040,14 +1618,18 @@ function PlanDetailSheet({
                 <Text style={styles.profilePrimaryActionText}>Open Connect</Text>
               </Pressable>
             ) : (
-              <Pressable onPress={onJoin} disabled={joinPending} style={[styles.profilePrimaryAction, joinPending && styles.disabledButton]}>
+              <Pressable onPress={onJoin} disabled={joinPending || joinBusy} style={[styles.profilePrimaryAction, (joinPending || joinBusy) && styles.disabledButton]}>
                 <Ionicons name="person-add" size={18} color="#0A0A0B" />
-                <Text style={styles.profilePrimaryActionText}>{joinPending ? "Requested" : "Request Join"}</Text>
+                <Text style={styles.profilePrimaryActionText}>{buttonLabel(joinPending ? "Requested" : "Request Join", joinBusy)}</Text>
               </Pressable>
             )}
             <Pressable onPress={onShare} style={styles.profileSecondaryAction}>
               <Ionicons name="share-social" size={18} color="#FFFFFF" />
               <Text style={styles.profileSecondaryActionText}>Share</Text>
+            </Pressable>
+            <Pressable onPress={onIcebreaker} style={styles.profileSecondaryAction}>
+              <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+              <Text style={styles.profileSecondaryActionText}>AI</Text>
             </Pressable>
           </View>
         </View>
@@ -1062,6 +1644,93 @@ function PlanInfo({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap
       <Ionicons name={icon} size={17} color="#FF8BC4" />
       <Text style={styles.profileStatLabel}>{label}</Text>
       <Text style={styles.profileStatValue} numberOfLines={2}>{value}</Text>
+    </View>
+  );
+}
+
+function CreateFirstPanel({
+  onCreatePlan,
+  onInviteFriend,
+  onCreateGroup,
+  onFindDuoBuddy,
+}: {
+  onCreatePlan: () => void;
+  onInviteFriend: () => void;
+  onCreateGroup: () => void;
+  onFindDuoBuddy: () => void;
+}) {
+  return (
+    <View style={styles.createPanel}>
+      <Text style={styles.createPanelEyebrow}>Create first</Text>
+      <View style={styles.createGrid}>
+        <CreateTile icon="calendar" label="Create Plan" onPress={onCreatePlan} primary />
+        <CreateTile icon="share-social" label="Invite Friend" onPress={onInviteFriend} />
+        <CreateTile icon="people" label="Create Group" onPress={onCreateGroup} />
+        <CreateTile icon="heart" label="Find a Duo Buddy" onPress={onFindDuoBuddy} />
+      </View>
+    </View>
+  );
+}
+
+function CreateTile({ icon, label, onPress, primary }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; primary?: boolean }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.createTile, primary && styles.createTilePrimary]}>
+      <View style={[styles.createTileIcon, primary && styles.createTileIconPrimary]}>
+        <Ionicons name={icon} size={17} color={primary ? "#0A0A0B" : "#FF8BC4"} />
+      </View>
+      <Text style={[styles.createTileText, primary && styles.createTileTextPrimary]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function TonightsPeople({
+  people,
+  onOpenPerson,
+  onPlanForPerson,
+  onFindDuoBuddy,
+}: {
+  people: FriendPerson[];
+  onOpenPerson: (person: FriendPerson) => void;
+  onPlanForPerson: (person: FriendPerson) => void;
+  onFindDuoBuddy: () => void;
+}) {
+  const picks = people
+    .filter((person) => person.relationshipStatus !== "self")
+    .sort((a, b) => Number(b.activeTonight === true) - Number(a.activeTonight === true) || matchScore(b) - matchScore(a))
+    .slice(0, 6);
+  if (!picks.length) return null;
+  return (
+    <View style={styles.tonightWrap}>
+      <View style={styles.tonightHeader}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.tonightEyebrow}>Tonight's People</Text>
+          <Text style={styles.tonightTitle} numberOfLines={1}>Active friends, planners, and duo fits</Text>
+        </View>
+        <Pressable onPress={onFindDuoBuddy} style={styles.tonightDuoBtn}>
+          <Ionicons name="heart" size={14} color="#FF8BC4" />
+          <Text style={styles.tonightDuoText}>Duo</Text>
+        </Pressable>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tonightList}>
+        {picks.map((person) => (
+          <Pressable key={person.id} onPress={() => onOpenPerson(person)} style={styles.tonightCard}>
+            <Image source={{ uri: person.photoUrl ?? FALLBACK_PHOTO }} style={styles.tonightAvatar} contentFit="cover" />
+            <Text style={styles.tonightName} numberOfLines={1}>{firstName(person.name)}</Text>
+            <Text style={styles.tonightMeta} numberOfLines={1}>
+              {person.activeTonight ? "Active tonight" : person.suggestedPlanType ?? "Good planner"}
+            </Text>
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation();
+                onPlanForPerson(person);
+              }}
+              style={styles.tonightPlanBtn}
+            >
+              <Text style={styles.tonightPlanText}>Plan</Text>
+            </Pressable>
+          </Pressable>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -1189,6 +1858,149 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
   },
+  createPanel: {
+    backgroundColor: "#08080A",
+    borderColor: "rgba(255,45,168,0.22)",
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 12,
+    padding: 14,
+  },
+  createPanelEyebrow: {
+    color: "#FF8BC4",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  createGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  createTile: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.065)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 18,
+    borderWidth: 1,
+    flexBasis: "47%",
+    flexDirection: "row",
+    flexGrow: 1,
+    gap: 9,
+    minHeight: 56,
+    paddingHorizontal: 11,
+  },
+  createTilePrimary: {
+    backgroundColor: "#FF2D8D",
+    borderColor: "#FF2D8D",
+  },
+  createTileIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,45,168,0.12)",
+    borderRadius: 14,
+    height: 30,
+    justifyContent: "center",
+    width: 30,
+  },
+  createTileIconPrimary: {
+    backgroundColor: "rgba(0,0,0,0.12)",
+  },
+  createTileText: {
+    color: "#FFFFFF",
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  createTileTextPrimary: {
+    color: "#0A0A0B",
+  },
+  tonightWrap: {
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 12,
+    paddingVertical: 14,
+  },
+  tonightHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+  },
+  tonightEyebrow: {
+    color: "#FF8BC4",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+  },
+  tonightTitle: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+  tonightDuoBtn: {
+    alignItems: "center",
+    borderColor: "rgba(255,45,168,0.22)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  tonightDuoText: {
+    color: "#FFB6D9",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  tonightList: {
+    gap: 10,
+    paddingHorizontal: 14,
+  },
+  tonightCard: {
+    backgroundColor: "#050505",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 10,
+    width: 122,
+  },
+  tonightAvatar: {
+    borderRadius: 16,
+    height: 72,
+    width: "100%",
+  },
+  tonightName: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 8,
+  },
+  tonightMeta: {
+    color: "#A1A1AA",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  tonightPlanBtn: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,45,168,0.12)",
+    borderColor: "rgba(255,45,168,0.2)",
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 8,
+    paddingVertical: 7,
+  },
+  tonightPlanText: {
+    color: "#FFB6D9",
+    fontSize: 11,
+    fontWeight: "900",
+  },
   searchBox: {
     alignItems: "center",
     backgroundColor: "#050505",
@@ -1222,6 +2034,12 @@ const styles = StyleSheet.create({
   tabButtonActive: {
     backgroundColor: FRIENDS_PINK,
   },
+  tabContent: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "center",
+  },
   tabText: {
     color: "#B7B7C2",
     fontSize: 13,
@@ -1229,6 +2047,26 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: "#0A0A0B",
+  },
+  tabBadge: {
+    alignItems: "center",
+    backgroundColor: FRIENDS_PINK,
+    borderRadius: 999,
+    justifyContent: "center",
+    minWidth: 20,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  tabBadgeActive: {
+    backgroundColor: "#0A0A0B",
+  },
+  tabBadgeText: {
+    color: "#0A0A0B",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  tabBadgeTextActive: {
+    color: "#FFFFFF",
   },
   stack: {
     gap: 12,
@@ -1238,6 +2076,46 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900",
     marginTop: 4,
+  },
+  smartPickCard: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,45,168,0.12)",
+    borderColor: "rgba(255,45,168,0.28)",
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    padding: 14,
+  },
+  smartPickIcon: {
+    alignItems: "center",
+    backgroundColor: FRIENDS_PINK,
+    borderRadius: 17,
+    height: 38,
+    justifyContent: "center",
+    width: 38,
+  },
+  smartPickCopy: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  smartPickLabel: {
+    color: "#FFB6D9",
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  smartPickTitle: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  smartPickText: {
+    color: "#EDEDF2",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
   },
   personCard: {
     backgroundColor: "#050505",
@@ -1301,6 +2179,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900",
   },
+  matchBadge: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#FF2D8D",
+    borderRadius: 999,
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  matchBadgeText: {
+    color: "#0A0A0B",
+    fontSize: 11,
+    fontWeight: "900",
+  },
   sentBadge: {
     backgroundColor: "rgba(255,255,255,0.09)",
     borderColor: "rgba(255,255,255,0.14)",
@@ -1319,6 +2212,18 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 6,
   },
+  smartReasonRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  smartReasonText: {
+    color: "#EDEDF2",
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
+  },
   interestChip: {
     backgroundColor: "rgba(255,255,255,0.07)",
     borderColor: "rgba(255,255,255,0.09)",
@@ -1331,6 +2236,25 @@ const styles = StyleSheet.create({
     color: "#D7D7DE",
     fontSize: 11,
     fontWeight: "700",
+  },
+  suggestedPlanPill: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,45,168,0.1)",
+    borderColor: "rgba(255,45,168,0.2)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    maxWidth: "100%",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  suggestedPlanText: {
+    color: "#FFB6D9",
+    flexShrink: 1,
+    fontSize: 11,
+    fontWeight: "900",
   },
   buttonRow: {
     flexDirection: "row",
@@ -1384,6 +2308,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900",
   },
+  aiButton: {
+    alignItems: "center",
+    backgroundColor: "#FBBF24",
+    borderRadius: 14,
+    flexDirection: "row",
+    gap: 5,
+    justifyContent: "center",
+    minHeight: 42,
+    paddingHorizontal: 11,
+  },
+  aiButtonText: {
+    color: "#0A0A0B",
+    fontSize: 12,
+    fontWeight: "900",
+  },
   disabledButton: {
     opacity: 0.55,
   },
@@ -1399,6 +2338,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     flexDirection: "row",
+    flex: 1,
     gap: 7,
     justifyContent: "center",
     minHeight: 40,
@@ -1538,22 +2478,52 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900",
   },
-  notice: {
-    alignSelf: "center",
-    backgroundColor: "#141419",
-    borderColor: "rgba(255,45,141,0.32)",
-    borderRadius: 18,
-    borderWidth: 1,
-    left: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+  noticeOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.24)",
+    bottom: 0,
+    justifyContent: "center",
+    left: 0,
     position: "absolute",
-    right: 18,
+    right: 0,
+    top: 0,
+  },
+  notice: {
+    alignItems: "center",
+    alignSelf: "center",
+    backgroundColor: "#101014",
+    borderColor: "rgba(255,45,168,0.34)",
+    borderRadius: 26,
+    borderWidth: 1,
+    gap: 7,
+    maxWidth: 330,
+    minWidth: 260,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    shadowColor: "#FF2D8D",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.34,
+    shadowRadius: 36,
+  },
+  noticeIcon: {
+    alignItems: "center",
+    backgroundColor: FRIENDS_PINK,
+    borderRadius: 24,
+    height: 48,
+    justifyContent: "center",
+    marginBottom: 2,
+    width: 48,
+  },
+  noticeTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "900",
   },
   noticeText: {
-    color: "#FFFFFF",
+    color: "#EDEDF2",
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "700",
+    lineHeight: 19,
     textAlign: "center",
   },
   profileScreen: {
@@ -1584,6 +2554,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 16,
   },
+  profileTopRight: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
   profileIconButton: {
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.48)",
@@ -1608,6 +2583,34 @@ const styles = StyleSheet.create({
   profileHeroPillText: {
     color: "#FFFFFF",
     fontSize: 12,
+    fontWeight: "900",
+  },
+  safetyMenu: {
+    backgroundColor: "rgba(10,10,12,0.94)",
+    borderColor: "rgba(255,255,255,0.16)",
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 6,
+    padding: 8,
+    position: "absolute",
+    right: 0,
+    top: 56,
+    width: 164,
+  },
+  safetyAction: {
+    alignItems: "center",
+    borderRadius: 13,
+    flexDirection: "row",
+    gap: 8,
+    minHeight: 40,
+    paddingHorizontal: 10,
+  },
+  safetyActionDanger: {
+    backgroundColor: "rgba(239,68,68,0.18)",
+  },
+  safetyActionText: {
+    color: "#FFFFFF",
+    fontSize: 13,
     fontWeight: "900",
   },
   profileHeroBottom: {
@@ -1708,6 +2711,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     padding: 14,
+  },
+  bestMoveCard: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,45,168,0.11)",
+    borderColor: "rgba(255,45,168,0.28)",
+    borderRadius: 22,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    padding: 14,
+  },
+  bestMoveIcon: {
+    alignItems: "center",
+    backgroundColor: FRIENDS_PINK,
+    borderRadius: 16,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
   },
   profileHighlightIcon: {
     alignItems: "center",
@@ -2079,5 +3100,150 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     lineHeight: 16,
+  },
+  iceOverlay: {
+    backgroundColor: "rgba(0,0,0,0.72)",
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  iceSheet: {
+    backgroundColor: "#09090B",
+    borderColor: "rgba(255,45,168,0.28)",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    gap: 14,
+    padding: 18,
+  },
+  iceHandle: {
+    alignSelf: "center",
+    backgroundColor: "rgba(255,255,255,0.22)",
+    borderRadius: 999,
+    height: 4,
+    width: 42,
+  },
+  iceHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  iceIcon: {
+    alignItems: "center",
+    backgroundColor: "#FBBF24",
+    borderRadius: 18,
+    height: 38,
+    justifyContent: "center",
+    width: 38,
+  },
+  iceTitle: {
+    color: "#FFFFFF",
+    fontSize: 19,
+    fontWeight: "900",
+  },
+  iceSubtitle: {
+    color: "#A1A1AA",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  iceClose: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 16,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
+  iceLoading: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 18,
+    flexDirection: "row",
+    gap: 10,
+    padding: 14,
+  },
+  iceLoadingText: {
+    color: "#EDEDF2",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  iceSuggestionStack: {
+    gap: 8,
+  },
+  iceSuggestion: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 5,
+    padding: 12,
+  },
+  iceSuggestionActive: {
+    backgroundColor: "rgba(251,191,36,0.16)",
+    borderColor: "rgba(251,191,36,0.46)",
+  },
+  iceSuggestionText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+    lineHeight: 19,
+  },
+  iceSuggestionReason: {
+    color: "#FFB6D9",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  iceInput: {
+    backgroundColor: "#050505",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderRadius: 16,
+    borderWidth: 1,
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 19,
+    minHeight: 84,
+    padding: 12,
+    textAlignVertical: "top",
+  },
+  iceError: {
+    color: "#FCA5A5",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  iceActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  iceSecondary: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 7,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 12,
+  },
+  iceSecondaryText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  icePrimary: {
+    alignItems: "center",
+    backgroundColor: "#FF2D8D",
+    borderRadius: 16,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  icePrimaryText: {
+    color: "#0A0A0B",
+    fontSize: 14,
+    fontWeight: "900",
   },
 });

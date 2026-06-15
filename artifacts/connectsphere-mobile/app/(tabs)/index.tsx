@@ -1,10 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 
-import NetworkingTab from "@/components/NetworkingTab";
 import DoubleDateTab from "@/components/DoubleDateTab";
 import FriendsHubTab from "@/components/FriendsTab";
 import { ShotBottomSheet, ShotToast } from "@/components/ShotBottomSheet";
@@ -28,7 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 type MaterialIconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
-type IntentId = "dating" | "friends" | "networking";
+type IntentId = "dating" | "friends";
 
 type Theme = {
   id: IntentId;
@@ -89,19 +88,11 @@ const tabs: Theme[] = [
     accent: ["#3B82F6", "#6366F1", "#8B5CF6"],
     glow: "#3B82F6",
   },
-  {
-    id: "networking",
-    label: "Opportunities",
-    icon: "briefcase",
-    accent: ["#34D399", "#2DD4BF", "#22D3EE"],
-    glow: "#2DD4BF",
-  },
 ];
 
 const subTabs: Record<IntentId, string[]> = {
   dating: ["For You", "Active Tonight", "Intentional", "Double Dates", "Date Ideas", "Miami Local"],
   friends: ["People", "Requests", "Plans"],
-  networking: ["For You", "Founders", "Creators", "Real Estate", "Nightlife Pros", "Investors"],
 };
 
 const profiles: Profile[] = [
@@ -193,10 +184,10 @@ const profiles: Profile[] = [
     name: "Marcus",
     age: 29,
     location: "Wynwood",
-    intent: "networking",
-    subGenre: "Founders",
-    bio: "Building startups, meeting creators, and connecting with people who move with purpose.",
-    interests: ["Startups", "AI", "Real Estate", "Creators"],
+    intent: "friends",
+    subGenre: "Plans",
+    bio: "Always down for pickup soccer, food halls, and low-pressure group hangs after work.",
+    interests: ["Soccer", "Food Halls", "Live Music", "Group Plans"],
     matchScore: 92,
     online: false,
     verified: true,
@@ -207,10 +198,10 @@ const profiles: Profile[] = [
     name: "Camila",
     age: 27,
     location: "Design District",
-    intent: "networking",
-    subGenre: "Creators",
-    bio: "Creative director looking to meet founders, artists, nightlife pros, and brand builders.",
-    interests: ["Branding", "Events", "Content", "Fashion"],
+    intent: "friends",
+    subGenre: "People",
+    bio: "Museum days, fashion pop-ups, coffee walks, and friends who enjoy making simple plans.",
+    interests: ["Fashion", "Museums", "Coffee", "Events"],
     matchScore: 88,
     online: true,
     verified: true,
@@ -428,10 +419,10 @@ const profiles: Profile[] = [
     name: "Jordan",
     age: 32,
     location: "Brickell",
-    intent: "networking",
-    subGenre: "Investors",
-    bio: "Backing bold South Florida founders in AI, fintech, and consumer social. I like people with edge and execution.",
-    interests: ["Venture", "Fintech", "AI", "Founder Dinners"],
+    intent: "friends",
+    subGenre: "Plans",
+    bio: "Board games, beach volleyball, and dinner plans where everyone actually shows up.",
+    interests: ["Board Games", "Volleyball", "Dinner", "Trivia"],
     matchScore: 90,
     online: true,
     verified: true,
@@ -442,10 +433,10 @@ const profiles: Profile[] = [
     name: "Selena",
     age: 31,
     location: "South Beach",
-    intent: "networking",
-    subGenre: "Real Estate",
-    bio: "Luxury real estate broker. Connecting buyers, builders, and capital. Always down for a power lunch.",
-    interests: ["Real Estate", "Architecture", "Yachts", "Capital"],
+    intent: "friends",
+    subGenre: "People",
+    bio: "Sunset walks, architecture tours, ocean days, and friends who love exploring the city.",
+    interests: ["Architecture", "Beach", "Walks", "Brunch"],
     matchScore: 86,
     online: true,
     verified: true,
@@ -456,10 +447,10 @@ const profiles: Profile[] = [
     name: "Andre",
     age: 29,
     location: "Wynwood",
-    intent: "networking",
-    subGenre: "Nightlife Pros",
-    bio: "Run two clubs and a hospitality group. Looking to meet promoters, DJs, brand reps, and operators.",
-    interests: ["Nightlife", "Hospitality", "Brands", "Music"],
+    intent: "friends",
+    subGenre: "Plans",
+    bio: "Knows the best music nights and wants a crew for dancing, late food, and weekend events.",
+    interests: ["Nightlife", "Music", "Food", "Events"],
     matchScore: 84,
     online: false,
     verified: true,
@@ -470,10 +461,10 @@ const profiles: Profile[] = [
     name: "Reema",
     age: 26,
     location: "Edgewater",
-    intent: "networking",
-    subGenre: "Founders",
-    bio: "Building a women-led wellness startup. Looking for operators, marketers, and founders to swap notes with.",
-    interests: ["Wellness", "Startups", "Branding", "Community"],
+    intent: "friends",
+    subGenre: "People",
+    bio: "Pilates, wellness walks, smoothie runs, and making a kind little city crew.",
+    interests: ["Wellness", "Pilates", "Smoothies", "Community"],
     matchScore: 93,
     online: true,
     verified: true,
@@ -484,10 +475,10 @@ const profiles: Profile[] = [
     name: "Theo",
     age: 34,
     location: "Downtown Miami",
-    intent: "networking",
-    subGenre: "Creators",
-    bio: "Director and content lead for nightlife and hospitality brands. Always down to meet photographers, editors, and founders.",
-    interests: ["Content", "Film", "Brands", "Events"],
+    intent: "friends",
+    subGenre: "Plans",
+    bio: "Film screenings, photo walks, record shops, and casual hangs with creative friends.",
+    interests: ["Film", "Photography", "Records", "Events"],
     matchScore: 81,
     online: false,
     verified: false,
@@ -779,6 +770,7 @@ const friendFeedItems: FriendFeedItem[] = [
 
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ intent?: string; subtab?: string }>();
   const { height: winH } = useWindowDimensions();
   const topInset = Platform.OS === "web" ? 14 : Math.max(insets.top, 12);
   // Web spec: `pb-[calc(env(safe-area-inset-bottom)+78px)]` — 78px clears the
@@ -806,6 +798,18 @@ export default function DiscoverScreen() {
   const [shotPremiumRequired, setShotPremiumRequired] = useState(false);
   const [shotSending, setShotSending] = useState(false);
   const [shotToastVisible, setShotToastVisible] = useState(false);
+
+  useEffect(() => {
+    if (params.intent === "dating") {
+      setActiveIntent("dating");
+      if (params.subtab === "Double Dates") setActiveSubTab("Double Dates");
+      setCardIndex(0);
+    } else if (params.intent === "friends") {
+      setActiveIntent("friends");
+      setActiveSubTab("For You");
+      setCardIndex(0);
+    }
+  }, [params.intent, params.subtab]);
 
   const theme = tabs.find((tab) => tab.id === activeIntent)!;
   const { data: datingFeed } = useGetDiscoveryFeed(
@@ -995,7 +999,7 @@ export default function DiscoverScreen() {
             const isActive = activeIntent === tab.id;
             const isAllowed = allowedTabs.some((a) => a.id === tab.id);
             return (
-              <View key={tab.id} style={[styles.intentSlot, tab.id === "networking" && styles.intentSlotWide]}>
+              <View key={tab.id} style={styles.intentSlot}>
                 <Pressable
                   disabled={!isAllowed}
                   onPress={() => {
@@ -1022,7 +1026,6 @@ export default function DiscoverScreen() {
                     <Text
                       style={[
                         styles.intentBtnLabel,
-                        tab.id === "networking" && styles.intentBtnLabelLong,
                         {
                           color: isActive ? "#FFF" : isAllowed ? "#E4E4E7" : "#3F3F46",
                           opacity: !isAllowed ? 0.35 : 1,
@@ -1039,7 +1042,7 @@ export default function DiscoverScreen() {
           })}
         </View>
 
-        {/* Dating keeps swipe filters here. Friends and Opportunities own
+        {/* Dating keeps swipe filters here. Friends owns
             their simpler controls inside their dedicated tab UIs. */}
         {activeIntent === "dating" && (
         <ScrollView
@@ -1075,13 +1078,8 @@ export default function DiscoverScreen() {
         </ScrollView>
         )}
 
-        {/* Networking gets its own dedicated tab UI (LinkedIn × Slack ×
-            Meetup vibe). Friends now uses a social hub; Dating keeps the swipe deck. */}
-        {activeIntent === "networking" ? (
-          <View style={{ flex: 1, marginHorizontal: -16 }}>
-            <NetworkingTab />
-          </View>
-        ) : activeIntent === "friends" ? (
+        {/* Friends uses its social hub; Dating keeps the swipe deck. */}
+        {activeIntent === "friends" ? (
           <View style={{ flex: 1, marginHorizontal: -16 }}>
             <FriendsHubTab bottomInset={bottomInset} />
           </View>
@@ -1960,12 +1958,6 @@ const friendsBigActions: BigActionDef[] = [
   { label: "Add Friend", iconLib: "ion", iconName: "people", action: "generic", main: true },
   { label: "Invite", iconLib: "ion", iconName: "paper-plane", action: "generic" },
 ];
-const networkingBigActions: BigActionDef[] = [
-  { label: "Connect", iconLib: "material", iconName: "handshake", action: "generic", main: true },
-  { label: "Save", iconLib: "ion", iconName: "person-add", action: "generic" },
-  { label: "Message", iconLib: "ion", iconName: "chatbubble", action: "generic" },
-];
-
 function BigActionsBar({
   intent,
   theme,
@@ -1975,12 +1967,7 @@ function BigActionsBar({
   theme: Theme;
   onAction: (action: SwipeAction | "plan" | "shot" | "generic") => void;
 }) {
-  const actions =
-    intent === "dating"
-      ? datingBigActions
-      : intent === "friends"
-      ? friendsBigActions
-      : networkingBigActions;
+  const actions = intent === "dating" ? datingBigActions : friendsBigActions;
 
   return (
     <View style={expStyles.bigActionsRow}>
@@ -3232,7 +3219,7 @@ function SwipeCard({
         <Animated.View
           style={[deckStyles.overlaySpark, { opacity: sparkOpacity }]}
         >
-          <Ionicons name="flash" size={56} color="#6EE7B7" />
+          <Ionicons name="sparkles" size={56} color="#D8B4FE" />
         </Animated.View>
       </View>
 
@@ -3359,7 +3346,7 @@ function SparkExplosion() {
           },
         ]}
       >
-        <Ionicons name="sparkles" size={48} color="#6EE7B7" />
+        <Ionicons name="sparkles" size={48} color="#D8B4FE" />
       </Animated.View>
     </View>
   );
@@ -3507,11 +3494,11 @@ const deckStyles = StyleSheet.create({
     height: 112,
     borderRadius: 56,
     borderWidth: 1,
-    borderColor: "rgba(110,231,183,0.4)",
+    borderColor: "rgba(192,132,252,0.5)",
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#34D399",
+    shadowColor: "#A855F7",
     shadowOpacity: 0.85,
     shadowRadius: 36,
   },
@@ -3618,8 +3605,8 @@ const deckStyles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#6EE7B7",
-    shadowColor: "#34D399",
+    backgroundColor: "#D8B4FE",
+    shadowColor: "#A855F7",
     shadowOpacity: 1,
     shadowRadius: 12,
   },
@@ -3629,11 +3616,11 @@ const deckStyles = StyleSheet.create({
     height: 112,
     borderRadius: 56,
     borderWidth: 1,
-    borderColor: "rgba(110,231,183,0.7)",
-    backgroundColor: "rgba(52,211,153,0.10)",
+    borderColor: "rgba(192,132,252,0.7)",
+    backgroundColor: "rgba(168,85,247,0.12)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#34D399",
+    shadowColor: "#A855F7",
     shadowOpacity: 0.8,
     shadowRadius: 35,
   },

@@ -22,7 +22,7 @@ import {
 } from "./useFaceDetector";
 import { apiUrl } from "@/lib/apiBase";
 
-export type ChallengeType = "smile";
+export type ChallengeType = "smile" | "blink" | "turn_left" | "turn_right" | "nod";
 export type Phase = "loading" | "modelwait" | "quality" | "challenge" | "submitting" | "success" | "failed";
 
 interface LivenessSession {
@@ -39,10 +39,18 @@ interface ChallengeRecord {
 }
 
 export const CHALLENGE_LABELS: Record<ChallengeType, string> = {
+  blink: "Blink twice",
+  turn_left: "Turn your head left",
+  turn_right: "Turn your head right",
+  nod: "Nod your head",
   smile: "Give a big smile 😊",
 };
 
 export const CHALLENGE_ICONS: Record<ChallengeType, string> = {
+  blink: "eye-outline",
+  turn_left: "arrow-back-outline",
+  turn_right: "arrow-forward-outline",
+  nod: "swap-vertical-outline",
   smile: "happy-outline",
 };
 
@@ -159,6 +167,14 @@ export function useFaceChallenge(
     if (qualityFailTimerRef.current) { clearTimeout(qualityFailTimerRef.current); qualityFailTimerRef.current = null; }
   }, []);
 
+  const requireToken = useCallback(async () => {
+    const token = await getToken();
+    if (!token) {
+      throw new Error("Your account is still opening. Please wait a moment, then try verification again.");
+    }
+    return token;
+  }, [getToken]);
+
   useEffect(() => {
     if (faceDetector.status === "loading") setPhase("modelwait");
     if (faceDetector.status === "ready" && (phase === "modelwait" || phase === "loading")) loadSession();
@@ -173,9 +189,9 @@ export function useFaceChallenge(
     bestGeomVecRef.current = [];
     bestConfRef.current    = 0;
     try {
-      const token = await getToken();
+      const token = await requireToken();
       const res = await fetch(apiUrl("/api/profiles/liveness-nonce"), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 429) {
         const body = await res.json().catch(() => ({})) as { error?: string };
@@ -196,7 +212,7 @@ export function useFaceChallenge(
       setErrorMsg(e instanceof Error ? e.message : "Network error.");
       setPhase("failed");
     }
-  }, [domain, getToken]);
+  }, [domain, requireToken]);
 
   useEffect(() => {
     if (phase !== "quality") return;
@@ -244,12 +260,12 @@ export function useFaceChallenge(
         frameSignalsRef.current = [];
         frameConfsRef.current   = [];
 
-        const token = await getToken();
+        const token = await requireToken();
         const tickRes = await fetch(apiUrl("/api/profiles/liveness-challenge-tick"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             sessionToken:   sess.sessionToken,
@@ -282,7 +298,7 @@ export function useFaceChallenge(
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [domain, getToken, stopCapture, stopCountdown],
+    [domain, requireToken, stopCapture, stopCountdown],
   );
 
   useEffect(() => {
@@ -421,13 +437,13 @@ export function useFaceChallenge(
       : Array.from<number>({ length: 128 }).fill(0);
 
     computeFaceHash(geoVec)
-      .then((faceHash) => getToken().then((token) => ({ faceHash, token })))
+      .then((faceHash) => requireToken().then((token) => ({ faceHash, token })))
       .then(({ faceHash, token }) =>
         fetch(apiUrl("/api/profiles/verify-face"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             livenessProof: {

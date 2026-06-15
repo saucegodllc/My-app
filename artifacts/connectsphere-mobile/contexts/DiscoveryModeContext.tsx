@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-export type DiscoveryMode = "dating" | "friendship" | "networking";
+export type DiscoveryMode = "dating" | "friendship";
 
 type DiscoveryModeContextValue = {
   mode: DiscoveryMode;

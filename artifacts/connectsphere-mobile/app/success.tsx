@@ -22,24 +22,21 @@ const PINK = "#FF299B";
 
 // Start dissolving this many seconds before the active player hits its loop point.
 // Larger value = more buffer before the native loop gap.
-const TRIGGER_S   = 4.0;
+const TRIGGER_S = 1.6;
 // Length of the dissolve — sinusoidal so it's barely perceptible.
-const DISSOLVE_MS = 2500;
+const DISSOLVE_MS = 1400;
 
 function goToApp() {
-  router.replace("/(tabs)/");
+  router.replace("/(tabs)");
 }
 
 export default function SuccessScreen() {
   const insets = useSafeAreaInsets();
   const topPad = (Platform.OS === "web" ? 60 : insets.top) + 36;
-  const botPad = (Platform.OS === "web" ? 44 : insets.bottom) + 24;
-
   const titleFade  = useRef(new Animated.Value(0)).current;
   const titleSlide = useRef(new Animated.Value(44)).current;
   const subFade    = useRef(new Animated.Value(0)).current;
   const dotScale   = useRef(new Animated.Value(0)).current;
-  const btnFade    = useRef(new Animated.Value(0)).current;
 
   const opA = useRef(new Animated.Value(1)).current;
   const opB = useRef(new Animated.Value(0)).current;
@@ -63,6 +60,8 @@ export default function SuccessScreen() {
 
     // Make sure both are playing (guard against the screen mounting before the
     // provider's useEffect has a chance to run on first load)
+    playerA.currentTime = 0;
+    playerB.currentTime = 0;
     playerA.play();
     playerB.play();
 
@@ -72,11 +71,17 @@ export default function SuccessScreen() {
 
       const inOp  = aIsActive.current ? opB : opA;
       const outOp = aIsActive.current ? opA : opB;
+      const incomingPlayer = aIsActive.current ? playerB : playerA;
+      const outgoingPlayer = aIsActive.current ? playerA : playerB;
+
+      incomingPlayer.currentTime = 0;
+      incomingPlayer.play();
 
       Animated.parallel([
         Animated.timing(inOp,  { toValue: 1, duration: DISSOLVE_MS, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
         Animated.timing(outOp, { toValue: 0, duration: DISSOLVE_MS, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ]).start(() => {
+        outgoingPlayer.currentTime = 0;
         aIsActive.current = !aIsActive.current;
         fading.current    = false;
       });
@@ -117,10 +122,6 @@ export default function SuccessScreen() {
         Animated.delay(740),
         Animated.timing(subFade, { toValue: 1, duration: 440, useNativeDriver: true }),
       ]),
-      Animated.sequence([
-        Animated.delay(1000),
-        Animated.timing(btnFade, { toValue: 1, duration: 360, useNativeDriver: true }),
-      ]),
     ]).start();
   }, []);
 
@@ -129,21 +130,25 @@ export default function SuccessScreen() {
       <View style={styles.container}>
 
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: opB }]}>
-          <VideoView
-            player={ctx?.playerB ?? null}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            nativeControls={false}
-          />
+          {ctx?.playerB ? (
+            <VideoView
+              player={ctx.playerB}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              nativeControls={false}
+            />
+          ) : null}
         </Animated.View>
 
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: opA }]}>
-          <VideoView
-            player={ctx?.playerA ?? null}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            nativeControls={false}
-          />
+          {ctx?.playerA ? (
+            <VideoView
+              player={ctx.playerA}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              nativeControls={false}
+            />
+          ) : null}
         </Animated.View>
 
         <LinearGradient
@@ -164,13 +169,6 @@ export default function SuccessScreen() {
             Your profile is live. Your next great{"\n"}connection is already out there.
           </Animated.Text>
         </View>
-
-        <Animated.View style={[styles.bottomBlock, { opacity: btnFade, paddingBottom: botPad }]}>
-          <Pressable style={styles.ctaBtn} onPress={goToApp}>
-            <Text style={styles.ctaText}>Let's Go 🔥</Text>
-          </Pressable>
-          <Text style={styles.skipHint}>or tap anywhere to skip</Text>
-        </Animated.View>
 
       </View>
     </Pressable>
@@ -207,20 +205,5 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.84)", lineHeight: 26,
     textShadowColor: "rgba(0,0,0,0.6)",
     textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6, marginTop: 2,
-  },
-  bottomBlock: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    alignItems: "center", gap: 10, paddingHorizontal: 28,
-  },
-  ctaBtn: {
-    width: "100%", backgroundColor: PINK, borderRadius: 16,
-    paddingVertical: 18, alignItems: "center",
-    shadowColor: PINK, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.55, shadowRadius: 16, elevation: 8,
-  },
-  ctaText:  { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.3 },
-  skipHint: {
-    fontSize: 12, fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.28)", letterSpacing: 0.3, marginTop: 2,
   },
 });

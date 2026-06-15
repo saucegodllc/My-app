@@ -31,6 +31,8 @@ export type DoubleDatePair = {
 
 export type DoubleDateMatch = {
   id: string;
+  pairOneId?: string;
+  pairTwoId?: string;
   pairIds: [string, string];
   userIds: [string, string, string, string];
   chatId: string;
@@ -64,15 +66,35 @@ export type FeedResponse = {
   pairs: DoubleDatePair[];
 };
 
-export type LikeResponse =
-  | { matched: false }
+export type DoubleDateSwipe = {
+  id: string;
+  swiperPairId: string;
+  targetPairId: string;
+  direction: "like" | "pass";
+  createdBy: string;
+  createdAt: string;
+};
+
+export type SwipeDoubleDatePairInput = {
+  currentPairId: string;
+  targetPairId: string;
+  direction: "like" | "pass";
+  currentUserId: string;
+};
+
+export type SwipeResponse =
+  | { matched: false; swipe: DoubleDateSwipe }
   | {
       matched: true;
       match: DoubleDateMatch;
-      chat: DoubleDateChat;
-      otherPair: DoubleDatePair;
-      allUsers: DoubleDateUser[];
+      chat?: DoubleDateChat;
+      otherPair?: DoubleDatePair;
+      allUsers?: DoubleDateUser[];
+      alreadyMatched?: boolean;
+      swipe?: DoubleDateSwipe;
     };
+
+export type LikeResponse = SwipeResponse;
 
 export type ConnectResponse = {
   requests: unknown[];
@@ -103,10 +125,10 @@ export function getDoubleDatePair(userId: string) {
   return customFetch<PairResponse>(`/api/dating/double-date/pair/${userId}`);
 }
 
-export function createDoubleDatePair(userId: string, buddyUserId: string, vibeTags: string[]) {
+export function createDoubleDatePair(userId: string, friendId: string, vibeTags: string[] = []) {
   return customFetch<PairResponse>("/api/dating/double-date/pair/create", {
     method: "POST",
-    body: JSON.stringify({ userId, buddyUserId, vibeTags }),
+    body: JSON.stringify({ userId, friendId, buddyUserId: friendId, vibeTags }),
   });
 }
 
@@ -121,17 +143,35 @@ export function getDoubleDateFeed(pairId: string) {
   return customFetch<FeedResponse>(`/api/dating/double-date/feed/${pairId}`);
 }
 
-export function passDoubleDatePair(fromPairId: string, toPairId: string) {
-  return customFetch<{ success: true }>("/api/dating/double-date/pass", {
+export function swipeDoubleDatePair(input: SwipeDoubleDatePairInput) {
+  return customFetch<SwipeResponse>("/api/dating/double-date/swipe", {
     method: "POST",
-    body: JSON.stringify({ fromPairId, toPairId }),
+    body: JSON.stringify(input),
+  });
+}
+
+export function passDoubleDatePair(fromPairId: string, toPairId: string) {
+  return swipeDoubleDatePair({
+    currentPairId: fromPairId,
+    targetPairId: toPairId,
+    direction: "pass",
+    currentUserId: "user_self",
   });
 }
 
 export function likeDoubleDatePair(fromPairId: string, toPairId: string, type: "like" | "spark") {
-  return customFetch<LikeResponse>("/api/dating/double-date/like", {
+  return swipeDoubleDatePair({
+    currentPairId: fromPairId,
+    targetPairId: toPairId,
+    direction: "like",
+    currentUserId: "user_self",
+  });
+}
+
+export function sendDoubleDateShot(fromPairId: string, toPairId: string, message: string) {
+  return customFetch<LikeResponse>("/api/dating/double-date/shot", {
     method: "POST",
-    body: JSON.stringify({ fromPairId, toPairId, type }),
+    body: JSON.stringify({ fromPairId, toPairId, message }),
   });
 }
 

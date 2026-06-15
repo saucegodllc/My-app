@@ -26,8 +26,7 @@ router.post("/api/bio/generate", async (req, res) => {
   const intentContext =
     intent === "dating" ? "looking for romantic connections"
     : intent === "friendship" ? "looking to make new friends"
-    : intent === "networking" ? "open to professional networking"
-    : "open to dating, friendship, and networking";
+    : "open to dating and friendship";
 
   const prompt = `Write a SHORT, engaging dating/social app bio (2-3 sentences, max 180 characters) for someone on ConnectSphere, a South Florida social app.
 They said:

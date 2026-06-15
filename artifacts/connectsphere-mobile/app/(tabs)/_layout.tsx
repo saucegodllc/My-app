@@ -154,7 +154,6 @@ export default function TabLayout() {
       <Tabs.Screen name="matches" options={{ title: "Connect" }} />
       <Tabs.Screen name="events" options={{ title: "Events" }} />
       <Tabs.Screen name="map" options={{ title: "Map" }} />
-      <Tabs.Screen name="network" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ title: "Profile" }} />
     </Tabs>
   );
