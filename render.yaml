@@ -63,4 +63,5 @@ services:
     envVars:
       - key: API_BASE_URL
         sync: false
-      - k
+      - key: CRON_SECRET
+        sync: false
