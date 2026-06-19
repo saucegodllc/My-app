@@ -10,7 +10,7 @@ ConnectSphere: Date & Vibe
 
 ## Subtitle (30/30 chars)
 ```
-Miami Dating, Games & Connect
+Miami Dating, Spaces & Vibes
 ```
 
 ---
@@ -22,7 +22,7 @@ You didn't move to Miami to stay on the couch. ConnectSphere is built for the pe
 
 Swipe. Match. Actually talk.
 
-ConnectSphere isn't just another dating app. It's the first app that makes the conversation as good as the match. No more staring at a blank chat box. We built games, ice-breakers, and AI-powered openers so your first message actually lands.
+ConnectSphere isn't just another dating app. It's the first app that makes the conversation as good as the match. No more staring at a blank chat box. We built Moments, Spaces, ice-breakers, and AI-powered openers so your first message actually lands.
 
 —— DISCOVER ——
 Swipe through real Miami locals — filtered by vibe, not just a photo. Our Vibe Check quiz matches you with people who actually complement your energy. The Spark score tells you how compatible you are before you even say hello.
@@ -32,15 +32,15 @@ The match animation? Cinema. The sound effect? Dopamine. When you both like each
 
 After the match, the real magic starts:
 • AI-suggested openers so you never go blank
-• Shared game invites to break the ice instantly
+• Moment replies and opener prompts to break the ice instantly
 • "Next move" nudges so conversations don't die after day one
 • Make a Plan — one tap to propose a real date
 
-—— GAMES ——
-Challenge your match to a game and watch the conversation write itself. No awkward "hey" needed. Games is the easiest, most natural way to go from stranger to someone you actually want to meet IRL.
+—— MOMENTS ——
+Post what you're doing right now, reply to someone else's vibe, and turn a quick spark into a real conversation. Moments make the app feel alive before and after the match.
 
-—— CONNECT ——
-Beyond dating — ConnectSphere has a social layer where your matches can become friends, collaborators, or your next adventure partners. Live Drops let you meet people at real Miami events in real time.
+—— SPACES ——
+Beyond dating — ConnectSphere has social Spaces where your matches can become friends, collaborators, or your next adventure partners. Join conversations around real Miami energy, then meet at events when the vibe is right.
 
 —— BUILT FOR MIAMI ——
 We're not an algorithm made in Silicon Valley pretending to know your city. ConnectSphere was designed specifically for Miami — the energy, the culture, the pace. The people here don't wait. Neither should you.
@@ -49,7 +49,8 @@ We're not an algorithm made in Silicon Valley pretending to know your city. Conn
 ✦ Swipe deck with photo carousel + Vibe compatibility score
 ✦ Daily Shots — send a personalized opener to stand out
 ✦ Spark — premium boost to get seen by more people
-✦ Stories / Moments — 24-hour photo moments on your profile
+✦ Moments — post, view, like, and reply to real-time photo moments
+✦ Spaces — social threads for communities, plans, and Miami conversations
 ✦ Voice notes in chat — say it like you mean it
 ✦ GIF reactions — because words aren't always enough
 ✦ Read receipts (Premium) — know when they've seen your message
@@ -74,7 +75,7 @@ ConnectSphere. Miami's app.
 
 ## Keywords (100/100 chars)
 ```
-dating,miami,match,vibe,social,meet,flirt,games,icebreaker,local,singles,date,connect,chat,app
+dating,miami,match,vibe,social,meet,flirt,moments,spaces,local,singles,date,chat,app
 ```
 
 ---
@@ -84,7 +85,7 @@ _(Promo text can be changed at any time without a new app review — swap these 
 
 ### Variant A — Launch
 ```
-Miami, meet your match. Swipe, vibe, and actually connect. New: Games to break the ice instantly. 🌴
+Miami, meet your match. Swipe, vibe, post Moments, and actually connect. 🌴
 ```
 
 ### Variant B — Social proof angle
@@ -94,7 +95,7 @@ The dating app Miami actually uses. Real people, real vibes, real conversations.
 
 ### Variant C — Feature drop / seasonal
 ```
-Summer update: Live Drops, profile Boosts & new Games. Your next match is already on ConnectSphere. 🔥
+Summer update: Moments, Spaces, Live Drops & profile Boosts. Your next match is already on ConnectSphere. 🔥
 ```
 
 ---

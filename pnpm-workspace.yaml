@@ -36,6 +36,7 @@ minimumReleaseAgeExclude:
 
 packages:
   - artifacts/*
+  - artifacts/connectsphere-mobile/functions
   - lib/*
   - lib/integrations/*
   - scripts

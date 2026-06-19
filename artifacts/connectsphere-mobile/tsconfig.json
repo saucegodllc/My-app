@@ -16,6 +16,11 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
   ],
+  "exclude": [
+    "functions/**",
+    "coverage/**",
+    ".tmp-*/**"
+  ],
   "references": [
     {
       "path": "../../lib/api-client-react"

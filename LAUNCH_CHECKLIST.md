@@ -120,7 +120,8 @@ Items marked 🔴 are blockers. Items marked 🟡 are important but not strictly
 - [ ] See seed/discovery profiles with Vibe % pill
 - [ ] Swipe right → match modal appears with VibeBreakdown
 - [ ] Open chat → icebreaker bar appears
-- [ ] Navigate to Games tab → all 4 decks load
+- [ ] Navigate to Moments tab → seeded/live Moments load and every avatar/name opens a profile
+- [ ] Navigate to Spaces tab → posts/threads load and every avatar/name opens a profile
 - [ ] Navigate to Events tab → events load
 - [ ] Open Premium screen → "Subscribe on Web" opens Stripe checkout
 - [ ] Check daily spark: receives push notification at 6 PM Eastern

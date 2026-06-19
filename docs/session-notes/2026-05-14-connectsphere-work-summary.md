@@ -35,8 +35,8 @@
 - Added more rolling weekly fallback events across Miami and Broward.
 - Adjusted fallback events so expired items roll forward and the feed stays fresh.
 - Set the backend Events lookahead default to 7 days.
-- Added Marlins games as a live MLB schedule provider.
-- Marlins games now appear as Sports events and can still show when Ticketmaster is missing or slow.
+- Added Marlins events as a live MLB schedule provider.
+- Marlins events now appear as Sports events and can still show when Ticketmaster is missing or slow.
 - Added provider timeouts to reduce loading stalls.
 - Updated ticket handling so Get Tickets opens a usable external URL or search fallback.
 

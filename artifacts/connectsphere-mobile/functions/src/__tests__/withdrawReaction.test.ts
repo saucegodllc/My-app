@@ -71,11 +71,16 @@ function makeReq(
   method: string,
   headers: Record<string, string>,
   body: Record<string, unknown>
-): Partial<Request> {
-  return { method, headers, body } as unknown as Partial<Request>;
+): Request {
+  return { method, headers, body } as unknown as Request;
 }
 
-function makeRes() {
+type MockResponse = Response & {
+  readonly _status: number;
+  readonly _body: Record<string, unknown>;
+};
+
+function makeRes(): MockResponse {
   let _status = 200;
   let _body: Record<string, unknown> = {};
   return {
@@ -83,12 +88,12 @@ function makeRes() {
     json: jest.fn((b: Record<string, unknown>) => { _body = b; }),
     get _status() { return _status; },
     get _body() { return _body; },
-  };
+  } as unknown as MockResponse;
 }
 
 // Import AFTER mocks are set up
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { withdrawReaction } = require("../reactions");
+const { withdrawReaction } = require("../reactions") as typeof import("../reactions");
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
 

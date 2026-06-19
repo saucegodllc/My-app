@@ -52,7 +52,11 @@ export function openProfile(
 }
 
 export function openPremium(feature?: string) {
-  router.push(feature ? routes.premiumFor(feature) : routes.premium);
+  if (feature) {
+    router.push(routes.premiumFor(feature));
+    return;
+  }
+  router.push(routes.premium);
 }
 
 export function openConnectChat(chatId: string) {

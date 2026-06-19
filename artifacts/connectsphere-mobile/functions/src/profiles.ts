@@ -35,7 +35,8 @@ export const usernameCheck = functions.https.onRequest(async (req, res) => {
   if (req.method === "OPTIONS") {
     res.set("Access-Control-Allow-Methods", "GET");
     res.set("Access-Control-Allow-Headers", "Content-Type");
-    return res.status(204).send("");
+    res.status(204).send("");
+    return;
   }
 
   if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
