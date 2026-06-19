@@ -11,3 +11,4 @@ export * from "./livenessNonces";
 export * from "./savedVenues";
 export * from "./networkConnections";
 export * from "./pushTokens";
+export * from "./sparkMemory";

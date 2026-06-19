@@ -3,7 +3,7 @@ services:
     name: connectsphere-api
     runtime: node
     rootDir: artifacts/api-server
-    buildCommand: pnpm install && pnpm build
+    buildCommand: pnpm install && pnpm --filter @workspace/db push && pnpm build
     startCommand: pnpm start
     healthCheckPath: /api/healthz
     envVars:
