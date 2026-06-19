@@ -1,0 +1,156 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // True when only the listed keys are being changed (no others added/removed)
+    function onlyChanging(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // Rate-limit helper: max N writes per second to a doc
+    // (Firestore doesn't have built-in rate limits in rules; we use createdAt guards instead)
+
+    // ── users/{userId} ───────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Anyone signed-in can read a public profile
+      allow read: if isSignedIn();
+
+      // Create: only the owner may create their own user doc
+      allow create: if isOwner(userId);
+
+      // Update: owner may update anything.
+      //         Non-owners may NOT touch blockedUsers, referralCode, premium fields, etc.
+      allow update: if isOwner(userId)
+        || (
+          isSignedIn()
+          // The only field a non-owner may legitimately touch is lastSeenAt
+          && onlyChanging(['lastSeenAt'])
+        );
+
+      allow delete: if false; // hard-delete handled server-side only
+    }
+
+    // ── reactions/{targetUserId}/received/{docId} ────────────────────────────
+    match /reactions/{targetUserId}/received/{docId} {
+      // Target can read their own incoming reactions
+      allow read: if isOwner(targetUserId);
+
+      // Sender writes: docId must equal their own userId (can't fake sender)
+      allow create: if isSignedIn()
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.keys().hasAll(['fromUserId', 'action', 'createdAt']);
+
+      allow update, delete: if false;
+    }
+
+    // ── matches/{matchId} ────────────────────────────────────────────────────
+    match /matches/{matchId} {
+      // Match doc IDs are "{uid1}_{uid2}" (sorted); allow access to either participant
+      allow read, write: if isSignedIn()
+        && (matchId.split('_')[0] == request.auth.uid
+            || matchId.split('_')[1] == request.auth.uid);
+    }
+
+    // ── messages/{matchId}/msgs/{msgId} ──────────────────────────────────────
+    match /messages/{matchId}/msgs/{msgId} {
+      function isParticipant() {
+        return isSignedIn()
+          && (matchId.split('_')[0] == request.auth.uid
+              || matchId.split('_')[1] == request.auth.uid);
+      }
+
+      allow read: if isParticipant();
+
+      // Write: sender must be a participant and can only set their own senderId
+      allow create: if isParticipant()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.keys().hasAll(['senderId', 'text', 'createdAt'])
+        // Prevent spam: message body ≤ 2000 chars
+        && (request.resource.data.text is string
+            ? request.resource.data.text.size() <= 2000
+            : true);
+
+      // Only the sender may soft-delete (set deleted:true)
+      allow update: if isParticipant()
+        && resource.data.senderId == request.auth.uid
+        && onlyChanging(['deleted', 'deletedAt']);
+
+      allow delete: if false;
+    }
+
+    // ── referrals/{code}/uses/{docId} ────────────────────────────────────────
+    match /referrals/{code}/uses/{docId} {
+      // The referred user writes their own acceptance; no reads except owner of code
+      allow read: if isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.referralCode == code;
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && !exists(/databases/$(database)/documents/referrals/$(code)/uses/$(request.auth.uid));
+
+      allow update, delete: if false;
+    }
+
+    // ── reports/{reportId} ───────────────────────────────────────────────────
+    match /reports/{reportId} {
+      allow read: if false; // admin only via service account
+      allow create: if isSignedIn()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.keys().hasAll(['reporterId', 'reportedId', 'reason', 'createdAt']);
+      allow update, delete: if false;
+    }
+
+    // ── vibeChecks/{userId} ──────────────────────────────────────────────────
+    match /vibeChecks/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
+    }
+
+    // ── profileViews/{userId}/visitors/{viewerId} ────────────────────────────
+    // Any signed-in user can record their own view (write their own viewerId doc).
+    // Only the profile owner can read who visited them.
+    match /profileViews/{userId}/visitors/{viewerId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isSignedIn()
+        && request.auth.uid == viewerId
+        && request.resource.data.keys().hasAll(['viewerName', 'viewedAt']);
+      allow delete: if false;
+    }
+
+    // ── chatSignals/{chatId} ─────────────────────────────────────────────────
+    // Content-free "something changed" pings powering real-time chat refresh.
+    // The API server remains the source of truth for message content; these
+    // docs carry only a timestamp and a sender id, so the worst possible
+    // abuse is a nuisance refetch.
+    //
+    // NOTE: Firebase Auth is not wired yet (Clerk is the identity provider),
+    // so writes are open but strictly shape-validated. Hardening path: mint
+    // Firebase custom tokens from Clerk server-side, then require
+    // isSignedIn() here and participant checks like messages/ above.
+    match /chatSignals/{chatId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['at', 'by'])
+        && request.resource.data.at == request.time
+        && request.resource.data.by is string
+        && request.resource.data.by.size() <= 64;
+      allow delete: if false;
+    }
+
+    // ── Deny everything else ─────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,56 @@
+function BottomNav() {
+  const nav = [
+    { label: "Discover", icon: Flame, active: true },
+    { label: "Connect", icon: MessageCircle },
+    { label: "Events", icon: CalendarDays },
+    { label: "Map", icon: MapPin },
+    { label: "Profile", icon: UserCircle },
+  ];
+
+  return (
+    <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-[430px] -translate-x-1/2 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+      <div className="relative rounded-[32px] border border-white/10 bg-black/65 px-3 py-3 shadow-[0_0_35px_rgba(236,72,153,0.22)] backdrop-blur-2xl">
+        <div className="absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-pink-500/70 to-transparent" />
+
+        <div className="grid grid-cols-5 items-end">
+          {nav.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={item.label}
+                className={`relative flex flex-col items-center gap-1.5 transition active:scale-95 ${
+                  item.active ? "text-pink-400" : "text-zinc-400"
+                }`}
+              >
+                <div
+                  className={`relative grid h-11 w-11 place-items-center rounded-full transition ${
+                    item.active
+                      ? "bg-gradient-to-br from-pink-500/25 to-fuchsia-500/10 shadow-[0_0_22px_rgba(236,72,153,0.45)]"
+                      : "bg-white/5"
+                  }`}
+                >
+                  <Icon
+                    className={`h-5 w-5 ${
+                      item.active ? "fill-pink-400/20 text-pink-400" : ""
+                    }`}
+                  />
+
+                  {item.active && (
+                    <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-pink-400 shadow-[0_0_12px_rgba(236,72,153,1)]" />
+                  )}
+                </div>
+
+                <span className="text-[10px] font-bold">{item.label}</span>
+
+                {item.active && (
+                  <span className="absolute -bottom-1 h-1 w-8 rounded-full bg-pink-500 shadow-[0_0_12px_rgba(236,72,153,0.9)]" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </nav>
+  );
+}

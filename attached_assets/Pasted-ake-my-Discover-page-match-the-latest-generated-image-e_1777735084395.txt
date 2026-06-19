@@ -1,0 +1,49 @@
+ake my Discover page match the latest generated image exactly.
+
+Design changes:
+
+Change header title to “Discover Miami 🌴”
+
+Make “Miami” neon pink cursive/italic style
+
+Add small subtitle under header: “SWIPE. CONNECT. VIBE.”
+
+Make the main tabs larger, centered, and more premium:
+Dating / Friends / Networking
+Active tab = bright neon pink gradient pill
+Inactive tabs = dark glass pill with thin border
+
+Make subtabs cleaner and sexier:
+For You / Active Tonight / Double Dates / Serious / Miami Local
+Active subtab = neon pink pill
+Inactive = transparent dark glass with white border
+
+Add a premium announcement bar:
+“⚡ Showing people near you who are actually active tonight.”
+
+Make the profile card taller and more centered:
+height: calc(100vh - 285px)
+rounded 28px
+neon pink border
+dark gradient overlay
+
+Replace heart-only action area with Tinder-style swipe controls:
+Left button: big glowing X labeled PASS
+Center text: “← SWIPE LEFT OR RIGHT →”
+Right button: big glowing green/teal heart labeled LIKE
+
+Keep swipe gestures:
+swipe left = pass
+swipe right = like
+
+Add stacked card shadows behind main card so it feels like a swipe deck
+
+Keep bottom nav fixed
+
+Make the whole screen mobile-first and fit perfectly without overflow
+
+Use React, Tailwind CSS, Framer Motion, lucide-react. after doing all this i want this script intergraded <div className="mt-6 flex items-end justify-between px-8">
+<button className="flex flex-col items-center gap-2">
+
+<div className="grid h-20 w-20 place-items-center rounded-full border border-rose-400/30 bg-rose-500/10 shadow-[0_0_35px_rgba(244,63,94,0.35)] backdrop-blur-xl"> <X className="h-10 w-10 text-rose-400" /> </div> <span className="text-xs font-black tracking-[0.25em] text-white">PASS</span> </button> <div className="pb-8 text-center text-xs font-black tracking-[0.2em] text-zinc-300"> <span className="text-pink-400">←</span> SWIPE LEFT OR RIGHT <span className="text-emerald-300">→</span> </div> <button className="flex flex-col items-center gap-2"> <div className="grid h-20 w-20 place-items-center rounded-full border border-emerald-300/30 bg-emerald-400/10 shadow-[0_0_35px_rgba(52,211,153,0.4)] backdrop-blur-xl"> <Heart className="h-10 w-10 fill-emerald-300 text-emerald-300" /> </div> <span className="text-xs font-black tracking-[0.25em] text-white">LIKE</span> </button>
+</div>
