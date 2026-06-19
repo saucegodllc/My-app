@@ -67,3 +67,20 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Replit import snapshot (historical only, not actively developed)
+_replit_import_*/
+
+# Expo temp web exports and tunnel manifests
+artifacts/connectsphere-mobile/.tmp-*/
+artifacts/connectsphere-mobile/expo-tunnel-*-manifest.json
+
+# Coverage dirs
+artifacts/*/coverage/
+artifacts/connectsphere-mobile/coverage/
+
+# Dev start scripts (local machine only)
+start-expo-go-*.ps1
+start-expo-go-*.bat
+start-api.bat
+start-api.sh
