@@ -458,8 +458,13 @@ export default function ProfileScreen() {
                         </Pressable>
                       ) : null}
                       <Pressable
-                        onPress={() => router.push({ pathname: "/user/[userId]", params: { userId: userId ?? user?.id ?? "" } } as never)}
-                        style={styles.completionGhost}
+                        disabled={!userId && !user?.id}
+                        onPress={() => {
+                          const uid = userId ?? user?.id;
+                          if (!uid) return;
+                          router.push({ pathname: "/user/[userId]", params: { userId: uid } } as never);
+                        }}
+                        style={[styles.completionGhost, !userId && !user?.id ? { opacity: 0.4 } : null]}
                       >
                         <Ionicons name="eye" size={13} color="#fff" />
                         <Text style={styles.completionGhostText}>Preview</Text>

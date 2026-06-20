@@ -29,7 +29,8 @@
       "env": {
         "EXPO_PUBLIC_ENVIRONMENT": "preview",
         "EXPO_PUBLIC_API_URL": "https://connectsphere-api.onrender.com",
-        "EXPO_PUBLIC_API_BASE_URL": "https://connectsphere-api.onrender.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://connectsphere-api.onrender.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuY29ubmVjdHNwaGVyZS5hcHAk"
       }
     },
     "e2e": {
@@ -59,7 +60,8 @@
       "env": {
         "EXPO_PUBLIC_ENVIRONMENT": "production",
         "EXPO_PUBLIC_API_URL": "https://connectsphere-api.onrender.com",
-        "EXPO_PUBLIC_API_BASE_URL": "https://connectsphere-api.onrender.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://connectsphere-api.onrender.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuY29ubmVjdHNwaGVyZS5hcHAk"
       }
     }
   },

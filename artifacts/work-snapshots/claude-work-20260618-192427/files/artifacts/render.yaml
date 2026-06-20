@@ -1,0 +1,85 @@
+## render.yaml — ConnectSphere infrastructure
+##
+## Services:
+##   1. api-server        — Express 5 API (Web Service)
+##   2. daily-spark-cron  — Daily push notification broadcast (Cron Job)
+##
+## Deploy from branch: friends-connect-handoff
+## Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # ── API Server ────────────────────────────────────────────────────────────────
+  - type: web
+    name: connectsphere-api
+    runtime: node
+    rootDir: artifacts/api-server
+    buildCommand: pnpm install && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false          # Set manually in Render dashboard
+      - key: CLERK_SECRET_KEY
+        sync: false          # Set manually in Render dashboard
+      - key: CRON_SECRET
+        sync: false          # Set manually — must match daily-spark-cron below
+      - key: ANTHROPIC_API_KEY
+        sync: false          # Set manually in Render dashboard — needed by /api/ai-chat routes (server-side only, never in client bundle)
+      - key: REVENUECAT_API_SECRET_KEY
+        sync: false          # Set manually in Render dashboard
+      - key: STRIPE_SECRET_KEY
+        sync: false          # Set manually — use live key at launch
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false          # From Stripe dashboard → Webhooks
+      - key: TICKETMASTER_API_KEY
+        sync: false          # Set manually in Render dashboard — get from developer.ticketmaster.com
+      - key: EVENTS_USE_MOCKS
+        value: "false"       # Never serve mock events in production — real TM data only
+      - key: EVENTS_CACHE_TTL_MS
+        value: "21600000"    # Refresh TM every 6 hours (was 7 days — Render restarts lose the disk cache)
+      - key: EVENTS_FAIL_RETRY_MS
+        value: "300000"      # Retry TM 5 min after any failed refresh (was 15 min)
+
+  # ── Daily Spark Cron ──────────────────────────────────────────────────────────
+  # Fires at 6:00 PM Eastern (23:00 UTC) every day.
+  # Sends personalized re-engagement push notifications to all active users.
+  - type: cron
+    name: connectsphere-daily-spark
+    runtime: node
+    rootDir: artifacts/api-server
+    buildCommand: pnpm install
+    # Uses curl to call the broadcast endpoint on the running API server.
+    # Replace the URL with your actual Render service URL after first deploy.
+    schedule: "0 23 * * *"
+    startCommand: >
+      curl -s -X POST
+      "${API_BASE_URL}/api/notifications/daily-spark/broadcast"
+      -H "x-cron-secret: ${CRON_SECRET}"
+      -H "Content-Type: application/json"
+    envVars:
+      - key: API_BASE_URL
+        sync: false          # e.g. https://connectsphere-api.onrender.com
+      - key: CRON_SECRET
+        sync: false          # Must match the API server's CRON_SECRET
+
+  # ── Anti-Ghost Nudge Cron ─────────────────────────────────────────────────────
+  # Fires daily at 10:00 AM Eastern (15:00 UTC) — catches overnight ghosters.
+  # Finds matches silent for 48–71h and sends a warm re-engagement push.
+  - type: cron
+    name: connectsphere-anti-ghost
+    runtime: node
+    rootDir: artifacts/api-server
+    buildCommand: pnpm install
+    schedule: "0 15 * * *"
+    startCommand: >
+      curl -s -X POST
+      "${API_BASE_URL}/api/notifications/anti-ghost/broadcast"
+      -H "x-cron-secret: ${CRON_SECRET}"
+      -H "Content-Type: application/json"
+    envVars:
+      - key: API_BASE_URL
+        sync: false          # Same as daily-spark: https://connectsphere-api.onrender.com
+      - key: CRON_SECRET
+        sync: false          # Must match the API server's CRON_SECRET

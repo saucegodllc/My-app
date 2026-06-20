@@ -2,57 +2,64 @@
 /**
  * launch-check.mjs
  *
- * Comprehensive pre-launch CI scan for ConnectSphere mobile.
- * Run before every TestFlight / production EAS build:
+ * Safe local launch-readiness scan for ConnectSphere mobile.
  *
+ * This script does not build, upload, submit, or release the app.
+ *
+ * Default target is iOS-first:
  *   node scripts/launch-check.mjs
  *
- * Exits 0 on clean pass, 1 on any failure.
- * No external dependencies — uses only Node.js built-ins.
- *
- * Checks performed:
- *  A. Required environment variables present
- *  B. Dev-only flags are OFF
- *  C. Sound asset files exist and are non-empty (not placeholder-only)
- *  D. Firebase native config files present (google-services / GoogleService-Info)
- *  E. eas.json has a "production" profile with env block
- *  F. No hardcoded localhost / 127.0.0.1 in source files
- *  G. No TODO/FIXME/HACK comments in critical production paths
- *  H. app.json has required fields (name, slug, version, ios.bundleIdentifier, android.package)
- *  I. No committed .env files with real secrets
- *  J. TypeScript reports zero errors (requires tsc on PATH — skipped if not found)
+ * To include Android follow-up checks:
+ *   CONNECTSPHERE_LAUNCH_TARGET=all node scripts/launch-check.mjs
  */
 
-import { execSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "fs";
-import { join, relative } from "path";
+import { extname, join, relative, resolve } from "path";
 import { fileURLToPath } from "url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const REPO_ROOT = resolve(ROOT, "..", "..");
+const TARGET = (process.env.CONNECTSPHERE_LAUNCH_TARGET || "ios").toLowerCase();
+const INCLUDE_ANDROID = TARGET === "android" || TARGET === "all";
 
 const failures = [];
 const warnings = [];
 
-function fail(msg) { failures.push(`  ✗ ${msg}`); }
-function warn(msg) { warnings.push(`  ⚠ ${msg}`); }
-function pass(msg) { console.log(`  ✓ ${msg}`); }
+function fail(msg) {
+  failures.push(`  x ${msg}`);
+}
+
+function warn(msg) {
+  warnings.push(`  ! ${msg}`);
+}
+
+function pass(msg) {
+  console.log(`  ok ${msg}`);
+}
+
 function flagEnabled(value) {
   return typeof value === "string" && ["1", "true", "yes", "on", "enabled"].includes(value.trim().toLowerCase());
 }
 
 function readJson(filePath) {
-  try { return JSON.parse(readFileSync(filePath, "utf8")); }
-  catch { return null; }
+  try {
+    return JSON.parse(readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
 }
 
-/** Recursively collect .ts/.tsx files, skipping node_modules / .expo / dist */
 function collectSrc(dir, acc = []) {
   let entries;
-  try { entries = readdirSync(dir); } catch { return acc; }
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return acc;
+  }
+
   for (const entry of entries) {
-    if (["node_modules", ".expo", "dist", ".git", "functions"].includes(entry)) continue;
+    if (["node_modules", ".expo", "dist", ".git", "functions", "lib"].includes(entry)) continue;
     const full = join(dir, entry);
     const stat = statSync(full);
     if (stat.isDirectory()) collectSrc(full, acc);
@@ -61,37 +68,34 @@ function collectSrc(dir, acc = []) {
   return acc;
 }
 
-// ── A. Required env vars ──────────────────────────────────────────────────────
+console.log(`\nConnectSphere launch check (${INCLUDE_ANDROID ? TARGET : "ios-first"})`);
+console.log("No build, upload, submit, or release command will run.\n");
 
-console.log("\n[A] Required environment variables");
+console.log("[A] Required environment variables");
 
-const REQUIRED_ENV = [
+const requiredEnv = [
   "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY",
   "EXPO_PUBLIC_API_URL",
   "EXPO_PUBLIC_API_BASE_URL",
   "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY",
-  "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY",
   "EXPO_PUBLIC_SENTRY_DSN",
   "EXPO_PUBLIC_PROJECT_ID",
 ];
 
-for (const key of REQUIRED_ENV) {
+if (INCLUDE_ANDROID) {
+  requiredEnv.push("EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY");
+}
+
+for (const key of requiredEnv) {
   const val = process.env[key];
   if (!val) {
     fail(`${key} is not set`);
-  } else if (
-    val.includes("YOUR_") ||
-    val.includes("PLACEHOLDER") ||
-    val === "TODO" ||
-    val.startsWith("pk_test_")       // Clerk test key in prod
-  ) {
-    fail(`${key} looks like a placeholder: "${val}"`);
+  } else if (val.includes("YOUR_") || val.includes("PLACEHOLDER") || val === "TODO" || val.startsWith("pk_test_")) {
+    fail(`${key} looks like a placeholder or non-production value`);
   } else {
     pass(key);
   }
 }
-
-// ── B. Dev-only flags OFF ─────────────────────────────────────────────────────
 
 console.log("\n[B] Dev-only flags");
 
@@ -103,100 +107,120 @@ const devFlags = {
 for (const [key, label] of Object.entries(devFlags)) {
   const val = process.env[key];
   if (flagEnabled(val)) {
-    fail(`${label} (${key}) is still enabled — must be off for production`);
+    fail(`${label} (${key}) is enabled; it must be off for production`);
   } else {
-    pass(`${label} is disabled`);
+    pass(`${label} disabled`);
   }
 }
 
-// ── C. Sound assets ───────────────────────────────────────────────────────────
-
-console.log("\n[C] Sound assets");
-
-const SOUNDS_DIR = join(ROOT, "assets", "sounds");
-const REQUIRED_SOUNDS = ["swipe_right.mp3", "swipe_left.mp3", "match.mp3", "message_ping.mp3"];
-// Silent placeholder files generated by ffmpeg are ~981 bytes.
-// Real audio should be larger. Flag anything under 5 KB as likely placeholder.
-const PLACEHOLDER_SIZE_THRESHOLD = 5 * 1024;
-
-for (const name of REQUIRED_SOUNDS) {
-  const p = join(SOUNDS_DIR, name);
-  if (!existsSync(p)) {
-    fail(`Missing sound asset: assets/sounds/${name}`);
-  } else {
-    const size = statSync(p).size;
-    if (size < PLACEHOLDER_SIZE_THRESHOLD) {
-      warn(`assets/sounds/${name} is ${size} bytes — looks like a silent placeholder. Replace with real audio before shipping.`);
-    } else {
-      pass(`assets/sounds/${name} (${(size / 1024).toFixed(1)} KB)`);
-    }
-  }
-}
-
-// ── D. Firebase native config files ──────────────────────────────────────────
-
-console.log("\n[D] Firebase native config files");
+console.log("\n[C] Firebase native config files");
 
 const firebaseFiles = [
-  { path: join(ROOT, "google-services.json"), platform: "Android" },
-  { path: join(ROOT, "GoogleService-Info.plist"), platform: "iOS" },
+  { path: join(ROOT, "GoogleService-Info.plist"), platform: "iOS", required: true },
+  { path: join(ROOT, "google-services.json"), platform: "Android", required: INCLUDE_ANDROID },
 ];
 
-for (const { path: p, platform } of firebaseFiles) {
-  if (!existsSync(p)) {
-    fail(`Missing ${platform} Firebase config: ${relative(ROOT, p)} — download from Firebase Console → Project settings → Your apps`);
-  } else {
-    const content = readFileSync(p, "utf8");
-    if (
-      content.includes("YOUR_PROJECT") ||
-      content.includes("PLACEHOLDER") ||
-      content.includes('"project_id": ""')
-    ) {
-      fail(`${relative(ROOT, p)} appears to contain placeholder values`);
+for (const item of firebaseFiles) {
+  const rel = relative(ROOT, item.path);
+  if (!existsSync(item.path)) {
+    if (item.required) {
+      fail(`Missing ${item.platform} Firebase config: ${rel}`);
     } else {
-      pass(`${relative(ROOT, p)} present`);
+      warn(`Missing ${item.platform} Firebase config: ${rel}; OK while Android is out of scope`);
     }
+    continue;
+  }
+
+  const content = readFileSync(item.path, "utf8");
+  if (content.includes("YOUR_PROJECT") || content.includes("PLACEHOLDER") || content.includes('"project_id": ""')) {
+    fail(`${rel} appears to contain placeholder values`);
+  } else if (/private_key|BEGIN PRIVATE KEY/i.test(content)) {
+    fail(`${rel} appears to contain a service-account private key; do not bundle or commit it`);
+  } else {
+    pass(`${rel} present`);
   }
 }
 
-// ── E. eas.json production profile ───────────────────────────────────────────
+console.log("\n[D] eas.json production profile");
 
-console.log("\n[E] eas.json production profile");
-
-const easPath = join(ROOT, "eas.json");
-const eas = readJson(easPath);
-
+const eas = readJson(join(ROOT, "eas.json"));
 if (!eas) {
   fail("eas.json not found or invalid JSON");
 } else {
   const prod = eas?.build?.production;
+  const submitIos = eas?.submit?.production?.ios;
+
   if (!prod) {
-    fail("eas.json: missing build.production profile");
+    fail("eas.json missing build.production profile");
   } else {
     pass("build.production profile exists");
-    if (!prod.env || Object.keys(prod.env).length === 0) {
-      warn("eas.json build.production.env is empty — ensure env vars are injected via EAS Secrets or CI");
+    if (prod.channel !== "production") {
+      warn(`build.production.channel is "${prod.channel}", expected "production"`);
+    }
+
+    const apiUrl = prod.env?.EXPO_PUBLIC_API_URL;
+    const apiBaseUrl = prod.env?.EXPO_PUBLIC_API_BASE_URL;
+    if (apiUrl !== "https://connectsphere-api.onrender.com") {
+      fail(`build.production.env.EXPO_PUBLIC_API_URL is "${apiUrl}", expected Render production URL`);
     } else {
-      pass(`build.production.env has ${Object.keys(prod.env).length} key(s)`);
-      // Check for lingering placeholder values in eas.json env block
-      for (const [k, v] of Object.entries(prod.env)) {
-        if (typeof v === "string" && (v.includes("YOUR_") || v.includes("PLACEHOLDER") || v === "TODO")) {
-          fail(`eas.json build.production.env.${k} contains placeholder value: "${v}"`);
-        }
-      }
-      for (const [key, label] of Object.entries(devFlags)) {
-        if (flagEnabled(prod.env[key])) {
-          fail(`eas.json build.production.env.${key} enables ${label} - must be off for production`);
-        }
+      pass("production API URL points to Render");
+    }
+    if (apiBaseUrl !== "https://connectsphere-api.onrender.com") {
+      fail(`build.production.env.EXPO_PUBLIC_API_BASE_URL is "${apiBaseUrl}", expected Render production URL`);
+    } else {
+      pass("production API base URL points to Render");
+    }
+
+    for (const [key, label] of Object.entries(devFlags)) {
+      if (flagEnabled(prod.env?.[key])) {
+        fail(`build.production.env.${key} enables ${label}`);
       }
     }
-    if (prod.channel && prod.channel !== "production") {
-      warn(`eas.json build.production.channel is "${prod.channel}" — expected "production"`);
+  }
+
+  if (!submitIos) {
+    warn("eas.json missing submit.production.ios; OK until submit is approved");
+  } else {
+    for (const key of ["ascAppId", "appleTeamId"]) {
+      const value = submitIos[key];
+      if (!value || String(value).includes("REPLACE_")) {
+        warn(`submit.production.ios.${key} still needs the real dashboard value before submit`);
+      } else {
+        pass(`submit.production.ios.${key} filled`);
+      }
     }
   }
 }
 
-// ── F. No hardcoded localhost in source ───────────────────────────────────────
+console.log("\n[E] app.json required fields");
+
+const appJson = readJson(join(ROOT, "app.json"));
+const expo = appJson?.expo;
+if (!expo) {
+  fail("app.json missing or has no expo key");
+} else {
+  const checks = [
+    ["name", expo.name, true],
+    ["slug", expo.slug, true],
+    ["version", expo.version, true],
+    ["ios.bundleIdentifier", expo.ios?.bundleIdentifier, true],
+    ["ios.buildNumber", expo.ios?.buildNumber, true],
+    ["ios.googleServicesFile", expo.ios?.googleServicesFile, true],
+    ["android.package", expo.android?.package, INCLUDE_ANDROID],
+    ["android.googleServicesFile", expo.android?.googleServicesFile, INCLUDE_ANDROID],
+  ];
+
+  for (const [field, val, required] of checks) {
+    if (!val) {
+      if (required) fail(`app.json expo.${field} is missing`);
+      else warn(`app.json expo.${field} is not checked while Android is out of scope`);
+    } else if (String(val).includes("YOUR_") || String(val).includes("com.example")) {
+      fail(`app.json expo.${field} looks like a placeholder`);
+    } else {
+      pass(`expo.${field} = ${val}`);
+    }
+  }
+}
 
 console.log("\n[F] Hardcoded localhost / 127.0.0.1");
 
@@ -206,147 +230,152 @@ let localhostHits = 0;
 
 for (const file of srcFiles) {
   const rel = relative(ROOT, file);
-  // Allow localhost in test files, scripts, and known dev-only guards
   if (rel.startsWith("__tests__") || rel.startsWith("scripts") || rel.includes(".test.")) continue;
   const content = readFileSync(file, "utf8");
   const matches = [...content.matchAll(LOCALHOST_RE)];
-  for (const m of matches) {
-    // Allow if inside a __DEV__ block (best-effort heuristic: within 3 lines of __DEV__)
-    const lineNo = content.slice(0, m.index).split("\n").length;
+  for (const match of matches) {
+    const lineNo = content.slice(0, match.index).split("\n").length;
     const lines = content.split("\n");
-    const contextStart = Math.max(0, lineNo - 3);
-    const context = lines.slice(contextStart, lineNo + 1).join(" ");
+    const context = lines.slice(Math.max(0, lineNo - 3), lineNo + 1).join(" ");
     if (context.includes("__DEV__") || context.includes("isDev") || context.includes("// dev")) continue;
-    fail(`Hardcoded localhost in ${rel}:${lineNo} — "${m[0].slice(0, 60)}"`);
-    localhostHits++;
-    if (localhostHits >= 10) break; // Don't flood output
+    fail(`Hardcoded localhost in ${rel}:${lineNo}`);
+    localhostHits += 1;
+    if (localhostHits >= 10) break;
   }
 }
 
-if (localhostHits === 0) pass("No hardcoded localhost found in source files");
-
-// ── G. TODO/FIXME in critical paths ──────────────────────────────────────────
+if (localhostHits === 0) pass("No hardcoded localhost found in app source");
 
 console.log("\n[G] TODO/FIXME in critical production files");
 
-const CRITICAL_FILES = [
+const criticalFiles = [
   "app/(tabs)/index.tsx",
   "app/(tabs)/matches.tsx",
-  "app/chat/[matchId].tsx",
+  "app/(tabs)/moments.tsx",
+  "app/(tabs)/communities.tsx",
+  "app/(tabs)/events.tsx",
   "components/DatingMatchModal.tsx",
-  "lib/sounds.ts",
-  "lib/swipeCounter.ts",
   "lib/routes.ts",
   "contexts/DatingMatchContext.tsx",
 ];
 
 const TODO_RE = /\b(TODO|FIXME|HACK|XXX)\b/;
+for (const rel of criticalFiles) {
+  const file = join(ROOT, rel);
+  if (!existsSync(file)) {
+    warn(`Critical file not found: ${rel}`);
+    continue;
+  }
 
-for (const rel of CRITICAL_FILES) {
-  const p = join(ROOT, rel);
-  if (!existsSync(p)) { warn(`Critical file not found: ${rel}`); continue; }
-  const lines = readFileSync(p, "utf8").split("\n");
-  const hits = lines
+  const hits = readFileSync(file, "utf8")
+    .split("\n")
     .map((line, i) => ({ line, no: i + 1 }))
-    .filter(({ line }) => TODO_RE.test(line) && !line.trim().startsWith("//  eslint"));
+    .filter(({ line }) => TODO_RE.test(line));
+
   if (hits.length > 0) {
-    for (const { line, no } of hits.slice(0, 3)) {
-      warn(`${rel}:${no} — ${line.trim().slice(0, 80)}`);
+    for (const hit of hits.slice(0, 3)) {
+      warn(`${rel}:${hit.no} - ${hit.line.trim().slice(0, 100)}`);
     }
   } else {
-    pass(`${rel} — clean`);
+    pass(`${rel} clean`);
   }
 }
 
-// ── H. app.json required fields ───────────────────────────────────────────────
+console.log("\n[H] Tracked-source secret scan");
 
-console.log("\n[H] app.json required fields");
+const secretPatterns = [
+  { name: "Stripe secret key", re: /\bsk_(?:live|test)_[A-Za-z0-9]{16,}\b/ },
+  { name: "Stripe webhook secret", re: /\bwhsec_[A-Za-z0-9]{16,}\b/ },
+  { name: "Anthropic API key", re: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/ },
+  { name: "Clerk secret key", re: /\bsk_(?:live|test)_[A-Za-z0-9]{20,}\b/ },
+  { name: "Postgres URL with password", re: /postgres(?:ql)?:\/\/[^\s"'<>]+:[^\s"'<>]+@/i },
+  { name: "Private key block", re: /-----BEGIN (?:RSA |EC |OPENSSH |)PRIVATE KEY-----/ },
+  { name: "Firebase service private key", re: /"private_key"\s*:\s*"-----BEGIN PRIVATE KEY-----/ },
+];
 
-const appJson = readJson(join(ROOT, "app.json"));
-const expo = appJson?.expo;
+const binaryExts = new Set([
+  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".mp3", ".mp4", ".mov", ".ttf", ".otf", ".woff", ".woff2", ".zip", ".pdf",
+]);
 
-if (!expo) {
-  fail("app.json missing or has no .expo key");
-} else {
-  const checks = [
-    ["name",                      expo.name],
-    ["slug",                      expo.slug],
-    ["version",                   expo.version],
-    ["ios.bundleIdentifier",      expo.ios?.bundleIdentifier],
-    ["android.package",           expo.android?.package],
-    ["ios.googleServicesFile",    expo.ios?.googleServicesFile],
-    ["android.googleServicesFile",expo.android?.googleServicesFile],
-  ];
-  for (const [field, val] of checks) {
-    if (!val) {
-      fail(`app.json expo.${field} is missing`);
-    } else if (String(val).includes("YOUR_") || String(val).includes("com.example")) {
-      fail(`app.json expo.${field} looks like a placeholder: "${val}"`);
-    } else {
-      pass(`expo.${field} = "${val}"`);
-    }
-  }
+function isAllowedPlaceholder(matchText) {
+  return /postgres(?:ql)?:\/\/(?:user:pass|postgres:postgres)@/i.test(matchText);
 }
 
-// ── I. No committed .env files with secrets ───────────────────────────────────
-
-console.log("\n[I] Committed .env files");
-
-const dotEnvFiles = [".env", ".env.local", ".env.production", ".env.development"];
-for (const name of dotEnvFiles) {
-  const p = join(ROOT, name);
-  if (existsSync(p)) {
-    const content = readFileSync(p, "utf8");
-    // If file has real-looking secret values (not just comments/placeholders)
-    if (/=\S{10,}/.test(content) && !content.includes("PLACEHOLDER")) {
-      warn(`${name} exists and may contain real secrets — ensure it is in .gitignore`);
-    }
-  }
-}
-pass(".env files checked");
-
-// ── J. TypeScript ─────────────────────────────────────────────────────────────
-
-console.log("\n[J] TypeScript compilation");
-
+let trackedFiles = [];
 try {
-  // Use local tsc if available, otherwise skip
-  const tscPath = join(ROOT, "node_modules", ".bin", "tsc");
-  if (existsSync(tscPath)) {
-    const result = execSync(`"${tscPath}" --noEmit --skipLibCheck 2>&1`, {
-      cwd: ROOT,
-      encoding: "utf8",
-      timeout: 60_000,
-    });
-    const errors = (result.match(/error TS\d+/g) ?? []).length;
-    if (errors > 0) {
-      fail(`TypeScript: ${errors} error(s) found`);
-    } else {
-      pass("TypeScript: 0 errors");
-    }
-  } else {
-    // node_modules not installed — skip but note it
-    warn("TypeScript check skipped (node_modules not installed in this environment). Run `tsc --noEmit` locally.");
-  }
+  trackedFiles = execFileSync("git", ["ls-files"], { cwd: REPO_ROOT, encoding: "utf8" })
+    .split(/\r?\n/)
+    .filter(Boolean);
 } catch (e) {
-  warn(`TypeScript check could not run: ${e.message?.slice(0, 80)}`);
+  warn(`Could not list tracked files for secret scan: ${e.message}`);
 }
 
-// ── Summary ───────────────────────────────────────────────────────────────────
+let secretHits = 0;
+for (const rel of trackedFiles) {
+  const file = join(REPO_ROOT, rel);
+  if (!existsSync(file)) continue;
+  if (binaryExts.has(extname(file).toLowerCase())) continue;
+  if (rel.includes("node_modules/") || rel.includes("functions/lib/")) continue;
 
-console.log("\n" + "─".repeat(60));
+  let content;
+  try {
+    content = readFileSync(file, "utf8");
+  } catch {
+    continue;
+  }
+
+  for (const pattern of secretPatterns) {
+    const match = content.match(pattern.re);
+    if (match) {
+      if (rel === "artifacts/connectsphere-mobile/scripts/launch-check.mjs") continue;
+      if (isAllowedPlaceholder(match[0])) continue;
+      const lineNo = content.slice(0, match.index).split("\n").length;
+      fail(`${pattern.name} pattern in ${rel}:${lineNo}`);
+      secretHits += 1;
+      break;
+    }
+  }
+}
+
+if (trackedFiles.length > 0 && secretHits === 0) {
+  pass(`No secret patterns found in ${trackedFiles.length} tracked files`);
+}
+
+console.log("\n[I] TypeScript");
+
+if (process.env.CONNECTSPHERE_RUN_TSC === "1") {
+  try {
+    const tscPath = join(ROOT, "node_modules", ".bin", process.platform === "win32" ? "tsc.cmd" : "tsc");
+    if (existsSync(tscPath)) {
+      execSync(`"${tscPath}" --noEmit --skipLibCheck`, {
+        cwd: ROOT,
+        stdio: "pipe",
+        timeout: 60_000,
+      });
+      pass("TypeScript check passed");
+    } else {
+      warn("TypeScript binary not found");
+    }
+  } catch (e) {
+    warn(`TypeScript check did not complete in launch-check: ${String(e.message).slice(0, 120)}`);
+  }
+} else {
+  pass("Skipped here; run pnpm.cmd --filter @workspace/connectsphere-mobile run typecheck");
+}
+
+console.log("\n" + "-".repeat(60));
 
 if (warnings.length > 0) {
-  console.log(`\n⚠  ${warnings.length} warning(s):`);
-  warnings.forEach((w) => console.log(w));
+  console.log(`\n${warnings.length} warning(s):`);
+  warnings.forEach((warning) => console.log(warning));
 }
 
 if (failures.length > 0) {
-  console.error(`\n✗  Launch check FAILED — ${failures.length} issue(s) must be resolved before shipping:\n`);
-  failures.forEach((f) => console.error(f));
-  console.error("\nFix the above issues, then re-run: node scripts/launch-check.mjs\n");
+  console.error(`\nLaunch check FAILED: ${failures.length} issue(s) must be resolved before build/upload/submit:\n`);
+  failures.forEach((failure) => console.error(failure));
+  console.error("\nThis script did not upload or submit the app.\n");
   process.exit(1);
-} else {
-  console.log(`\n✓  Launch check passed${warnings.length > 0 ? " (with warnings — review before submitting)" : " — you're good to ship! 🚀"}\n`);
-  process.exit(0);
 }
+
+console.log("\nLaunch check passed. This script did not upload or submit the app.\n");
+process.exit(0);

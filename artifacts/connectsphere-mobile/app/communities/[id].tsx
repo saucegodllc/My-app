@@ -154,7 +154,7 @@ function ProfilePeekSheet({ author, visible, onClose }: ProfilePeekProps) {
               style={ss.peekBtnSecondary}
               onPress={() => {
                 onClose();
-                setTimeout(() => router.push(`/user/${author.id}` as any), 150);
+                setTimeout(() => router.push({ pathname: "/user/[userId]", params: { userId: author.id } } as any), 150);
               }}
               activeOpacity={0.75}
             >
@@ -165,7 +165,7 @@ function ProfilePeekSheet({ author, visible, onClose }: ProfilePeekProps) {
               onPress={() => {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 onClose();
-                setTimeout(() => router.push(`/user/${author.id}` as any), 150);
+                setTimeout(() => router.push({ pathname: "/user/[userId]", params: { userId: author.id } } as any), 150);
               }}
               activeOpacity={0.75}
             >
@@ -590,7 +590,7 @@ export default function CommunityFeedScreen() {
             <PostCard
               post={item}
               onLike={handleLike}
-              onReply={(post) => router.push(`/communities/thread/${post.id}` as any)}
+              onReply={(post) => router.push({ pathname: "/communities/thread/[postId]", params: { postId: post.id } } as any)}
               onAvatarPress={openAuthorProfile}
             />
           )}

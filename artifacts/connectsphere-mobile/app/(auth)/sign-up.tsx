@@ -23,6 +23,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { usePrimeCongratsVideo } from "@/contexts/CongratsVideoContext";
+import { apiUrl } from "@/lib/apiBase";
+import { setPendingAutoSignIn } from "@/lib/pendingAuth";
 import Svg, { Path } from "react-native-svg";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -45,6 +47,16 @@ function extractClerkError(err: unknown, fallback: string): string {
 function isExistingAccountError(message: string): boolean {
   const normalized = message.toLowerCase();
   return normalized.includes("already") || normalized.includes("exists") || normalized.includes("taken");
+}
+
+function isClerkClientRequestFailure(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("get request for this client") ||
+    normalized.includes("network request failed") ||
+    normalized.includes("failed to fetch") ||
+    normalized.includes("load failed")
+  );
 }
 
 function usernameFromIdentifier(identifier: string): string {
@@ -150,6 +162,32 @@ export default function SignUpScreen() {
     return false;
   }
 
+  async function createAccountViaServer(email: string, password: string): Promise<boolean> {
+    const response = await fetch(apiUrl("/api/auth/signup-bypass"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json().catch(() => ({})) as {
+      error?: string;
+      ticket?: string;
+    };
+
+    if (!response.ok || !data.ticket) {
+      throw new Error(data.error || "Server sign-up could not create your account. Please try again.");
+    }
+
+    setPendingAutoSignIn({
+      email,
+      password,
+      ticket: data.ticket,
+      destination: "/congrats",
+    });
+    router.replace("/congrats");
+    return true;
+  }
+
   async function handleSignUp() {
     if (!isLoaded) return;
     if (isSignedIn) {
@@ -185,6 +223,10 @@ export default function SignUpScreen() {
             // Account exists — try signing them in directly instead
             const signedIn = await tryPasswordSignIn(email, password, "/(tabs)");
             if (signedIn) return;
+          }
+          if (isClerkClientRequestFailure(message)) {
+            const created = await createAccountViaServer(email, password);
+            if (created) return;
           }
           throw emailErr;
         }

@@ -279,6 +279,14 @@ export async function withdrawReaction(params: {
   });
 }
 
+// ── Moment Requests ───────────────────────────────────────────────────────
+
+export async function declineMomentRequest(requestId: string): Promise<{ declined: boolean }> {
+  return customFetch(`/api/moments/requests/${encodeURIComponent(requestId)}`, {
+    method: "DELETE",
+  });
+}
+
 // ── Messages ──────────────────────────────────────────────────────────────
 
 export async function getConversationMessages(

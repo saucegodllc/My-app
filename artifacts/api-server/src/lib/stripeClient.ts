@@ -1,22 +1,23 @@
 import Stripe from "stripe";
 
-// ── Price IDs ────────────────────────────────────────────────────────────────
-// Create these in your Stripe dashboard (Products → Add product → Recurring)
-// then paste the price_xxx IDs into your Railway env vars.
+// Price IDs are configured in Render environment variables.
+// Current launch plans:
+// - monthly:  $14.99 / 2 weeks
+// - sixmonth: $150 / 6 months
+// - yearly:   $300 / year
 export const STRIPE_PRICES = {
-  monthly: process.env.STRIPE_PRICE_MONTHLY ?? "", // e.g. price_1OxxxxMonthly
-  yearly:  process.env.STRIPE_PRICE_YEARLY  ?? "", // e.g. price_1OxxxxYearly
+  monthly: process.env.STRIPE_PRICE_MONTHLY ?? "",
+  sixmonth: process.env.STRIPE_PRICE_SIXMONTH ?? "",
+  yearly: process.env.STRIPE_PRICE_YEARLY ?? "",
 } as const;
 
 export type StripePlan = keyof typeof STRIPE_PRICES;
 
 export function isStripePlan(s: unknown): s is StripePlan {
-  return s === "monthly" || s === "yearly";
+  return s === "monthly" || s === "sixmonth" || s === "yearly";
 }
 
-// ── Railway: direct env-var client ──────────────────────────────────────────
-// When STRIPE_SECRET_KEY is set (Railway / any non-Replit host), use it
-// directly instead of fetching from the Replit connector service.
+// Direct env-var client. Render should provide STRIPE_SECRET_KEY.
 export function getDirectStripeClient(): Stripe | null {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return null;
@@ -24,11 +25,11 @@ export function getDirectStripeClient(): Stripe | null {
 }
 
 // Returns a Stripe client regardless of hosting environment.
-// Prefer Railway direct key; fall back to Replit connector.
+// Prefer Render direct key; fall back to the legacy Replit connector path.
 export async function getStripeClient(): Promise<Stripe> {
   const direct = getDirectStripeClient();
   if (direct) return direct;
-  return getUncachableStripeClient(); // Replit path (defined below)
+  return getUncachableStripeClient();
 }
 
 async function getCredentials() {

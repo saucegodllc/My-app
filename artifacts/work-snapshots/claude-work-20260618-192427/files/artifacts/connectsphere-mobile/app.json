@@ -1,0 +1,101 @@
+{
+  "expo": {
+    "name": "ConnectSphere",
+    "slug": "connectsphere-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "connectsphere",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0a"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.connectsphere.mobile",
+      "buildNumber": "2",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "associatedDomains": ["applinks:connectsphere.app"],
+      "infoPlist": {
+        "NSCameraUsageDescription": "ConnectSphere uses your camera for liveness checks, profile photos, and moments you choose to share.",
+        "NSPhotoLibraryUsageDescription": "ConnectSphere needs access to photos you choose for your profile, chat, and moments.",
+        "NSUserTrackingUsageDescription": "ConnectSphere uses your advertising identifier to show you more relevant people and measure how our app performs. You can change this in Settings at any time.",
+        "NSPhotoLibraryAddUsageDescription": "ConnectSphere needs access to save photos you share in conversations.",
+        "NSLocationWhenInUseUsageDescription": "ConnectSphere uses your location to show nearby people, plans, and venues.",
+        "NSFaceIDUsageDescription": "ConnectSphere uses Face ID to keep your account secure.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.connectsphere.mobile",
+      "versionCode": 2,
+      "adaptiveIcon": { "backgroundColor": "#0a0a0a" },
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "connectsphere.app", "pathPrefix": "/u/" },
+            { "scheme": "https", "host": "connectsphere.app", "pathPrefix": "/invite/" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "web": { "favicon": "./assets/images/icon.png" },
+    "plugins": [
+      ["expo-router", { "origin": "https://connectsphere.app" }],
+      "expo-font",
+      "expo-web-browser",
+      "expo-video",
+      ["expo-camera", {
+        "cameraPermission": "Allow ConnectSphere to access your camera for liveness verification.",
+        "microphonePermission": false,
+        "recordAudioAndroid": false
+      }],
+      ["expo-location", {
+        "locationWhenInUsePermission": "Allow ConnectSphere to use your location to show nearby venues.",
+        "locationAlwaysAndWhenInUsePermission": "Allow ConnectSphere to use your location to show nearby venues."
+      }],
+      ["expo-build-properties", {
+        "ios": {
+          "privacyManifests": {
+            "NSPrivacyAccessedAPITypes": [
+              { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults", "NSPrivacyAccessedAPITypeReasons": ["CA92.1"] },
+              { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp", "NSPrivacyAccessedAPITypeReasons": ["C617.1"] },
+              { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace", "NSPrivacyAccessedAPITypeReasons": ["E174.1"] },
+              { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime", "NSPrivacyAccessedAPITypeReasons": ["35F9.1"] }
+            ],
+            "NSPrivacyCollectedDataTypes": [
+              { "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress", "NSPrivacyCollectedDataTypeLinked": true, "NSPrivacyCollectedDataTypeTracking": false, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"] },
+              { "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhotosOrVideos", "NSPrivacyCollectedDataTypeLinked": true, "NSPrivacyCollectedDataTypeTracking": false, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"] },
+              { "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID", "NSPrivacyCollectedDataTypeLinked": false, "NSPrivacyCollectedDataTypeTracking": true, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAnalytics"] }
+            ],
+            "NSPrivacyTracking": true,
+            "NSPrivacyTrackingDomains": []
+          }
+        }
+      }],
+      ["expo-tracking-transparency", {
+        "userTrackingPermission": "ConnectSphere uses your advertising identifier to show you more relevant people and measure how our app performs. You can change this in Settings at any time."
+      }],
+      ["expo-notifications", {
+        "icon": "./assets/images/icon.png",
+        "color": "#FF007F",
+        "defaultChannel": "default",
+        "sounds": []
+      }]
+    ],
+    "notification": {
+      "icon": "./assets/images/icon.png",
+      "color": "#FF007F",
+      "androidMode": "default",
+      "androidCollapsedTitle": "ConnectSphere"
+    },
+    "experiments": { "typedRoutes": true, "reactCompiler": true }
+  }
+}

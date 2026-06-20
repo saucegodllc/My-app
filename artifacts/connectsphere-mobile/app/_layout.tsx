@@ -95,6 +95,22 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
+        name="chat/ai-bot"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="communities/[id]"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="communities/create"
+        options={{ headerShown: false, presentation: "modal" }}
+      />
+      <Stack.Screen
+        name="communities/thread/[postId]"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
         name="user/[userId]"
         options={{ headerShown: false, presentation: "card" }}
       />

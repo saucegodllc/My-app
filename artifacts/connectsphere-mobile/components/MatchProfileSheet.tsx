@@ -10,17 +10,22 @@
  * animation. The only CTA at the bottom is "Message <name>" which closes
  * the sheet and calls onMessage (optional; defaults to just closing).
  *
+ * A ⋯ button in the top-right corner calls onReport so the parent can open
+ * ReportBlockSheet after this sheet has dismissed.
+ *
  * Usage:
  *   <MatchProfileSheet
  *     visible={showProfile}
  *     profile={match.profile}          // DatingProfileSnapshot
  *     onClose={() => setShowProfile(false)}
  *     onMessage={() => inputRef.current?.focus()}
+ *     onReport={() => { setShowProfile(false); setTimeout(() => setShowReport(true), 340); }}
  *   />
  */
-import { Modal } from "react-native";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from "react-native-reanimated";
 import { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 
 import { ExpandedProfileCard, type CardProfile } from "@/components/ExpandedProfileCard";
 import type { DatingProfileSnapshot } from "@/contexts/DatingMatchContext";
@@ -31,6 +36,8 @@ type Props = {
   onClose: () => void;
   /** Optional: called after the sheet closes when user taps "Message". */
   onMessage?: () => void;
+  /** Optional: called when user taps ⋯ to report/block. Caller opens ReportBlockSheet. */
+  onReport?: () => void;
 };
 
 /** Map the leaner DatingProfileSnapshot onto CardProfile so ExpandedProfileCard
@@ -54,7 +61,7 @@ function toCardProfile(p: DatingProfileSnapshot): CardProfile {
   };
 }
 
-export function MatchProfileSheet({ visible, profile, onClose, onMessage }: Props) {
+export function MatchProfileSheet({ visible, profile, onClose, onMessage, onReport }: Props) {
   const [isVisible, setIsVisible] = useState(visible);
 
   // Keep the Modal mounted a beat after visible flips to false so the exit
@@ -99,8 +106,43 @@ export function MatchProfileSheet({ visible, profile, onClose, onMessage }: Prop
               setTimeout(() => onMessage?.(), 80);
             }}
           />
+
+          {/* ⋯ report/block button — overlaid top-right, only when onReport provided */}
+          {onReport ? (
+            <View style={styles.reportBtnWrap} pointerEvents="box-none">
+              <Pressable
+                onPress={() => {
+                  handleAnimatedClose();
+                  // Let the slide-down animation start before handing off to caller
+                  setTimeout(onReport, 80);
+                }}
+                hitSlop={12}
+                accessibilityLabel="Report or block this person"
+                style={styles.reportBtn}
+              >
+                <Ionicons name="ellipsis-vertical" size={22} color="#fff" />
+              </Pressable>
+            </View>
+          ) : null}
         </Animated.View>
       </Animated.View>
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  reportBtnWrap: {
+    position: "absolute",
+    top: 14,
+    right: 16,
+    zIndex: 10,
+  },
+  reportBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.50)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

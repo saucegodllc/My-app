@@ -1,249 +1,6 @@
 {
   "events": [
     {
-      "id": "ticketmaster-LvZ18Qq7wzpMtCOZvEI9t",
-      "sourceId": "LvZ18Qq7wzpMtCOZvEI9t",
-      "source": "ticketmaster",
-      "sourceLabel": "Ticketmaster",
-      "name": "Balloon Museum | Pop Air - Art Is Inflatable - Miami 2026",
-      "description": "After attracting millions of visitors around the world, POP AIR – Art is Inflatable, the exhibition by Balloon Museum, arrives in Miami at Mana Wynwood Convention Center. Inflatable art, a symbol of lightness, transformation, and creativity, challenges traditional ideas of art: here, you don’t just observe—you explore, interact, and experience. Monumental installations, vibrant colors, and interactive artworks created by internationally renowned artists shape an experience designed for all ages, where art comes to life through play, curiosity, and wonder. From May 16 to September 27, discover POP AIR – Art is Inflatable, the Balloon Museum exhibition that has already captivated over 7 million visitors worldwide. For more information, please see our FAQ.",
-      "startDate": "2026-06-19T10:45:00",
-      "endDate": "",
-      "url": "https://www.universe.com/events/balloon-museum-pop-air-art-is-inflatable-miami-2026-tickets-K6QGW4?ref=ticketmaster",
-      "imageUrl": "https://s1.ticketm.net/dam/a/c3f/b0066d0b-c019-41b2-bd7f-976408921c3f_TABLET_LANDSCAPE_LARGE_16_9.jpg",
-      "venueName": "Mana Wynwood Convention Center",
-      "venueAddress": "318 NW 23rd St, Miami, FL",
-      "neighborhood": "Miami",
-      "latitude": 25.797998,
-      "longitude": -80.202062,
-      "isFree": false,
-      "price": "Check tickets",
-      "category": "Arts",
-      "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
-    },
-    {
-      "id": "ticketmaster-vvG1VZ_GEIEXlS",
-      "sourceId": "vvG1VZ_GEIEXlS",
-      "source": "ticketmaster",
-      "sourceLabel": "Ticketmaster",
-      "name": "World Cup Watch Party",
-      "description": "Experience the excitement under the iconic roof! Join fans from around the world for a high-energy day of soccer, community, and celebration. Watch the match live on the giant screen as the sun sets over Miramar. Bring your flags, your friends, and your passion as we watch the world's beautiful game.",
-      "startDate": "2026-06-19T15:00:00",
-      "endDate": "",
-      "url": "https://www.ticketmaster.com/world-cup-watch-party-miramar-florida-06-19-2026/event/0D0064C9E89FEAF3",
-      "imageUrl": "https://s1.ticketm.net/dam/e/543/fafa91c3-3908-4655-9f5f-17f97ca09543_SOURCE",
-      "venueName": "Miramar Regional Park Amphitheater",
-      "venueAddress": "16805 Miramar Parkway, Miramar, FL",
-      "neighborhood": "Miramar",
-      "latitude": 25.98589,
-      "longitude": -80.37224,
-      "isFree": false,
-      "price": "Check tickets",
-      "category": "Nightlife",
-      "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
-    },
-    {
-      "id": "ticketmaster-vvG1VZ_7MMEATA",
-      "sourceId": "vvG1VZ_7MMEATA",
-      "source": "ticketmaster",
-      "sourceLabel": "Ticketmaster",
-      "name": "The Cab",
-      "description": "The Cab will be performing at Revolution Live on Friday, June 19th with special guest Paradise Fears & CARR. This event is All Ages. Doors open at 6:30 PM. Show starts at 7:30 PM. All support acts are subject to change without notice.",
-      "startDate": "2026-06-19T18:30:00",
-      "endDate": "",
-      "url": "https://www.ticketmaster.com/the-cab-ft-lauderdale-florida-06-19-2026/event/0D00644DF79C5FC5",
-      "imageUrl": "https://s1.ticketm.net/dam/a/329/d3dbdd52-2081-4672-868c-fcdd14008329_SOURCE",
-      "venueName": "Revolution Live",
-      "venueAddress": "100 SW 3rd Ave, Ft Lauderdale, FL",
-      "neighborhood": "Ft Lauderdale",
-      "latitude": 26.121094,
-      "longitude": -80.146162,
-      "isFree": false,
-      "price": "Check tickets",
-      "category": "Music",
-      "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
-    },
-    {
-      "id": "mlb-marlins-823853",
-      "sourceId": "mlb-marlins-823853",
-      "source": "mlb",
-      "sourceLabel": "MLB",
-      "name": "Giants at Miami Marlins",
-      "description": "Marlins home game at loanDepot park. Pick this when the plan needs a real game-night anchor.",
-      "startDate": "2026-06-19T23:10:00Z",
-      "endDate": "2026-06-20T02:40:00.000Z",
-      "url": "https://www.mlb.com/marlins/tickets/single-game-tickets",
-      "imageUrl": "https://images.unsplash.com/photo-1508344928928-7165b67de128?w=900&q=80",
-      "venueName": "loanDepot park",
-      "venueAddress": "Miami, FL",
-      "neighborhood": "Miami",
-      "latitude": 25.7781,
-      "longitude": -80.2196,
-      "isFree": false,
-      "price": "Tickets available",
-      "category": "Sports",
-      "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
-    },
-    {
-      "id": "ticketmaster-Z7r9jZ1A7Qa-z",
-      "sourceId": "Z7r9jZ1A7Qa-z",
-      "source": "ticketmaster",
-      "sourceLabel": "Ticketmaster",
-      "name": "Miami Marlins vs. San Francisco Giants",
-      "description": "",
-      "startDate": "2026-06-19T19:10:00",
-      "endDate": "",
-      "url": "https://www.ticketmaster.com/event/Z7r9jZ1A7Qa-z",
-      "imageUrl": "https://s1.ticketm.net/dam/a/343/37200823-952f-476c-8598-afc6ee04e343_SOURCE",
-      "venueName": "LoanDepot Park",
-      "venueAddress": "501 Marlins Way, Miami, FL",
-      "neighborhood": "Miami",
-      "latitude": 25.778057,
-      "longitude": -80.219406,
-      "isFree": false,
-      "price": "Check tickets",
-      "category": "Sports",
-      "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
-    },
-    {
-      "id": "ticketmaster-vvG1VZbnLUgSWP",
-      "sourceId": "vvG1VZbnLUgSWP",
-      "source": "ticketmaster",
-      "sourceLabel": "Ticketmaster",
-      "name": "Slow Burn Theatre Co: Jagged Little Pill: The Musical",
-      "description": "Winner! Two Tony Awards, Two Drama Desk Award, Eight Outer Critics Circle Awards, and a Grammy Award for Best Musical Theater Album Alanis Morissette's Jagged Little Pill: The Musical is an exhilarating new musical inspired by the themes and raw emotions laid bare in Alanis Morissette's seminal album of the same name. The Healys appear to be a picture-perfect suburban family - but looks can be deceiving. When the cracks beneath the surface begin to show, they must choose between maintaining the status quo or facing harsh truths about themselves, their community and the world around them.",
-      "startDate": "2026-06-19T19:30:00",
-      "endDate": "",
-      "url": "https://www.ticketmaster.com/slow-burn-theatre-co-jagged-little-ft-lauderdale-florida-06-19-2026/event/0D0062A7F6D73F65",
-      "imageUrl": "https://s1.ticketm.net/dam/a/087/d6ab59f9-9474-47c8-a4c0-511e8d0cb087_TABLET_LANDSCAPE_LARGE_16_9.jpg",
-      "venueName": "Amaturo Theater at Broward Center",
-      "venueAddress": "201 SW 5th Avenue, Ft Lauderdale, FL",
-      "neighborhood": "Ft Lauderdale",
-      "latitude": 26.1193,
-      "longitude": -80.149426,
-      "isFree": false,
-      "price": "Check tickets",
-      "category": "Music",
-      "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
-    },
-    {
-      "id": "ticketmaster-vvG1VZbgROAk7T",
-      "sourceId": "vvG1VZbgROAk7T",
-      "source": "ticketmaster",
-      "sourceLabel": "Ticketmaster",
-      "name": "Gay Men's Chorus of South Florida: Invincible",
-      "description": "Special Guests: Orlando Gay Chorus, The Gay Men's Chorus of Tampa Bay, and Symphony of the Americas. Emerging from tragedy to triumph is a trademark of the LGBTQ+ community. In one spectacular evening, the Gay Men's Chorus of South Florida will be joined by the state's most powerful choral groups to pay tribute to the 10th anniversary of the Pulse Nightclub shootings and our community's incredible ability to push forward with courage and strength. This night of remembrance will fuel determination and pride, while inspiring us to join together and stand proud as we face the challenges of today and the future. The world premiere of a specially commissioned work by acclaimed composer Saunders Choi anchors the evening, followed by uplifting songs that celebrate the strength of the LGBTQ+ community. Featuring over 200 voices, dance, and spoken word, this concert promises to be the most significant cultural event of the year.",
-      "startDate": "2026-06-19T20:00:00",
-      "endDate": "",
-      "url": "https://www.ticketmaster.com/gay-mens-chorus-of-south-florida-ft-lauderdale-florida-06-19-2026/event/0D00635BE014613F",
-      "imageUrl": "https://s1.ticketm.net/dam/a/643/0ba516af-2d7b-4089-bf30-4961c1b1e643_SOURCE",
-      "venueName": "Au-Rene Theater at the Broward Center",
-      "venueAddress": "201 SW 5th Avenue, Ft Lauderdale, FL",
-      "neighborhood": "Ft Lauderdale",
-      "latitude": 26.1193,
-      "longitude": -80.149426,
-      "isFree": false,
-      "price": "Check tickets",
-      "category": "Music",
-      "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
-    },
-    {
-      "id": "ticketmaster-rZ7HnEZ1AfqgZd",
-      "sourceId": "rZ7HnEZ1AfqgZd",
-      "source": "ticketmaster",
-      "sourceLabel": "Ticketmaster",
-      "name": "Friday Night Live - Improv Comedy Miami Show",
-      "description": "Friday Night Live! - Improv Comedy in Miami ShowIts JTFs special combination of shortform and longform improv! Enjoy as our award winning cast brings you fantastic improv thats perfect for your Friday night...LIVE!Our shows are often described as fast-paced improvised comedy. Think of it as Whose Line is It Anyway meets SNL with a lot of fun audience interaction along the way. Come be a part of the fun!Tickets are PER PERSON for this show. We will seat parties together in tables. We will do our best to sit larger groups as close as possible, but may have to split large groups if they arrive late.Tickets are NON REFUNDABLE after purchase. The show STARTS at 9pm and ENDS at around 10:50pm. Pre-show bar opens at 7:30pm with a pre-show stage show at 8pm at no additional cost if you want to arrive early.",
-      "startDate": "2026-06-19T21:00:00",
-      "endDate": "",
-      "url": "https://www.ticketweb.com/event/friday-night-live-just-the-funny-tickets/14775003",
-      "imageUrl": "https://s1.ticketm.net/dam/c/50a/fa9caa1f-73a1-411e-b507-ec56fa59650a_106061_TABLET_LANDSCAPE_LARGE_16_9.jpg",
-      "venueName": "Just the Funny",
-      "venueAddress": "3119 Coral Way, Miami, FL",
-      "neighborhood": "Miami",
-      "latitude": 25.750417,
-      "longitude": -80.244412,
-      "isFree": false,
-      "price": "From $29",
-      "category": "Arts",
-      "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
-    },
-    {
-      "id": "ticketmaster-LvZ18Qq7iJhBLWOZvB17Z",
-      "sourceId": "LvZ18Qq7iJhBLWOZvB17Z",
-      "source": "ticketmaster",
-      "sourceLabel": "Ticketmaster",
-      "name": "Balloon Museum | Pop Air - Art Is Inflatable - Miami 2026",
-      "description": "After attracting millions of visitors around the world, POP AIR – Art is Inflatable, the exhibition by Balloon Museum, arrives in Miami at Mana Wynwood Convention Center. Inflatable art, a symbol of lightness, transformation, and creativity, challenges traditional ideas of art: here, you don’t just observe—you explore, interact, and experience. Monumental installations, vibrant colors, and interactive artworks created by internationally renowned artists shape an experience designed for all ages, where art comes to life through play, curiosity, and wonder. From May 16 to September 27, discover POP AIR – Art is Inflatable, the Balloon Museum exhibition that has already captivated over 7 million visitors worldwide. For more information, please see our FAQ.",
-      "startDate": "2026-06-20T10:00:00",
-      "endDate": "",
-      "url": "https://www.universe.com/events/balloon-museum-pop-air-art-is-inflatable-miami-2026-tickets-K6QGW4?ref=ticketmaster",
-      "imageUrl": "https://s1.ticketm.net/dam/a/c3f/b0066d0b-c019-41b2-bd7f-976408921c3f_TABLET_LANDSCAPE_LARGE_16_9.jpg",
-      "venueName": "Mana Wynwood Convention Center",
-      "venueAddress": "318 NW 23rd St, Miami, FL",
-      "neighborhood": "Miami",
-      "latitude": 25.797998,
-      "longitude": -80.202062,
-      "isFree": false,
-      "price": "Check tickets",
-      "category": "Arts",
-      "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
-    },
-    {
-      "id": "ticketmaster-vvG1VZbnLUUNWE",
-      "sourceId": "vvG1VZbnLUUNWE",
-      "source": "ticketmaster",
-      "sourceLabel": "Ticketmaster",
-      "name": "Slow Burn Theatre Co: Jagged Little Pill: The Musical",
-      "description": "Winner! Two Tony Awards, Two Drama Desk Award, Eight Outer Critics Circle Awards, and a Grammy Award for Best Musical Theater Album Alanis Morissette's Jagged Little Pill: The Musical is an exhilarating new musical inspired by the themes and raw emotions laid bare in Alanis Morissette's seminal album of the same name. The Healys appear to be a picture-perfect suburban family - but looks can be deceiving. When the cracks beneath the surface begin to show, they must choose between maintaining the status quo or facing harsh truths about themselves, their community and the world around them.",
-      "startDate": "2026-06-20T13:00:00",
-      "endDate": "",
-      "url": "https://www.ticketmaster.com/slow-burn-theatre-co-jagged-little-ft-lauderdale-florida-06-20-2026/event/0D0062A7F6DA3F67",
-      "imageUrl": "https://s1.ticketm.net/dam/a/087/d6ab59f9-9474-47c8-a4c0-511e8d0cb087_TABLET_LANDSCAPE_LARGE_16_9.jpg",
-      "venueName": "Amaturo Theater at Broward Center",
-      "venueAddress": "201 SW 5th Avenue, Ft Lauderdale, FL",
-      "neighborhood": "Ft Lauderdale",
-      "latitude": 26.1193,
-      "longitude": -80.149426,
-      "isFree": false,
-      "price": "Check tickets",
-      "category": "Music",
-      "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
-    },
-    {
-      "id": "ticketmaster-vvG1VZbw0odKgK",
-      "sourceId": "vvG1VZbw0odKgK",
-      "source": "ticketmaster",
-      "sourceLabel": "Ticketmaster",
-      "name": "The Teller Returns - A Sequel By Brianna Campbell",
-      "description": "Two years later, The Teller Returns! Time bends, stories shift, and nothing is as you left it. In this steampunk-inspired sequel to \"The Teller\", beloved characters resurface and new ones pull you deeper into the magical world of The Teller, where the past can be rewritten. The Teller has more to say; will you listen?",
-      "startDate": "2026-06-20T15:00:00",
-      "endDate": "",
-      "url": "https://www.ticketmaster.com/the-teller-returns-a-sequel-by-aventura-florida-06-20-2026/event/0D006329110D3D53",
-      "imageUrl": "https://s1.ticketm.net/dam/a/9ad/c414b91b-17de-41d9-9725-954dd39889ad_SOURCE",
-      "venueName": "Aventura Arts & Cultural Center",
-      "venueAddress": "3385 NE 188th Street, Aventura, FL",
-      "neighborhood": "Aventura",
-      "latitude": 25.94960232,
-      "longitude": -80.13458177,
-      "isFree": false,
-      "price": "Check tickets",
-      "category": "Nightlife",
-      "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
-    },
-    {
       "id": "ticketmaster-LvZ18QOWRmbOCo8ZvO9vE",
       "sourceId": "LvZ18QOWRmbOCo8ZvO9vE",
       "source": "ticketmaster",
@@ -263,7 +20,7 @@
       "price": "Check tickets",
       "category": "Other",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "mlb-marlins-823854",
@@ -284,31 +41,53 @@
       "isFree": false,
       "price": "Tickets available",
       "category": "Sports",
-      "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "status": "In Progress",
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
-      "id": "ticketmaster-Z7r9jZ1A7QaxZ",
-      "sourceId": "Z7r9jZ1A7QaxZ",
+      "id": "ticketmaster-LvZ18Qq7wzvb7uZZv57fp",
+      "sourceId": "LvZ18Qq7wzvb7uZZv57fp",
       "source": "ticketmaster",
       "sourceLabel": "Ticketmaster",
-      "name": "Miami Marlins vs San Francisco Giants: Flanigan's Cup",
-      "description": "",
-      "startDate": "2026-06-20T16:10:00",
+      "name": "Balloon Museum | Pop Air - Art Is Inflatable - Miami 2026",
+      "description": "After attracting millions of visitors around the world, POP AIR – Art is Inflatable, the exhibition by Balloon Museum, arrives in Miami at Mana Wynwood Convention Center. Inflatable art, a symbol of lightness, transformation, and creativity, challenges traditional ideas of art: here, you don’t just observe—you explore, interact, and experience. Monumental installations, vibrant colors, and interactive artworks created by internationally renowned artists shape an experience designed for all ages, where art comes to life through play, curiosity, and wonder. From May 16 to September 27, discover POP AIR – Art is Inflatable, the Balloon Museum exhibition that has already captivated over 7 million visitors worldwide. For more information, please see our FAQ.",
+      "startDate": "2026-06-20T16:45:00",
       "endDate": "",
-      "url": "https://www.ticketmaster.com/event/Z7r9jZ1A7QaxZ",
-      "imageUrl": "https://s1.ticketm.net/dam/a/343/37200823-952f-476c-8598-afc6ee04e343_SOURCE",
-      "venueName": "LoanDepot Park",
-      "venueAddress": "501 Marlins Way, Miami, FL",
+      "url": "https://www.universe.com/events/balloon-museum-pop-air-art-is-inflatable-miami-2026-tickets-K6QGW4?ref=ticketmaster",
+      "imageUrl": "https://s1.ticketm.net/dam/a/c3f/b0066d0b-c019-41b2-bd7f-976408921c3f_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "venueName": "Mana Wynwood Convention Center",
+      "venueAddress": "318 NW 23rd St, Miami, FL",
       "neighborhood": "Miami",
-      "latitude": 25.778057,
-      "longitude": -80.219406,
+      "latitude": 25.797998,
+      "longitude": -80.202062,
       "isFree": false,
       "price": "Check tickets",
-      "category": "Sports",
+      "category": "Arts",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
+    },
+    {
+      "id": "ticketmaster-vvG1VZbw0odNgp",
+      "sourceId": "vvG1VZbw0odNgp",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "The Teller Returns - A Sequel By Brianna Campbell",
+      "description": "Two years later, The Teller Returns! Time bends, stories shift, and nothing is as you left it. In this steampunk-inspired sequel to \"The Teller\", beloved characters resurface and new ones pull you deeper into the magical world of The Teller, where the past can be rewritten. The Teller has more to say; will you listen?",
+      "startDate": "2026-06-20T19:00:00",
+      "endDate": "",
+      "url": "https://www.ticketmaster.com/the-teller-returns-a-sequel-by-aventura-florida-06-20-2026/event/0D006329110E3D56",
+      "imageUrl": "https://s1.ticketm.net/dam/a/9ad/c414b91b-17de-41d9-9725-954dd39889ad_SOURCE",
+      "venueName": "Aventura Arts & Cultural Center",
+      "venueAddress": "3385 NE 188th Street, Aventura, FL",
+      "neighborhood": "Aventura",
+      "latitude": 25.94960232,
+      "longitude": -80.13458177,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Nightlife",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-vvG1VZ_6bHMGb0",
@@ -330,7 +109,29 @@
       "price": "Check tickets",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
+    },
+    {
+      "id": "ticketmaster-vvG1VZbnLUMdWi",
+      "sourceId": "vvG1VZbnLUMdWi",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Slow Burn Theatre Co: Jagged Little Pill: The Musical",
+      "description": "Winner! Two Tony Awards, Two Drama Desk Award, Eight Outer Critics Circle Awards, and a Grammy Award for Best Musical Theater Album Alanis Morissette's Jagged Little Pill: The Musical is an exhilarating new musical inspired by the themes and raw emotions laid bare in Alanis Morissette's seminal album of the same name. The Healys appear to be a picture-perfect suburban family - but looks can be deceiving. When the cracks beneath the surface begin to show, they must choose between maintaining the status quo or facing harsh truths about themselves, their community and the world around them.",
+      "startDate": "2026-06-20T19:30:00",
+      "endDate": "",
+      "url": "https://www.ticketmaster.com/slow-burn-theatre-co-jagged-little-ft-lauderdale-florida-06-20-2026/event/0D0062A7F6DC3F6C",
+      "imageUrl": "https://s1.ticketm.net/dam/a/087/d6ab59f9-9474-47c8-a4c0-511e8d0cb087_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "venueName": "Amaturo Theater at Broward Center",
+      "venueAddress": "201 SW 5th Avenue, Ft Lauderdale, FL",
+      "neighborhood": "Ft Lauderdale",
+      "latitude": 26.1193,
+      "longitude": -80.149426,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Music",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-rZ7HnEZ1Af-ZfS",
@@ -352,7 +153,7 @@
       "price": "From $23",
       "category": "Nightlife",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-vvG1VZ_Ap37Exp",
@@ -374,7 +175,7 @@
       "price": "Check tickets",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-vvG1VZbzmLbbh-",
@@ -396,7 +197,7 @@
       "price": "Check tickets",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-vvG1VZ_eLNOI5T",
@@ -418,7 +219,7 @@
       "price": "Check tickets",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-rZ7HnEZ1Afqg7K",
@@ -440,7 +241,7 @@
       "price": "From $29",
       "category": "Arts",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-rZ7HnEZ1Af0gJd",
@@ -462,7 +263,7 @@
       "price": "Check tickets",
       "category": "Nightlife",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-LvZ18Qq7iJhBLWOZvB177",
@@ -484,7 +285,7 @@
       "price": "Check tickets",
       "category": "Arts",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:45.740Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-LvZ18QOWRmbOCo8ZvO9vI",
@@ -506,7 +307,7 @@
       "price": "Check tickets",
       "category": "Other",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:46.407Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "mlb-marlins-823852",
@@ -528,8 +329,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "ticketmaster-Z7r9jZ1A7Qaxv",
@@ -551,7 +352,7 @@
       "price": "Check tickets",
       "category": "Sports",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:46.407Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-vvG1VZ_F7tAFB_",
@@ -573,7 +374,7 @@
       "price": "Check tickets",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:46.407Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-vvG1VZbnLUMSWR",
@@ -595,7 +396,7 @@
       "price": "Check tickets",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:46.407Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-Z7r9jZ1A7-VGV",
@@ -617,7 +418,7 @@
       "price": "Check tickets",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:46.407Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-Z7r9jZ1A743f-",
@@ -639,7 +440,7 @@
       "price": "Check tickets",
       "category": "Sports",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:46.407Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "ticketmaster-LvZ18Qx-vHaxPfYZvqvgF",
@@ -661,7 +462,7 @@
       "price": "Check tickets",
       "category": "Arts",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:46.407Z"
+      "lastSeenAt": "2026-06-20T20:54:05.738Z"
     },
     {
       "id": "mlb-marlins-823851",
@@ -683,8 +484,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "ticketmaster-Z7r9jZ1A7Qaxe",
@@ -706,7 +507,7 @@
       "price": "Check tickets",
       "category": "Sports",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:46.407Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-rZ7HnEZ1AfAvGV",
@@ -728,7 +529,7 @@
       "price": "From $28",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:46.407Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-LvZ18Qx-vHaxPfYZvqvg8",
@@ -750,7 +551,7 @@
       "price": "Check tickets",
       "category": "Arts",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:46.407Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "mlb-marlins-823849",
@@ -772,8 +573,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "ticketmaster-Z7r9jZ1A7Qaxd",
@@ -795,7 +596,7 @@
       "price": "Check tickets",
       "category": "Sports",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-vvG1VZ_6xJhbgJ",
@@ -817,7 +618,7 @@
       "price": "Check tickets",
       "category": "Nightlife",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-vvG1VZ_6xP7InF",
@@ -839,7 +640,7 @@
       "price": "Check tickets",
       "category": "Sports",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-LvZ18Qx-vHaxPfYZvqvgb",
@@ -861,7 +662,7 @@
       "price": "Check tickets",
       "category": "Arts",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "mlb-marlins-823850",
@@ -883,8 +684,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "ticketmaster-Z7r9jZ1A7Qax7",
@@ -906,7 +707,7 @@
       "price": "Check tickets",
       "category": "Sports",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-LvZ18QOnKVVcOaYZ0wpg5",
@@ -928,7 +729,7 @@
       "price": "Check tickets",
       "category": "Nightlife",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-Z7r9jZ1A743fw",
@@ -950,7 +751,7 @@
       "price": "Check tickets",
       "category": "Sports",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-vvG1VZbnLUzKWs",
@@ -972,7 +773,7 @@
       "price": "Check tickets",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-vvG1VZ_6i8_h2U",
@@ -994,7 +795,7 @@
       "price": "Check tickets",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-rZ7HnEZ1Af0gqS",
@@ -1016,7 +817,7 @@
       "price": "Check tickets",
       "category": "Nightlife",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-LvZ18Qx-vHaxPfYZvqvgO",
@@ -1038,7 +839,7 @@
       "price": "Check tickets",
       "category": "Arts",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.367Z"
     },
     {
       "id": "ticketmaster-LvZ18QOWYdBIQqOZvL0Vc",
@@ -1060,7 +861,7 @@
       "price": "Check tickets",
       "category": "Other",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.083Z"
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
     },
     {
       "id": "ticketmaster-rZ7HnEZ1AfPU0N",
@@ -1082,7 +883,7 @@
       "price": "From $20",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.588Z"
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
     },
     {
       "id": "ticketmaster-vvG1VZbnLUzSX3",
@@ -1104,7 +905,7 @@
       "price": "Check tickets",
       "category": "Music",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.588Z"
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
     },
     {
       "id": "ticketmaster-vvG1VZ_1rNoyQm",
@@ -1126,7 +927,7 @@
       "price": "Check tickets",
       "category": "Nightlife",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.588Z"
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
     },
     {
       "id": "ticketmaster-LvZ18Qx-vHuDGoZZvp8jf",
@@ -1148,7 +949,139 @@
       "price": "Check tickets",
       "category": "Arts",
       "status": "onsale",
-      "lastSeenAt": "2026-06-19T14:58:47.588Z"
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
+    },
+    {
+      "id": "ticketmaster-LvZ18QOWYdBIQqOZvL0Vs",
+      "sourceId": "LvZ18QOWYdBIQqOZvL0Vs",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Kaseya Center All-Access Tour",
+      "description": "Embark on a guided behind-the-scenes tour of Miami’s premier sports and entertainment venue, and home of the 3-time NBA Champion Miami HEAT. Stops include: Miami HEAT training facilities, arena suites and lounges, media control room, and many more. Estimated duration: 1 to 1.5 hours. Adult tickets: 18 years old or over Minor tickets: 2-17 years old (must be accompanied on the tour by a ticketed adult) Minors under 2 years old do not require a ticket. Other notes: Tickets are non-refundable and non-transferrable. Dates/times are also non-transferrable. Availability for specific dates and/or times are subject to change. Furthermore, tours that have not reached a minimum number of participants may be canceled up to 48 hours prior to the schedule time. In the event that either happens, you will receive a refund of your purchase to the card used for payment. Please plan to arrive 15 minutes before your tour starts. Should you miss your start time, we will try our best to accommodate you in the subsequent time slot, provided that there is availability. For the safety of our guests, Kaseya Center does not permit certain items into the Kaseya Center. Prohibited items include: Bags, purses, backpacks, briefcases, duffle bags larger than 10” x 6” x 2\"; outside food or beverage; recording devices, tripods, and professional camera auxiliary lenses; illegal substances; and weapons of any kind. Management reserves the right to restrict any article not specifically listed above. Management or Security personnel may request to inspect any bag or purse, entering into the Kaseya Center. The Kaseya Center is a “smoke-free” facility. “Smoking” (which includes emitting vapors via e-cigarettes) is not permitted. This is a walking/standing tour in English that will last 60-90 minutes. If you have questions about additional accomodations/accessibility, please contact Guest Experiences at 786.777.1237 or email: guestservices@heat.com. Tour route may vary based on arena schedule. Additional information is available at https://www.kaseyacenter.com/guest-services/a-z-guide and https://www.kaseyacenter.com/guest-services/faqs.",
+      "startDate": "2026-06-26T15:00:00",
+      "endDate": "",
+      "url": "https://www.universe.com/events/kaseya-center-all-access-tour-tickets-82ZSY4?ref=ticketmaster",
+      "imageUrl": "https://s1.ticketm.net/dam/c/f51/ee785ed6-f806-4195-98f4-69f67e09df51_106201_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "venueName": "Kaseya Center",
+      "venueAddress": "601 Biscayne Blvd, Miami, FL",
+      "neighborhood": "Miami",
+      "latitude": 25.781232,
+      "longitude": -80.187805,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Other",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
+    },
+    {
+      "id": "ticketmaster-vvG1VZbnLUyNX4",
+      "sourceId": "vvG1VZbnLUyNX4",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Slow Burn Theatre Co: Jagged Little Pill: The Musical",
+      "description": "Winner! Two Tony Awards, Two Drama Desk Award, Eight Outer Critics Circle Awards, and a Grammy Award for Best Musical Theater Album Alanis Morissette's Jagged Little Pill: The Musical is an exhilarating new musical inspired by the themes and raw emotions laid bare in Alanis Morissette's seminal album of the same name. The Healys appear to be a picture-perfect suburban family - but looks can be deceiving. When the cracks beneath the surface begin to show, they must choose between maintaining the status quo or facing harsh truths about themselves, their community and the world around them.",
+      "startDate": "2026-06-26T19:30:00",
+      "endDate": "",
+      "url": "https://www.ticketmaster.com/slow-burn-theatre-co-jagged-little-ft-lauderdale-florida-06-26-2026/event/0D0062A7F6E63F95",
+      "imageUrl": "https://s1.ticketm.net/dam/a/087/d6ab59f9-9474-47c8-a4c0-511e8d0cb087_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "venueName": "Amaturo Theater at Broward Center",
+      "venueAddress": "201 SW 5th Avenue, Ft Lauderdale, FL",
+      "neighborhood": "Ft Lauderdale",
+      "latitude": 26.1193,
+      "longitude": -80.149426,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Music",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
+    },
+    {
+      "id": "ticketmaster-Z7r9jZ1A7-Yjw",
+      "sourceId": "Z7r9jZ1A7-Yjw",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Thievery Corporation",
+      "description": "",
+      "startDate": "2026-06-26T20:00:00",
+      "endDate": "",
+      "url": "https://www.ticketmaster.com/event/Z7r9jZ1A7-Yjw",
+      "imageUrl": "https://s1.ticketm.net/dam/a/373/ff0e983f-3eba-4afa-8f94-76c9cf88f373_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "venueName": "Miami Beach Bandshell",
+      "venueAddress": "7275 Collins Avenue, Miami Beach FL 33141, Miami Beach, FL",
+      "neighborhood": "Miami Beach",
+      "latitude": 25.8619,
+      "longitude": -80.1259,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Nightlife",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
+    },
+    {
+      "id": "ticketmaster-vvG1VZ_6kFI4dW",
+      "sourceId": "vvG1VZ_6kFI4dW",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Fonseca - Celebracion Mundial",
+      "description": "El bogotano Juan Fernando Fonseca Carrera, 'Fonseca', es un cantautor que fusiona diferentes géneros musicales como el vallenato, pop, rock, salsa, tambora y merengue, mezclando el pop con diversos ritmos folclóricos. Considera sus maestros a artistas como: Rubén Blades, Carlos Vives, Beck, Seal, Miguel Bosé, Phoenix, Soda Stereo... y tiene innumerables discos de oro y varios Grammys latinos.Entre sus trabajos más celebrados estuvieron 'Ilusión' que fue 'disco diamante' y el quinto álbum, 'Conexión' cuatro veces platino situándose número uno en Colombia y Perú, '2' en Estados Unidos y dentro del Top 10 en Panamá, Costa Rica, El Salvador, Nicaragua, Bolivia, Ecuador y Guatemala. Tamabaién recibió el Latin Grammy de 'Mejor Canción Tropical' por 'Vine a Buscarte'. Ha colaborado con supertallas como Willy Colon, Juanes, Víctor Manuelle, Miguel Bosé, Carlos Vives, Maluma, India Martínez, Andrea Echeverri, Andrés Cepeda y hasta Ringo Starr.",
+      "startDate": "2026-06-26T20:00:00",
+      "endDate": "",
+      "url": "https://www.ticketmaster.com/fonseca-celebracion-mundial-doral-florida-06-26-2026/event/0D00647188A150FD",
+      "imageUrl": "https://s1.ticketm.net/dam/a/5f4/f9a9173b-8249-431f-ac8d-95dbfec145f4_SOURCE",
+      "venueName": "Doral Amphitheater at Doral Central Park",
+      "venueAddress": "3005 NW 92nd Avenue, Doral, FL",
+      "neighborhood": "Doral",
+      "latitude": 25.8023,
+      "longitude": -80.34397,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Music",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
+    },
+    {
+      "id": "ticketmaster-vvG1VZbU950MCp",
+      "sourceId": "vvG1VZbU950MCp",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Matt Rife: Stay Golden World Tour",
+      "description": "18+ / Mature Audience Only This event is being professionally filmed, recorded and / or photographed. By entering this space you are giving your consent for any audience images or recordings captured to be used for commercial and / or promotional purposes. Please speak to a member of staff should you require further information.",
+      "startDate": "2026-06-26T20:00:00",
+      "endDate": "",
+      "url": "https://www.ticketmaster.com/matt-rife-stay-golden-world-tour-hollywood-florida-06-26-2026/event/0D006365CB937396",
+      "imageUrl": "https://s1.ticketm.net/dam/a/238/b3bb5076-6b92-45d8-b5a5-e5e700a50238_SOURCE",
+      "venueName": "Hard Rock Live",
+      "venueAddress": "1 Seminole Way, Hollywood, FL",
+      "neighborhood": "Hollywood",
+      "latitude": 26.0503384,
+      "longitude": -80.2109577,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Arts",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
+    },
+    {
+      "id": "ticketmaster-vvG1VZ_79q35ek",
+      "sourceId": "vvG1VZ_79q35ek",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Zack Fox",
+      "description": "Zack Fox will be performing at Revolution Live at the Backyard on Friday, June 26th. This event is 18+. Doors open at 8 PM. Show starts at 9 PM. All support acts are subject to change without notice. This event is Rain or Shine.",
+      "startDate": "2026-06-26T20:00:00",
+      "endDate": "",
+      "url": "https://www.ticketmaster.com/zack-fox-ft-lauderdale-florida-06-26-2026/event/0D006445DD48B086",
+      "imageUrl": "https://s1.ticketm.net/dam/a/048/7bf9ff5f-32e7-473a-9d3f-8f3655e35048_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "venueName": "Revolution Live at the Backyard",
+      "venueAddress": "100 SW 3rd Avenue, Ft Lauderdale, FL",
+      "neighborhood": "Ft Lauderdale",
+      "latitude": 26.12123121,
+      "longitude": -80.14625645,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Music",
+      "status": "rescheduled",
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
     },
     {
       "id": "mlb-marlins-823039",
@@ -1170,8 +1103,162 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
+    },
+    {
+      "id": "ticketmaster-rZ7HnEZ1AfqgZK",
+      "sourceId": "rZ7HnEZ1AfqgZK",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Friday Night Live - Improv Comedy Miami Show",
+      "description": "Friday Night Live! - Improv Comedy in Miami ShowIts JTFs special combination of shortform and longform improv! Enjoy as our award winning cast brings you fantastic improv thats perfect for your Friday night...LIVE!Our shows are often described as fast-paced improvised comedy. Think of it as Whose Line is It Anyway meets SNL with a lot of fun audience interaction along the way. Come be a part of the fun!Tickets are PER PERSON for this show. We will seat parties together in tables. We will do our best to sit larger groups as close as possible, but may have to split large groups if they arrive late.Tickets are NON REFUNDABLE after purchase. The show STARTS at 9pm and ENDS at around 10:50pm. Pre-show bar opens at 7:30pm with a pre-show stage show at 8pm at no additional cost if you want to arrive early.",
+      "startDate": "2026-06-26T21:00:00",
+      "endDate": "",
+      "url": "https://www.ticketweb.com/event/friday-night-live-just-the-funny-tickets/14775013",
+      "imageUrl": "https://s1.ticketm.net/dam/c/50a/fa9caa1f-73a1-411e-b507-ec56fa59650a_106061_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "venueName": "Just the Funny",
+      "venueAddress": "3119 Coral Way, Miami, FL",
+      "neighborhood": "Miami",
+      "latitude": 25.750417,
+      "longitude": -80.244412,
+      "isFree": false,
+      "price": "From $29",
+      "category": "Arts",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
+    },
+    {
+      "id": "ticketmaster-rZ7HnEZ1Afk48f",
+      "sourceId": "rZ7HnEZ1Afk48f",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "¡Dale! Impro - Impro en español",
+      "description": "Preprate para una noche donde t puedes ser parte del show!Dale! Impro es comedia improvisada en espaol y Spanglish, con toda la energa, sabor y diversidad de Miami.Sin guion y sin filtros, un elenco internacional transforma las sugerencias del pblico en escenas interactivas, inesperadas y llenas de humor. Cada show es nico y cualquier cosa puede pasar.Aqu el pblico tiene la palabra. Ven con ganas de rer y gozar a lo grande.",
+      "startDate": "2026-06-26T21:30:00",
+      "endDate": "",
+      "url": "https://www.ticketweb.com/event/dale-impro-impro-just-the-funny-tickets/14195414",
+      "imageUrl": "https://s1.ticketm.net/dam/c/f51/ee785ed6-f806-4195-98f4-69f67e09df51_106201_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "venueName": "Just the Funny",
+      "venueAddress": "3119 Coral Way, Miami, FL",
+      "neighborhood": "Miami",
+      "latitude": 25.750417,
+      "longitude": -80.244412,
+      "isFree": false,
+      "price": "From $18",
+      "category": "Other",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
+    },
+    {
+      "id": "ticketmaster-rZ7HnEZ1Af-o1d",
+      "sourceId": "rZ7HnEZ1Af-o1d",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Gorgon City",
+      "description": "This event is 21 and over. Any ticket holder unable to present valid identification indicating that they are at least 21 years of age will not be admitted to this event, and will not be eligible for a refund.",
+      "startDate": "2026-06-26T23:00:00",
+      "endDate": "",
+      "url": "https://www.ticketweb.com/event/gorgon-city-liv-nightclub-miami-tickets/14851283",
+      "imageUrl": "https://s1.ticketm.net/dam/a/656/eff6ecb9-4244-4021-b640-e29d55f48656_SOURCE",
+      "venueName": "LIV Nightclub Miami",
+      "venueAddress": "4441 Collins Ave, Miami Beach, FL",
+      "neighborhood": "Miami Beach",
+      "latitude": 25.817805,
+      "longitude": -80.122143,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Nightlife",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
+    },
+    {
+      "id": "ticketmaster-LvZ18Qq7iJhBLWOZvB17F",
+      "sourceId": "LvZ18Qq7iJhBLWOZvB17F",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Balloon Museum | Pop Air - Art Is Inflatable - Miami 2026",
+      "description": "After attracting millions of visitors around the world, POP AIR – Art is Inflatable, the exhibition by Balloon Museum, arrives in Miami at Mana Wynwood Convention Center. Inflatable art, a symbol of lightness, transformation, and creativity, challenges traditional ideas of art: here, you don’t just observe—you explore, interact, and experience. Monumental installations, vibrant colors, and interactive artworks created by internationally renowned artists shape an experience designed for all ages, where art comes to life through play, curiosity, and wonder. From May 16 to September 27, discover POP AIR – Art is Inflatable, the Balloon Museum exhibition that has already captivated over 7 million visitors worldwide. For more information, please see our FAQ.",
+      "startDate": "2026-06-27T10:00:00",
+      "endDate": "",
+      "url": "https://www.universe.com/events/balloon-museum-pop-air-art-is-inflatable-miami-2026-tickets-K6QGW4?ref=ticketmaster",
+      "imageUrl": "https://s1.ticketm.net/dam/a/c3f/b0066d0b-c019-41b2-bd7f-976408921c3f_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "venueName": "Mana Wynwood Convention Center",
+      "venueAddress": "318 NW 23rd St, Miami, FL",
+      "neighborhood": "Miami",
+      "latitude": 25.797998,
+      "longitude": -80.202062,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Arts",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:06.945Z"
+    },
+    {
+      "id": "ticketmaster-vvG1VZbnLUBdXW",
+      "sourceId": "vvG1VZbnLUBdXW",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Slow Burn Theatre Co: Jagged Little Pill: The Musical",
+      "description": "Winner! Two Tony Awards, Two Drama Desk Award, Eight Outer Critics Circle Awards, and a Grammy Award for Best Musical Theater Album Alanis Morissette's Jagged Little Pill: The Musical is an exhilarating new musical inspired by the themes and raw emotions laid bare in Alanis Morissette's seminal album of the same name. The Healys appear to be a picture-perfect suburban family - but looks can be deceiving. When the cracks beneath the surface begin to show, they must choose between maintaining the status quo or facing harsh truths about themselves, their community and the world around them.",
+      "startDate": "2026-06-27T13:00:00",
+      "endDate": "",
+      "url": "https://www.ticketmaster.com/slow-burn-theatre-co-jagged-little-ft-lauderdale-florida-06-27-2026/event/0D0062A7F6E83FBD",
+      "imageUrl": "https://s1.ticketm.net/dam/a/087/d6ab59f9-9474-47c8-a4c0-511e8d0cb087_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "venueName": "Amaturo Theater at Broward Center",
+      "venueAddress": "201 SW 5th Avenue, Ft Lauderdale, FL",
+      "neighborhood": "Ft Lauderdale",
+      "latitude": 26.1193,
+      "longitude": -80.149426,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Music",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:07.436Z"
+    },
+    {
+      "id": "ticketmaster-LvZ18QOWYKJCoS8ZvpCM9",
+      "sourceId": "LvZ18QOWYKJCoS8ZvpCM9",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "Kaseya Center All-Access Tour",
+      "description": "Embark on a guided behind-the-scenes tour of Miami’s premier sports and entertainment venue, and home of the 3-time NBA Champion Miami HEAT. Stops include: Miami HEAT training facilities, arena suites and lounges, media control room, and many more. Estimated duration: 1 to 1.5 hours. Adult tickets: 18 years old or over Minor tickets: 2-17 years old (must be accompanied on the tour by a ticketed adult) Minors under 2 years old do not require a ticket. Other notes: Tickets are non-refundable and non-transferrable. Dates/times are also non-transferrable. Availability for specific dates and/or times are subject to change. Furthermore, tours that have not reached a minimum number of participants may be canceled up to 48 hours prior to the schedule time. In the event that either happens, you will receive a refund of your purchase to the card used for payment. Please plan to arrive 15 minutes before your tour starts. Should you miss your start time, we will try our best to accommodate you in the subsequent time slot, provided that there is availability. For the safety of our guests, Kaseya Center does not permit certain items into the Kaseya Center. Prohibited items include: Bags, purses, backpacks, briefcases, duffle bags larger than 10” x 6” x 2\"; outside food or beverage; recording devices, tripods, and professional camera auxiliary lenses; illegal substances; and weapons of any kind. Management reserves the right to restrict any article not specifically listed above. Management or Security personnel may request to inspect any bag or purse, entering into the Kaseya Center. The Kaseya Center is a “smoke-free” facility. “Smoking” (which includes emitting vapors via e-cigarettes) is not permitted. This is a walking/standing tour in English that will last 60-90 minutes. If you have questions about additional accomodations/accessibility, please contact Guest Experiences at 786.777.1237 or email: guestservices@heat.com. Tour route may vary based on arena schedule. Additional information is available at https://www.kaseyacenter.com/guest-services/a-z-guide and https://www.kaseyacenter.com/guest-services/faqs.",
+      "startDate": "2026-06-27T14:00:00",
+      "endDate": "",
+      "url": "https://www.universe.com/events/kaseya-center-all-access-tour-tickets-82ZSY4?ref=ticketmaster",
+      "imageUrl": "https://s1.ticketm.net/dam/c/f51/ee785ed6-f806-4195-98f4-69f67e09df51_106201_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "venueName": "Kaseya Center",
+      "venueAddress": "601 Biscayne Blvd, Miami, FL",
+      "neighborhood": "Miami",
+      "latitude": 25.781232,
+      "longitude": -80.187805,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Other",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:07.436Z"
+    },
+    {
+      "id": "ticketmaster-vvG1VZ_amNrmoz",
+      "sourceId": "vvG1VZ_amNrmoz",
+      "source": "ticketmaster",
+      "sourceLabel": "Ticketmaster",
+      "name": "La Casa De La Sele: Colombia Official Fan Zone",
+      "description": "La Casa de la Sele en Miami es el punto de encuentro oficial donde los hinchas colombianos vivirán el Mundial como si estuvieran en casa. Un espacio creado para compartir la pasión por el futbol y sentir de cerca la emoción de apoyar a nuestra Selección junto a toda la comunidad. Sábado 27 de junio 3:00 p.m. - 11:00 p.m. Doral Amphitheater Apertura de puertas: 3:00 p.m. Programación destacada: Transmisión oficial en pantalla gigante Colombia vs. Portugal | 7:00 p.m. Escenario principal: -Takeover Casa D - Los Cumbieros + invitado especial sorpresa - Transmisión del partido - Takeover Perro Negro Zona de experiencias y distrito de activaciones: - Meet & greets - Ruleta de premios - Activaciones de marcas - Sorpresas durante toda la jornada Feria gastronómica con múltiples opciones para disfrutar durante el evento. Una experiencia completa donde se unen fútbol, entretenimiento, gastronomía, comunidad y activaciones en un solo lugar.",
+      "startDate": "2026-06-27T15:00:00",
+      "endDate": "",
+      "url": "https://www.ticketmaster.com/la-casa-de-la-sele-colombia-doral-florida-06-27-2026/event/0D00649BA37AE478",
+      "imageUrl": "https://s1.ticketm.net/dam/e/f4b/dd2d9f78-e295-491b-b178-4304d81cbf4b_SOURCE",
+      "venueName": "Doral Amphitheater at Doral Central Park",
+      "venueAddress": "3005 NW 92nd Avenue, Doral, FL",
+      "neighborhood": "Doral",
+      "latitude": 25.8023,
+      "longitude": -80.34397,
+      "isFree": false,
+      "price": "Check tickets",
+      "category": "Sports",
+      "status": "onsale",
+      "lastSeenAt": "2026-06-20T20:54:07.436Z"
     },
     {
       "id": "mlb-marlins-823037",
@@ -1193,8 +1280,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-824339",
@@ -1216,8 +1303,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-824338",
@@ -1239,8 +1326,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-824337",
@@ -1262,8 +1349,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-824982",
@@ -1285,8 +1372,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-824983",
@@ -1308,8 +1395,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-823847",
@@ -1331,8 +1418,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-823848",
@@ -1354,8 +1441,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-823846",
@@ -1377,8 +1464,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-823845",
@@ -1400,8 +1487,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-823844",
@@ -1423,8 +1510,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-823842",
@@ -1446,8 +1533,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-823766",
@@ -1469,8 +1556,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-823763",
@@ -1492,8 +1579,8 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     },
     {
       "id": "mlb-marlins-823764",
@@ -1515,8 +1602,31 @@
       "price": "Tickets available",
       "category": "Sports",
       "status": "Scheduled",
-      "updatedAt": "2026-06-19T14:58:45.221Z",
-      "lastSeenAt": "2026-06-19T14:58:45.221Z"
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
+    },
+    {
+      "id": "mlb-marlins-824167",
+      "sourceId": "mlb-marlins-824167",
+      "source": "mlb",
+      "sourceLabel": "MLB",
+      "name": "Miami Marlins at Astros",
+      "description": "Real Marlins away game. Use it as a game-night watch plan with your group.",
+      "startDate": "2026-07-21T00:10:00Z",
+      "endDate": "2026-07-21T03:40:00.000Z",
+      "url": "https://www.mlb.com/marlins/schedule",
+      "imageUrl": "https://images.unsplash.com/photo-1508344928928-7165b67de128?w=900&q=80",
+      "venueName": "Marlins watch plan",
+      "venueAddress": "501 Marlins Way, Miami, FL",
+      "neighborhood": "Miami",
+      "latitude": 25.7781,
+      "longitude": -80.2196,
+      "isFree": false,
+      "price": "Tickets available",
+      "category": "Sports",
+      "status": "Scheduled",
+      "updatedAt": "2026-06-20T20:54:05.263Z",
+      "lastSeenAt": "2026-06-20T20:54:05.263Z"
     }
   ],
   "providers": [
@@ -1532,9 +1642,9 @@
       "label": "Ticketmaster",
       "configured": true,
       "status": "live",
-      "count": 303
+      "count": 311
     }
   ],
-  "refreshedAt": "2026-06-19T14:58:47.591Z",
+  "refreshedAt": "2026-06-20T20:54:07.439Z",
   "version": 2
 }

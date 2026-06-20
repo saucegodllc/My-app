@@ -1,0 +1,424 @@
+﻿On branch codex-friends-mission-control
+Your branch is ahead of 'origin/codex-friends-mission-control' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes not staged for commit:
+  (use "git add/rm <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   artifacts/api-server/.env.example
+	modified:   artifacts/api-server/build.mjs
+	modified:   artifacts/api-server/package.json
+	modified:   artifacts/api-server/src/app.ts
+	modified:   artifacts/api-server/src/index.ts
+	modified:   artifacts/api-server/src/lib/stripeClient.ts
+	modified:   artifacts/api-server/src/routes/aiChat.ts
+	modified:   artifacts/api-server/src/routes/bio.ts
+	modified:   artifacts/api-server/src/routes/dating.ts
+	modified:   artifacts/api-server/src/routes/discovery.ts
+	modified:   artifacts/api-server/src/routes/doubleDate.ts
+	modified:   artifacts/api-server/src/routes/events.ts
+	modified:   artifacts/api-server/src/routes/friends.ts
+	modified:   artifacts/api-server/src/routes/index.ts
+	modified:   artifacts/api-server/src/routes/matches.ts
+	modified:   artifacts/api-server/src/routes/messages.ts
+	modified:   artifacts/api-server/src/routes/profiles.ts
+	modified:   artifacts/api-server/src/routes/reports.ts
+	modified:   artifacts/api-server/src/routes/resume.ts
+	modified:   artifacts/api-server/src/routes/storage.ts
+	modified:   artifacts/api-server/src/routes/subscriptions.ts
+	modified:   artifacts/api-server/tsconfig.json
+	modified:   artifacts/connectsphere-mobile/app.config.js
+	modified:   artifacts/connectsphere-mobile/app.json
+	modified:   artifacts/connectsphere-mobile/app/(auth)/sign-in.tsx
+	modified:   artifacts/connectsphere-mobile/app/(auth)/sign-up.tsx
+	modified:   artifacts/connectsphere-mobile/app/(auth)/welcome.tsx
+	modified:   artifacts/connectsphere-mobile/app/(tabs)/_layout.tsx
+	modified:   artifacts/connectsphere-mobile/app/(tabs)/events.tsx
+	modified:   artifacts/connectsphere-mobile/app/(tabs)/index.tsx
+	deleted:    artifacts/connectsphere-mobile/app/(tabs)/map.tsx
+	modified:   artifacts/connectsphere-mobile/app/(tabs)/matches.tsx
+	modified:   artifacts/connectsphere-mobile/app/(tabs)/profile.tsx
+	modified:   artifacts/connectsphere-mobile/app/_layout.tsx
+	modified:   artifacts/connectsphere-mobile/app/chat/[matchId].tsx
+	modified:   artifacts/connectsphere-mobile/app/chat/ai-bot.tsx
+	modified:   artifacts/connectsphere-mobile/app/chat/dating/[id].tsx
+	modified:   artifacts/connectsphere-mobile/app/congrats.tsx
+	modified:   artifacts/connectsphere-mobile/app/index.tsx
+	modified:   artifacts/connectsphere-mobile/app/onboarding.tsx
+	modified:   artifacts/connectsphere-mobile/app/premium.tsx
+	modified:   artifacts/connectsphere-mobile/app/resume.tsx
+	modified:   artifacts/connectsphere-mobile/app/settings.tsx
+	modified:   artifacts/connectsphere-mobile/app/success.tsx
+	modified:   artifacts/connectsphere-mobile/app/user/[userId].tsx
+	modified:   artifacts/connectsphere-mobile/components/CreateFriendPlanSheet.tsx
+	modified:   artifacts/connectsphere-mobile/components/DatingMatchModal.tsx
+	modified:   artifacts/connectsphere-mobile/components/DatingMatchesPreview.tsx
+	modified:   artifacts/connectsphere-mobile/components/DoubleDateTab.tsx
+	modified:   artifacts/connectsphere-mobile/components/ErrorBoundary.tsx
+	modified:   artifacts/connectsphere-mobile/components/FriendsTab.tsx
+	modified:   artifacts/connectsphere-mobile/components/ShotBottomSheet.tsx
+	modified:   artifacts/connectsphere-mobile/components/ShotSections.tsx
+	modified:   artifacts/connectsphere-mobile/components/SwipeCard.tsx
+	modified:   artifacts/connectsphere-mobile/contexts/ConnectionsContext.tsx
+	modified:   artifacts/connectsphere-mobile/contexts/DatingMatchContext.tsx
+	modified:   artifacts/connectsphere-mobile/lib/aiChat.ts
+	modified:   artifacts/connectsphere-mobile/metro.config.js
+	modified:   artifacts/connectsphere-mobile/package.json
+	modified:   artifacts/connectsphere-mobile/services/datingShotsApi.ts
+	modified:   artifacts/connectsphere-mobile/services/doubleDateApi.ts
+	modified:   artifacts/connectsphere-mobile/services/eventsApi.ts
+	modified:   artifacts/connectsphere-mobile/services/friendsApi.ts
+	modified:   artifacts/connectsphere/src/App.tsx
+	modified:   artifacts/connectsphere/src/pages/discover.tsx
+	modified:   artifacts/connectsphere/src/pages/matches.tsx
+	modified:   artifacts/connectsphere/src/pages/onboarding.tsx
+	modified:   artifacts/connectsphere/src/pages/profile-me.tsx
+	modified:   lib/api-client-react/src/generated/api.schemas.ts
+	modified:   lib/api-zod/src/generated/api.ts
+	modified:   lib/api-zod/src/generated/types/profile.ts
+	modified:   lib/api-zod/src/generated/types/upsertProfileBody.ts
+	modified:   lib/db/src/schema/index.ts
+	modified:   pnpm-lock.yaml
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	.github/workflows/test.yml
+	BACKEND_SETUP.md
+	CLAUDE.md
+	COMPETITIVE_PLAN.md
+	LAUNCH_CHECKLIST.md
+	PRODUCT_CONCEPT_MIAMI_MAP.md
+	SPEC_CHAT_SHOT_VOICE_UX.md
+	artifacts/DEPLOY_CHECKLIST.md
+	artifacts/TESTING_STRATEGY.md
+	artifacts/api-server/Dockerfile
+	artifacts/api-server/coverage/clover.xml
+	artifacts/api-server/coverage/coverage-final.json
+	artifacts/api-server/coverage/lcov-report/base.css
+	artifacts/api-server/coverage/lcov-report/block-navigation.js
+	artifacts/api-server/coverage/lcov-report/index.html
+	artifacts/api-server/coverage/lcov-report/prettify.css
+	artifacts/api-server/coverage/lcov-report/prettify.js
+	artifacts/api-server/coverage/lcov-report/sorter.js
+	artifacts/api-server/coverage/lcov-report/src/app.ts.html
+	artifacts/api-server/coverage/lcov-report/src/index.html
+	artifacts/api-server/coverage/lcov-report/src/launchGuards.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/connectPushNotifications.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/featureFlags.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/friendsIcebreakers.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/index.html
+	artifacts/api-server/coverage/lcov-report/src/lib/logger.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/matchThreads.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/monitoring.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/objectAcl.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/objectStorage.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/operationalStore.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/pushNotifications.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/revenueCatClient.ts.html
+	artifacts/api-server/coverage/lcov-report/src/lib/stripeClient.ts.html
+	artifacts/api-server/coverage/lcov-report/src/middlewares/clerkProxyMiddleware.ts.html
+	artifacts/api-server/coverage/lcov-report/src/middlewares/index.html
+	artifacts/api-server/coverage/lcov-report/src/middlewares/rateLimit.ts.html
+	artifacts/api-server/coverage/lcov-report/src/middlewares/requireAuth.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/account.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/aiChat.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/antiGhostNudge.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/authServer.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/bio.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/dailySpark.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/dashboard.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/dating.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/discovery.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/doubleDate.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/events.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/friends.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/health.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/icebreakers.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/index.html
+	artifacts/api-server/coverage/lcov-report/src/routes/index.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/matches.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/matchesBatching.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/me.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/messages.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/notifications.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/profiles.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/reports.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/resume.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/storage.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/stripe.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/subscriptions.ts.html
+	artifacts/api-server/coverage/lcov-report/src/routes/venues.ts.html
+	artifacts/api-server/coverage/lcov.info
+	artifacts/api-server/events-cache.json
+	artifacts/api-server/jest.config.cjs
+	artifacts/api-server/railway.toml
+	artifacts/api-server/scripts/check-production-env.mjs
+	artifacts/api-server/scripts/smoke-render.mjs
+	artifacts/api-server/src/auth401.test.ts
+	artifacts/api-server/src/bio.test.mjs
+	artifacts/api-server/src/connectPushNotifications.test.mjs
+	artifacts/api-server/src/friendsMatchRouting.test.ts
+	artifacts/api-server/src/inboxRoutes.test.ts
+	artifacts/api-server/src/launchGuards.test.ts
+	artifacts/api-server/src/launchGuards.ts
+	artifacts/api-server/src/launchOps.test.mjs
+	artifacts/api-server/src/lib/connectPushNotifications.ts
+	artifacts/api-server/src/lib/featureFlags.ts
+	artifacts/api-server/src/lib/matchThreads.ts
+	artifacts/api-server/src/lib/monitoring.ts
+	artifacts/api-server/src/lib/operationalStore.ts
+	artifacts/api-server/src/lib/pushNotifications.ts
+	artifacts/api-server/src/matchThreads.test.ts
+	artifacts/api-server/src/middlewares/rateLimit.ts
+	artifacts/api-server/src/middlewares/requireAuth.ts
+	artifacts/api-server/src/routes/account.ts
+	artifacts/api-server/src/routes/antiGhostNudge.ts
+	artifacts/api-server/src/routes/dailySpark.ts
+	artifacts/api-server/src/routes/events.test.ts
+	artifacts/api-server/src/routes/icebreakers.test.ts
+	artifacts/api-server/src/routes/icebreakers.ts
+	artifacts/api-server/src/routes/matchesBatching.ts
+	artifacts/api-server/src/routes/me.ts
+	artifacts/api-server/src/routes/moments.ts
+	artifacts/api-server/src/routes/notifications.ts
+	artifacts/api-server/src/routes/stripe.webhook.test.ts
+	artifacts/api-server/test/matches.profileBatch.test.ts
+	artifacts/api-server/tests/fixtures/tm-response.json
+	artifacts/connectsphere-mobile/.env.example
+	artifacts/connectsphere-mobile/.firebaserc
+	artifacts/connectsphere-mobile/.tmp-web-export-dopamine-final/_expo/static/js/web/entry-d8e04412d387bcc6e2c5c99d7ca2b83b.js
+	artifacts/connectsphere-mobile/.tmp-web-export-dopamine-final/assets/assets/videos/champagne_cheers_welcome.987838925925b09c8a7d42619c86a271.mp4
+	artifacts/connectsphere-mobile/.tmp-web-export-dopamine-final/assets/assets/videos/welcome-loop-poster.5d60cbadd8ed392bc88e74e0909b3434.jpg
+	artifacts/connectsphere-mobile/.tmp-web-export-dopamine-final/assets/assets/videos/welcome-loop.1652cd03dcc93a5e25e342f0f0775579.mp4
+	artifacts/connectsphere-mobile/.tmp-web-export-dopamine-final/favicon.ico
+	artifacts/connectsphere-mobile/.tmp-web-export-dopamine-final/index.html
+	artifacts/connectsphere-mobile/.tmp-web-export-dopamine-final/metadata.json
+	artifacts/connectsphere-mobile/.tmp-web-export-qa/_expo/static/js/web/entry-c49d489432c8862b35e0ac61c18dac8f.js
+	artifacts/connectsphere-mobile/.tmp-web-export-qa/assets/assets/videos/champagne_cheers_welcome.987838925925b09c8a7d42619c86a271.mp4
+	artifacts/connectsphere-mobile/.tmp-web-export-qa/assets/assets/videos/welcome-loop-poster.5d60cbadd8ed392bc88e74e0909b3434.jpg
+	artifacts/connectsphere-mobile/.tmp-web-export-qa/assets/assets/videos/welcome-loop.1652cd03dcc93a5e25e342f0f0775579.mp4
+	artifacts/connectsphere-mobile/.tmp-web-export-qa/favicon.ico
+	artifacts/connectsphere-mobile/.tmp-web-export-qa/index.html
+	artifacts/connectsphere-mobile/.tmp-web-export-qa/metadata.json
+	artifacts/connectsphere-mobile/.tmp-web-export/_expo/static/js/web/entry-c49d489432c8862b35e0ac61c18dac8f.js
+	artifacts/connectsphere-mobile/.tmp-web-export/assets/assets/videos/champagne_cheers_welcome.987838925925b09c8a7d42619c86a271.mp4
+	artifacts/connectsphere-mobile/.tmp-web-export/assets/assets/videos/welcome-loop-poster.5d60cbadd8ed392bc88e74e0909b3434.jpg
+	artifacts/connectsphere-mobile/.tmp-web-export/assets/assets/videos/welcome-loop.1652cd03dcc93a5e25e342f0f0775579.mp4
+	artifacts/connectsphere-mobile/.tmp-web-export/favicon.ico
+	artifacts/connectsphere-mobile/.tmp-web-export/index.html
+	artifacts/connectsphere-mobile/.tmp-web-export/metadata.json
+	artifacts/connectsphere-mobile/__mocks__/@workspace/api-client-react.ts
+	artifacts/connectsphere-mobile/__tests__/DatingMatchModal.test.tsx
+	artifacts/connectsphere-mobile/__tests__/ExpandedProfileCard.test.tsx
+	artifacts/connectsphere-mobile/__tests__/analyticsEvents.test.ts
+	artifacts/connectsphere-mobile/__tests__/apiBase.test.ts
+	artifacts/connectsphere-mobile/__tests__/appConfigLaunch.test.ts
+	artifacts/connectsphere-mobile/__tests__/blockedUsersApi.test.ts
+	artifacts/connectsphere-mobile/__tests__/buildLocalConvs.test.ts
+	artifacts/connectsphere-mobile/__tests__/chatPayload.test.ts
+	artifacts/connectsphere-mobile/__tests__/connectChats.test.ts
+	artifacts/connectsphere-mobile/__tests__/connectMatchMomentPolicy.test.ts
+	artifacts/connectsphere-mobile/__tests__/connectRouting.test.ts
+	artifacts/connectsphere-mobile/__tests__/criticalFlows.test.ts
+	artifacts/connectsphere-mobile/__tests__/dailySpark.test.ts
+	artifacts/connectsphere-mobile/__tests__/datingChatPlanButton.test.tsx
+	artifacts/connectsphere-mobile/__tests__/devPushSmoke.test.ts
+	artifacts/connectsphere-mobile/__tests__/discoverActionRail.test.ts
+	artifacts/connectsphere-mobile/__tests__/discoverErrorBoundary.test.ts
+	artifacts/connectsphere-mobile/__tests__/discoverRewind.test.ts
+	artifacts/connectsphere-mobile/__tests__/eventsScreenSmoke.test.tsx
+	artifacts/connectsphere-mobile/__tests__/eventsScreenState.test.ts
+	artifacts/connectsphere-mobile/__tests__/featureUnlock.test.ts
+	artifacts/connectsphere-mobile/__tests__/firestore.rules.test.ts
+	artifacts/connectsphere-mobile/__tests__/firstSessionGuide.test.ts
+	artifacts/connectsphere-mobile/__tests__/inboxEndpoints.test.ts
+	artifacts/connectsphere-mobile/__tests__/matchesMomentAccept.test.ts
+	artifacts/connectsphere-mobile/__tests__/momentsSilentButtons.test.tsx
+	artifacts/connectsphere-mobile/__tests__/persistentBoost.test.ts
+	artifacts/connectsphere-mobile/__tests__/planRequestEnvelope.test.ts
+	artifacts/connectsphere-mobile/__tests__/premiumAccess.test.ts
+	artifacts/connectsphere-mobile/__tests__/retentionFeatures.test.ts
+	artifacts/connectsphere-mobile/__tests__/shotUX.test.tsx
+	artifacts/connectsphere-mobile/__tests__/sounds.test.ts
+	artifacts/connectsphere-mobile/__tests__/sparkAiChat.test.ts
+	artifacts/connectsphere-mobile/__tests__/swipeCounter.test.ts
+	artifacts/connectsphere-mobile/__tests__/useIcebreakers.test.ts
+	artifacts/connectsphere-mobile/__tests__/vibeBreakdown.test.ts
+	artifacts/connectsphere-mobile/__tests__/vibeCheckWiring.test.ts
+	artifacts/connectsphere-mobile/__tests__/workflowPipelines.test.ts
+	artifacts/connectsphere-mobile/app/(tabs)/communities.tsx
+	artifacts/connectsphere-mobile/app/(tabs)/moments.tsx
+	artifacts/connectsphere-mobile/app/blocked-users.tsx
+	artifacts/connectsphere-mobile/app/chat/chatFreshness.test.mjs
+	artifacts/connectsphere-mobile/app/chat/chatFreshness.ts
+	artifacts/connectsphere-mobile/app/communities/[id].tsx
+	artifacts/connectsphere-mobile/app/communities/create.tsx
+	artifacts/connectsphere-mobile/app/communities/thread/[postId].tsx
+	artifacts/connectsphere-mobile/app/invite/[code].tsx
+	artifacts/connectsphere-mobile/app/legal/privacy.tsx
+	artifacts/connectsphere-mobile/app/legal/terms.tsx
+	artifacts/connectsphere-mobile/app/likes-you.tsx
+	artifacts/connectsphere-mobile/app/profile-views.tsx
+	artifacts/connectsphere-mobile/app/referral.tsx
+	artifacts/connectsphere-mobile/app/u/[username].tsx
+	artifacts/connectsphere-mobile/assets/sounds/match.mp3
+	artifacts/connectsphere-mobile/assets/sounds/message_ping.mp3
+	artifacts/connectsphere-mobile/assets/sounds/swipe_left.mp3
+	artifacts/connectsphere-mobile/assets/sounds/swipe_right.mp3
+	artifacts/connectsphere-mobile/components/ActionFeedback.tsx
+	artifacts/connectsphere-mobile/components/CountUpStat.tsx
+	artifacts/connectsphere-mobile/components/DeckExhaustedState.tsx
+	artifacts/connectsphere-mobile/components/DevPushSmokePanel.tsx
+	artifacts/connectsphere-mobile/components/DiscoverErrorBoundary.tsx
+	artifacts/connectsphere-mobile/components/DiscoveryFilters.tsx
+	artifacts/connectsphere-mobile/components/ExpandedProfileCard.tsx
+	artifacts/connectsphere-mobile/components/FirstSessionGuide.tsx
+	artifacts/connectsphere-mobile/components/GifPicker.tsx
+	artifacts/connectsphere-mobile/components/IcebreakerBar.tsx
+	artifacts/connectsphere-mobile/components/LegalDocumentScreen.tsx
+	artifacts/connectsphere-mobile/components/MatchProfileSheet.tsx
+	artifacts/connectsphere-mobile/components/MatchesSpotlightRow.tsx
+	artifacts/connectsphere-mobile/components/MessageReactionPicker.tsx
+	artifacts/connectsphere-mobile/components/OpenerSuggestions.tsx
+	artifacts/connectsphere-mobile/components/PhotoReorderGrid.tsx
+	artifacts/connectsphere-mobile/components/ProfileActionBar.tsx
+	artifacts/connectsphere-mobile/components/ProfileBoostBanner.tsx
+	artifacts/connectsphere-mobile/components/ProfilePreviewModal.tsx
+	artifacts/connectsphere-mobile/components/PushTokenRegistrar.tsx
+	artifacts/connectsphere-mobile/components/ReportBlockSheet.tsx
+	artifacts/connectsphere-mobile/components/ShotAssist.tsx
+	artifacts/connectsphere-mobile/components/TypingIndicator.tsx
+	artifacts/connectsphere-mobile/components/UnlockToast.tsx
+	artifacts/connectsphere-mobile/components/VibeBreakdown.tsx
+	artifacts/connectsphere-mobile/components/VibeCheckQuiz.tsx
+	artifacts/connectsphere-mobile/components/VibeRevealScreen.tsx
+	artifacts/connectsphere-mobile/components/VideoMomentPicker.tsx
+	artifacts/connectsphere-mobile/components/VoiceNoteRecorder.tsx
+	artifacts/connectsphere-mobile/constants/tokens.ts
+	artifacts/connectsphere-mobile/coverage/clover.xml
+	artifacts/connectsphere-mobile/coverage/coverage-final.json
+	artifacts/connectsphere-mobile/coverage/lcov-report/app/(tabs)/events.tsx.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/app/(tabs)/index.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/base.css
+	artifacts/connectsphere-mobile/coverage/lcov-report/block-navigation.js
+	artifacts/connectsphere-mobile/coverage/lcov-report/components/DatingMatchModal.tsx.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/components/index.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/constants/colors.ts.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/constants/index.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/hooks/index.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/hooks/useColors.ts.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/index.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/lib/apiBase.ts.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/lib/discoverActionRail.ts.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/lib/discoverRewind.ts.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/lib/eventsScreenState.ts.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/lib/index.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/lib/swipeCounter.ts.html
+	artifacts/connectsphere-mobile/coverage/lcov-report/prettify.css
+	artifacts/connectsphere-mobile/coverage/lcov-report/prettify.js
+	artifacts/connectsphere-mobile/coverage/lcov-report/sorter.js
+	artifacts/connectsphere-mobile/coverage/lcov.info
+	artifacts/connectsphere-mobile/docs/app-store-listing.md
+	artifacts/connectsphere-mobile/docs/app-store-readiness.md
+	artifacts/connectsphere-mobile/docs/competitor-positioning.md
+	artifacts/connectsphere-mobile/eas.json
+	artifacts/connectsphere-mobile/expo-tunnel-8105-manifest.json
+	artifacts/connectsphere-mobile/firebase.json
+	artifacts/connectsphere-mobile/firestore.indexes.json
+	artifacts/connectsphere-mobile/firestore.rules
+	artifacts/connectsphere-mobile/functions/jest.config.js
+	artifacts/connectsphere-mobile/functions/package.json
+	artifacts/connectsphere-mobile/functions/src/__tests__/withdrawReaction.test.ts
+	artifacts/connectsphere-mobile/functions/src/account.ts
+	artifacts/connectsphere-mobile/functions/src/aiShot.ts
+	artifacts/connectsphere-mobile/functions/src/index.ts
+	artifacts/connectsphere-mobile/functions/src/moderatePhoto.ts
+	artifacts/connectsphere-mobile/functions/src/profiles.ts
+	artifacts/connectsphere-mobile/functions/src/push.ts
+	artifacts/connectsphere-mobile/functions/src/reactions.ts
+	artifacts/connectsphere-mobile/functions/tsconfig.json
+	artifacts/connectsphere-mobile/hooks/useFeatureUnlock.ts
+	artifacts/connectsphere-mobile/hooks/useIcebreakers.ts
+	artifacts/connectsphere-mobile/hooks/usePersistentBoost.ts
+	artifacts/connectsphere-mobile/hooks/useSessionState.ts
+	artifacts/connectsphere-mobile/hooks/useUnreadCount.ts
+	artifacts/connectsphere-mobile/jest.config.js
+	artifacts/connectsphere-mobile/jest.setup.js
+	artifacts/connectsphere-mobile/lib/analytics.ts
+	artifacts/connectsphere-mobile/lib/buildLocalConvs.ts
+	artifacts/connectsphere-mobile/lib/chatPayload.ts
+	artifacts/connectsphere-mobile/lib/connectMatchMomentPolicy.ts
+	artifacts/connectsphere-mobile/lib/devPushSmoke.ts
+	artifacts/connectsphere-mobile/lib/discoverActionRail.ts
+	artifacts/connectsphere-mobile/lib/discoverRewind.ts
+	artifacts/connectsphere-mobile/lib/eventsScreenState.ts
+	artifacts/connectsphere-mobile/lib/featureFlags.ts
+	artifacts/connectsphere-mobile/lib/featureUnlock.ts
+	artifacts/connectsphere-mobile/lib/launchConfig.ts
+	artifacts/connectsphere-mobile/lib/legalDocuments.ts
+	artifacts/connectsphere-mobile/lib/mockData.ts
+	artifacts/connectsphere-mobile/lib/offlineQueue.ts
+	artifacts/connectsphere-mobile/lib/permissions.ts
+	artifacts/connectsphere-mobile/lib/planRequestEnvelope.ts
+	artifacts/connectsphere-mobile/lib/premiumAccess.ts
+	artifacts/connectsphere-mobile/lib/retentionFeatures.ts
+	artifacts/connectsphere-mobile/lib/routes.ts
+	artifacts/connectsphere-mobile/lib/sentry.ts
+	artifacts/connectsphere-mobile/lib/sounds.ts
+	artifacts/connectsphere-mobile/lib/swipeCounter.ts
+	artifacts/connectsphere-mobile/lib/swipeStreak.ts
+	artifacts/connectsphere-mobile/scripts/audit-taps.mjs
+	artifacts/connectsphere-mobile/scripts/launch-check.mjs
+	artifacts/connectsphere-mobile/scripts/pre-submit-check.mjs
+	artifacts/connectsphere-mobile/scripts/serve-static-export.mjs
+	artifacts/connectsphere-mobile/services/blockedUsersApi.ts
+	artifacts/connectsphere-mobile/services/chatSignals.ts
+	artifacts/connectsphere-mobile/services/communitiesApi.ts
+	artifacts/connectsphere-mobile/services/communitySignals.ts
+	artifacts/connectsphere-mobile/services/connectApi.ts
+	artifacts/connectsphere-mobile/services/connectIncoming.test.ts
+	artifacts/connectsphere-mobile/services/connectIncoming.ts
+	artifacts/connectsphere-mobile/services/launchReadyApi.ts
+	artifacts/connectsphere-mobile/shims/expo-linear-gradient.js
+	artifacts/connectsphere-mobile/storage.rules
+	artifacts/connectsphere-mobile/store/README.md
+	artifacts/connectsphere-mobile/store/metadata/en-US/description.txt
+	artifacts/connectsphere-mobile/store/metadata/en-US/keywords.txt
+	artifacts/connectsphere-mobile/store/metadata/en-US/privacy-url.txt
+	artifacts/connectsphere-mobile/store/metadata/en-US/support-url.txt
+	artifacts/connectsphere-mobile/store/privacy-data-inventory.md
+	artifacts/connectsphere-mobile/store/release-notes.md
+	artifacts/connectsphere/src/pages/admin-moderation.tsx
+	artifacts/connectsphere/src/pages/legal.tsx
+	artifacts/render.yaml
+	artifacts/work-snapshots/claude-work-20260618-192427/git-status-full.txt
+	artifacts/work-snapshots/claude-work-20260618-192427/git-status-short.txt
+	docs/ADR-001-animation-system.md
+	docs/deploy-checklist-app-store.md
+	docs/launch/connectsphere-tap-matrix.md
+	docs/legal/community-guidelines.md
+	docs/legal/privacy-policy.md
+	docs/legal/safety-center.md
+	docs/legal/terms-of-service.md
+	docs/testing-strategy.md
+	e2e/connectsphere-match-chat.yaml
+	lib/db/src/schema/pushTokens.ts
+	lib/db/src/schema/sparkMemory.ts
+	render.yaml
+	scripts/check-prod-copy.sh
+	start-api.bat
+	start-api.sh
+	start-expo-go-8101-current.ps1
+	start-expo-go-8102-current.ps1
+	start-expo-go-8103-current.ps1
+	start-expo-go-8104-current.ps1
+	start-expo-go-lan-8107-current.ps1
+	start-expo-go-lan-8108-current.ps1
+	start-expo-go-lan-8110-current.ps1
+	start-expo-go-lan-8111-local-api.ps1
+	start-expo-go-tunnel-8105-current.ps1
+	start-expo-go-tunnel-8106-current.ps1
+	start-expo-go-tunnel-8108-current.ps1
+	start-expo-go-tunnel-8109-current.ps1
+
+no changes added to commit (use "git add" and/or "git commit -a")

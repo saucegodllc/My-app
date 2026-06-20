@@ -23,6 +23,12 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: STRIPE_PRICE_MONTHLY
+        sync: false
+      - key: STRIPE_PRICE_SIXMONTH
+        sync: false
+      - key: STRIPE_PRICE_YEARLY
+        sync: false
       - key: TICKETMASTER_API_KEY
         sync: false
       - key: EVENTS_USE_MOCKS

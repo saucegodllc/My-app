@@ -9,21 +9,34 @@
  *   5. Webhook grants RevenueCat entitlement → user is now Premium in the app
  *   6. Success page shows "Open App" deep link
  *
- * Env vars required (set in Railway):
+ * Env vars required (set in Render):
  *   STRIPE_SECRET_KEY         sk_live_xxx or sk_test_xxx
  *   STRIPE_WEBHOOK_SECRET     whsec_xxx  (from Stripe dashboard → Webhooks)
  *   STRIPE_PRICE_MONTHLY      price_xxx
+ *   STRIPE_PRICE_SIXMONTH     price_xxx
  *   STRIPE_PRICE_YEARLY       price_xxx
  *   REVENUECAT_API_SECRET_KEY  (from RC dashboard → API keys → Secret key)
- *   PUBLIC_APP_URL            https://your-api.railway.app  (no trailing slash)
+ *   PUBLIC_APP_URL            https://connectsphere-api.onrender.com  (no trailing slash)
  *   APP_SCHEME                connectsphere  (matches app.json scheme)
  */
 
 import { Router, type Request, type Response } from "express";
 import type Stripe from "stripe";
+import { eq } from "drizzle-orm";
+import { db } from "@workspace/db";
+import { profilesTable } from "@workspace/db";
 import { getStripeClient, isStripePlan, STRIPE_PRICES } from "../lib/stripeClient";
 import { grantRevenueCatEntitlement, revokeRevenueCatEntitlement } from "../lib/revenueCatClient";
 import { logger } from "../lib/logger";
+
+/** Write isPremium directly to the profiles table. This is the primary source
+ *  of truth — RevenueCat is an optional signal on top. */
+async function setDbPremium(clerkUserId: string, isPremium: boolean): Promise<void> {
+  await db
+    .update(profilesTable)
+    .set({ isPremium, updatedAt: new Date() })
+    .where(eq(profilesTable.userId, clerkUserId));
+}
 
 const router = Router();
 
@@ -302,11 +315,17 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
           }).catch((err) => logger.warn({ err }, "failed to tag stripe customer"));
         }
 
-        const plan = (session.metadata?.plan ?? "monthly") as "monthly" | "yearly";
-        const months = plan === "yearly" ? 12 : 1;
+        const plan = (session.metadata?.plan ?? "monthly") as "monthly" | "sixmonth" | "yearly";
+        const months = plan === "yearly" ? 12 : plan === "sixmonth" ? 6 : 1;
 
-        await grantRevenueCatEntitlement(clerkUserId, months);
-        logger.info({ clerkUserId, plan }, "stripe: granted RC entitlement");
+        // 1. Write to DB — primary source of truth, works without RevenueCat
+        await setDbPremium(clerkUserId, true);
+        logger.info({ clerkUserId, plan }, "stripe: set isPremium=true in DB");
+
+        // 2. Also grant RevenueCat entitlement if configured (enables native IAP UI)
+        await grantRevenueCatEntitlement(clerkUserId, months).catch((err) =>
+          logger.warn({ err, clerkUserId }, "stripe: RC grant failed (non-fatal — DB already updated)"),
+        );
         break;
       }
 
@@ -322,12 +341,19 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
         const clerkUserId = subscription.metadata?.clerkUserId;
         if (!clerkUserId) break;
 
-        const plan = subscription.items.data[0]?.price.recurring?.interval === "year"
-          ? "yearly" : "monthly";
-        const months = plan === "yearly" ? 12 : 1;
+        const interval = subscription.items.data[0]?.price.recurring?.interval;
+        const intervalCount = subscription.items.data[0]?.price.recurring?.interval_count ?? 1;
+        const plan = interval === "year" ? "yearly" : (interval === "month" && intervalCount === 6) ? "sixmonth" : "monthly";
+        const months = plan === "yearly" ? 12 : plan === "sixmonth" ? 6 : 1;
 
-        await grantRevenueCatEntitlement(clerkUserId, months);
-        logger.info({ clerkUserId }, "stripe: renewed RC entitlement");
+        // 1. DB update
+        await setDbPremium(clerkUserId, true);
+        logger.info({ clerkUserId }, "stripe: renewed isPremium=true in DB");
+
+        // 2. RC (optional)
+        await grantRevenueCatEntitlement(clerkUserId, months).catch((err) =>
+          logger.warn({ err, clerkUserId }, "stripe: RC renewal grant failed (non-fatal)"),
+        );
         break;
       }
 
@@ -345,8 +371,14 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
         const clerkUserId = subscription?.metadata?.clerkUserId;
         if (!clerkUserId) break;
 
-        await revokeRevenueCatEntitlement(clerkUserId);
-        logger.info({ clerkUserId }, "stripe: revoked RC entitlement");
+        // 1. DB update — revoke premium
+        await setDbPremium(clerkUserId, false);
+        logger.info({ clerkUserId }, "stripe: set isPremium=false in DB");
+
+        // 2. RC (optional)
+        await revokeRevenueCatEntitlement(clerkUserId).catch((err) =>
+          logger.warn({ err, clerkUserId }, "stripe: RC revoke failed (non-fatal)"),
+        );
         break;
       }
 

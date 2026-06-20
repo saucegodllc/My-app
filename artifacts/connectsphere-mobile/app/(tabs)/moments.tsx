@@ -39,8 +39,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/clerk-expo";
 import { shouldUseDemoSeeds } from "@/lib/launchConfig";
+import { apiUrl } from "@/lib/apiBase";
 import { openProfile } from "@/lib/routes";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -121,22 +122,29 @@ function useMoments(filter: MomentFilter) {
   const [moments, setMoments]     = useState<PublicMoment[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading]     = useState(true);
+  const { getToken } = useAuth();
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     try {
-      // TODO: replace with actual API call
-      // const res = await fetch(`${API_BASE}/api/moments/feed?filter=${filter}`);
-      // const data = await res.json();
-      // setMoments(data.moments);
-      await new Promise(r => setTimeout(r, 400)); // simulate network
+      const token = await getToken();
+      const res = await fetch(apiUrl(`/api/moments/feed?filter=${filter}`), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json() as { moments: PublicMoment[] };
+        setMoments(data.moments);
+      } else {
+        setMoments(shouldUseDemoSeeds() ? buildMockMoments() : []);
+      }
+    } catch {
       setMoments(shouldUseDemoSeeds() ? buildMockMoments() : []);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter]);
+  }, [filter, getToken]);
 
   useFocusEffect(useCallback(() => {
     const task = InteractionManager.runAfterInteractions(() => { load(); });
@@ -614,14 +622,7 @@ function MomentViewer({
               </Pressable>
               <Pressable
                 style={styles.echoBtn}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  Alert.alert(
-                    "Echo coming soon 🔜",
-                    "Echo lets you re-share a Moment to your own feed. Shipping next update!",
-                    [{ text: "Got it", onPress: onClose }],
-                  );
-                }}
+                onPress={() => Alert.alert("Echo coming soon 🔜", "You'll be able to reshare Moments to your own feed soon.", [{ text: "Got it" }])}
               >
                 <Text style={styles.echoBtnText}>↩ Echo</Text>
               </Pressable>
@@ -774,6 +775,7 @@ function FilterPills({
 export default function MomentsScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useUser();
+  const { getToken } = useAuth();
 
   const [filter, setFilter]               = useState<MomentFilter>("all");
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -796,28 +798,77 @@ export default function MomentsScreen() {
     });
   }, []);
 
-  const handleReply = useCallback((moment: PublicMoment, message: string) => {
-    // TODO: POST /api/moments/:id/reply
-    // Then route to Connect > Moments Requests
+  const handleReply = useCallback(async (moment: PublicMoment, message: string) => {
+    try {
+      const token = await getToken();
+      await fetch(apiUrl(`/api/moments/${moment.id}/reply`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          message,
+          userDisplayName: user?.fullName ?? user?.firstName ?? "Someone",
+          userPhotoUrl: user?.imageUrl,
+        }),
+      });
+    } catch {
+      // fire-and-forget — flash already shows success
+    }
     setSentFlash(`Reply sent to ${moment.userDisplayName}!`);
-    setTimeout(() => setSentFlash(null), 2200);
-    // Navigate to connect so they see the request was sent
-    // router.push("/(tabs)/matches?segment=moments");
-  }, []);
+    // Navigate to Connect > Moments Requests so user can see their sent request
+    setTimeout(() => {
+      setSentFlash(null);
+      router.push({ pathname: "/(tabs)/matches", params: { segment: "moments" } } as never);
+    }, 1200);
+  }, [getToken, user, setSentFlash]);
 
-  const handleLike = useCallback((moment: PublicMoment) => {
-    // TODO: POST /api/moments/:id/like
+  const handleLike = useCallback(async (moment: PublicMoment) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSentFlash(`❤️ Liked ${moment.userDisplayName}'s Moment!`);
     setTimeout(() => setSentFlash(null), 2000);
-  }, [setSentFlash]);
+    try {
+      const token = await getToken();
+      await fetch(apiUrl(`/api/moments/${moment.id}/like`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          userDisplayName: user?.fullName ?? user?.firstName ?? "Someone",
+          userPhotoUrl: user?.imageUrl,
+        }),
+      });
+    } catch {
+      // fire-and-forget — UI already updated optimistically
+    }
+  }, [getToken, user, setSentFlash]);
 
-  const handlePost = useCallback((text: string, location: string) => {
-    // TODO: POST /api/moments
+  const handlePost = useCallback(async (text: string, location: string) => {
     setSentFlash("Moment live! Your matches can see it now ✨");
     setTimeout(() => setSentFlash(null), 2400);
+    try {
+      const token = await getToken();
+      await fetch(apiUrl("/api/moments"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          text,
+          location: location || undefined,
+          userDisplayName: user?.fullName ?? user?.firstName ?? "Someone",
+          userPhotoUrl: user?.imageUrl,
+        }),
+      });
+    } catch {
+      // fire-and-forget
+    }
     reload();
-  }, [reload]);
+  }, [getToken, user, reload]);
 
   // ── Render item (stable ref — no choppiness) ────────────────────────────
   const renderItem = useCallback(({ item, index }: { item: PublicMoment; index: number }) => (

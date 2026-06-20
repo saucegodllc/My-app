@@ -1,0 +1,79 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isVideo() {
+      return request.resource.contentType.matches('video/.*');
+    }
+
+    function isAudio() {
+      return request.resource.contentType.matches('audio/.*');
+    }
+
+    // Max file sizes
+    function underMB(mb) {
+      return request.resource.size < mb * 1024 * 1024;
+    }
+
+    // ── profile photos: profiles/{userId}/{filename} ──────────────────────────
+    match /profiles/{userId}/{allPaths=**} {
+      allow read: if isSignedIn();
+
+      allow write: if isOwner(userId)
+        && (isImage() || isVideo())
+        && underMB(20); // 20 MB cap on profile media
+    }
+
+    // ── chat media: chats/{matchId}/{filename} ───────────────────────────────
+    // matchId format: {uid1}_{uid2}
+    match /chats/{matchId}/{filename} {
+      function isParticipant() {
+        return isSignedIn()
+          && (matchId.split('_')[0] == request.auth.uid
+              || matchId.split('_')[1] == request.auth.uid);
+      }
+
+      allow read: if isParticipant();
+
+      allow write: if isParticipant()
+        && (isImage() || isAudio() || isVideo())
+        && underMB(50); // 50 MB cap on chat media
+    }
+
+    // ── voice notes: voice/{userId}/{filename} ───────────────────────────────
+    match /voice/{userId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId)
+        && isAudio()
+        && underMB(10);
+    }
+
+    // ── video moments: videoMoments/{userId}/{filename} ─────────────────────
+    match /videoMoments/{userId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId)
+        && isVideo()
+        && underMB(100);
+    }
+
+    // ── Deny everything else ─────────────────────────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

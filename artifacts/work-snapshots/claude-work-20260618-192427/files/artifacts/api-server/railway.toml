@@ -1,0 +1,12 @@
+[build]
+builder = "nixpacks"
+buildCommand = "cd ../.. && pnpm install --frozen-lockfile && cd artifacts/api-server && pnpm run build"
+
+[deploy]
+startCommand = "node --enable-source-maps ./dist/index.mjs"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[deploy.healthcheck]
+path = "/api/healthz"
+timeout = 10

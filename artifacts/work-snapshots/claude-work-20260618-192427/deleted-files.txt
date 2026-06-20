@@ -1,0 +1,1 @@
+﻿artifacts/connectsphere-mobile/app/(tabs)/map.tsx

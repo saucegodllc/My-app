@@ -147,7 +147,7 @@ function ProfilePeekSheet({ author, visible, onClose }: PeekProps) {
               style={ss.peekBtnSecondary}
               onPress={() => {
                 onClose();
-                setTimeout(() => router.push(`/user/${author.id}` as any), 150);
+                setTimeout(() => router.push({ pathname: "/user/[userId]", params: { userId: author.id } } as any), 150);
               }}
               activeOpacity={0.75}
             >
@@ -158,7 +158,7 @@ function ProfilePeekSheet({ author, visible, onClose }: PeekProps) {
               onPress={() => {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 onClose();
-                setTimeout(() => router.push(`/user/${author.id}` as any), 150);
+                setTimeout(() => router.push({ pathname: "/user/[userId]", params: { userId: author.id } } as any), 150);
               }}
               activeOpacity={0.75}
             >

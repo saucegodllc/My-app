@@ -1059,6 +1059,10 @@ function EmptyState({ theme, intent, exhausted, refreshing, onReset, onRefresh }
           <Ionicons name="calendar-outline" size={15} color="#FFFFFF" />
           <Text style={styles.emptyQuickText}>Find events</Text>
         </Pressable>
+        <Pressable style={styles.emptyQuickBtn} onPress={() => router.push("/(tabs)/profile" as never)}>
+          <Ionicons name="person-circle-outline" size={15} color="#FFFFFF" />
+          <Text style={styles.emptyQuickText}>Complete profile</Text>
+        </Pressable>
       </View>
     </View>
   );

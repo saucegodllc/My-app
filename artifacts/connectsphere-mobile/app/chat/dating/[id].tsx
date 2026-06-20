@@ -35,6 +35,7 @@ import {
 } from "@/lib/retentionFeatures";
 import { hasUserMessages } from "../chatFreshness";
 import { MatchProfileSheet } from "@/components/MatchProfileSheet";
+import ReportBlockSheet from "@/components/ReportBlockSheet";
 
 // ── Bubble ────────────────────────────────────────────────────────────────────
 
@@ -148,6 +149,7 @@ export default function DatingChatScreen() {
   const [draft, setDraft] = useState("");
   const [showProfile, setShowProfile] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   const fillPlanComposer = useCallback(() => {
@@ -328,7 +330,7 @@ export default function DatingChatScreen() {
 
         {/* Controls */}
         <Pressable onPress={handleOpenControls} style={styles.headerActionBtn} hitSlop={6}>
-          <Ionicons name="warning-outline" size={22} color={colors.mutedForeground} />
+          <Ionicons name="ellipsis-horizontal" size={22} color={colors.mutedForeground} />
         </Pressable>
       </View>
 
@@ -395,6 +397,22 @@ export default function DatingChatScreen() {
         visible={showProfile}
         profile={match.profile}
         onClose={() => setShowProfile(false)}
+        onReport={() => {
+          setShowProfile(false);
+          setTimeout(() => setShowReport(true), 340);
+        }}
+      />
+
+      {/* ── Report / block sheet ───────────────────────────────────────────── */}
+      <ReportBlockSheet
+        visible={showReport}
+        targetUserId={match.profile.id}
+        targetName={match.profile.name.split(" ")[0]}
+        onClose={() => setShowReport(false)}
+        onBlocked={() => {
+          setShowReport(false);
+          router.replace("/(tabs)/matches" as never);
+        }}
       />
 
       {/* ── Controls bottom sheet ──────────────────────────────────────────── */}
@@ -422,9 +440,11 @@ export default function DatingChatScreen() {
                 style={[styles.controlRow, { borderBottomColor: colors.border }]}
                 onPress={() => {
                   handleCloseControls();
-                  // Unmatch navigates back after close animation
                   if (item.key === "unmatch") {
                     setTimeout(() => router.replace("/(tabs)/matches" as never), 280);
+                  } else if (item.key === "report") {
+                    // Give the sheet time to slide down before opening report
+                    setTimeout(() => setShowReport(true), 320);
                   }
                 }}
               >

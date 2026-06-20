@@ -204,7 +204,7 @@ export default function ProfileViewsScreen() {
                       </Text>
                     </View>
                     <Pressable
-                      onPress={() => router.push(`/user/${visitor.viewerId}` as any)}
+                      onPress={() => router.push({ pathname: "/user/[userId]", params: { userId: visitor.viewerId } } as any)}
                       hitSlop={8}
                       style={styles.viewBtn}
                     >

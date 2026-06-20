@@ -55,6 +55,7 @@ import { buildLocalConvs } from "@/lib/buildLocalConvs";
 import {
   acceptRequest,
   declineRequest,
+  declineMomentRequest,
   getInboxReactions,
   getInboxRequests,
   getMutualMatchChats,
@@ -1072,7 +1073,7 @@ function MomentsConnectSection() {
   const decline = (rid: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRequests(prev => prev.filter(r => r.id !== rid));
-    // TODO: DELETE /api/moments/requests/:rid
+    declineMomentRequest(rid).catch(() => {}); // fire-and-forget
   };
 
   return (

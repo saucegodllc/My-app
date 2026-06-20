@@ -76,7 +76,9 @@ app.use(cookieParser());
 app.use(clerkMiddleware());
 
 app.use((req, res, next) => {
-  if (req.path === "/api/stripe/webhook") return next();
+  if (req.path === "/api/stripe/webhook") {
+    return express.raw({ type: "application/json" })(req, res, next);
+  }
   return express.json({ limit: "10mb" })(req, res, next);
 });
 app.use(express.urlencoded({ extended: true }));

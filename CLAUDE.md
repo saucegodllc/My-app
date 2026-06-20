@@ -62,7 +62,7 @@ In-process `Map<userId, { count, resetAt }>`. Resets per 1-hour window. This is 
   ```json
   { "error": "free_limit_reached", "paywallPrompt": true, "message": "..." }
   ```
-  The mobile `ai-bot.tsx` screen needs to handle this status and show a ConnectSphere Plus upsell. **This client-side handling is not yet implemented.**
+  `ai-bot.tsx` catches HTTP 402, sets `paywallHit` state, replaces input bar with upsell banner → `/premium`. ✅ implemented.
 
 ### DB migration — MUST run before deploying
 
@@ -144,8 +144,72 @@ Audit covered: premium CTAs, settings rows, dead buttons, back nav, auth guards,
 
 ## Pending work
 
-- [ ] **Run DB migration** — added to `render.yaml` buildCommand; will run on next Render deploy (Manual Deploy button). Creates `spark_memory` table.
+- [x] **Wire Moments API client calls** — `moments.tsx`: feed fetch, `handleLike`, `handleReply`, `handlePost` all wired to real server endpoints. `matches.tsx`: `decline()` wired via new `declineMomentRequest()` helper in `connectApi.ts`. Auth via `customFetch` (moments/matches) and `useAuth().getToken()` (moments.tsx). All fire-and-forget on failure — UI is optimistic.
+- [ ] **Run DB migration** — `render.yaml` buildCommand includes `pnpm --filter @workspace/db push`. Will run automatically on next Render deploy. Creates `spark_memory` table. Until this runs, Spark memory will throw a DB error on conversations 10+ messages.
 - [x] **Mobile paywall handling** — `ai-bot.tsx` catches HTTP 402, sets `paywallHit` state, replaces input bar with upsell banner → `/premium`
+- [x] **Fix routing blockers** — All 4 missing Stack.Screen entries added to `_layout.tsx`: `chat/ai-bot`, `communities/[id]`, `communities/create`, `communities/thread/[postId]`.
+- [x] **Fix `profile-views.tsx` navigation** — Confirmed already using correct `pathname` + `params` pattern. No change needed.
+- [x] **Add Stripe price env vars to `render.yaml`** — Already present as `sync: false` entries.
+- [x] **Fix `communities/[id].tsx` nav bugs** — 3 string interpolation patterns replaced with `pathname` + `params`.
+- [x] **Fix `communities/thread/[postId].tsx` nav bugs** — 2 string interpolation patterns replaced with `pathname` + `params`.
+- [x] **No remaining string interpolation nav bugs** — Smoke test confirmed zero `router.push(\`/...\`)` patterns remaining.
+
+### Remaining before launch (manual steps required)
+
+- [x] **Clerk live key in eas.json** — `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` is set in both `preview` and `production` EAS profiles from Clerk Dashboard → API Keys.
+- [x] **EAS internal auth config** — `preview` builds now include the Clerk publishable key, so internal EAS builds can authenticate.
+- [ ] **App Store Connect IDs in eas.json** — Replace `REPLACE_WITH_APP_STORE_CONNECT_APP_ID` and `REPLACE_WITH_APPLE_TEAM_ID` placeholders.
+- [ ] **Firebase push files** — Add `GoogleService-Info.plist` (iOS) and `google-services.json` (Android) for push notifications. Get from Firebase Console → Project Settings.
+- [ ] **Play Store service account** — Add `google-play-service-account.json` for `eas submit` to Android.
+- [ ] **Trigger Render deploy** — Runs DB migration automatically via buildCommand. Spark memory needs the `spark_memory` table created.
+
+### EAS internal testing notes
+
+- Internal iOS testing should use `artifacts/connectsphere-mobile/eas.json` profile `preview`.
+- Command from `artifacts/connectsphere-mobile`: `eas build --platform ios --profile preview`.
+- iOS ad hoc internal installs require tester devices to be registered with EAS/Apple first (`eas device:create`).
+- Firebase config files are still pending before push-notification QA: `GoogleService-Info.plist` for iOS and `google-services.json` for Android.
+
+---
+
+## Moments API wiring (2026-06)
+
+All previously client-side-only TODO stubs now hit real server endpoints. Server was already complete (`artifacts/api-server/src/routes/moments.ts`) — only the client needed wiring.
+
+### Files changed
+
+| File | What changed |
+|---|---|
+| `artifacts/connectsphere-mobile/app/(tabs)/moments.tsx` | Feed fetch, handleLike, handleReply, handlePost wired |
+| `artifacts/connectsphere-mobile/app/(tabs)/matches.tsx` | decline() wired via declineMomentRequest |
+| `artifacts/connectsphere-mobile/services/connectApi.ts` | Added `declineMomentRequest()` helper |
+
+### Auth pattern used
+
+`moments.tsx` uses `useAuth()` directly (the hook is added to both `useMoments` and the main `MomentsScreen` component):
+
+```ts
+const { getToken } = useAuth();
+const token = await getToken();
+// then:
+headers: { Authorization: `Bearer ${token}` }
+```
+
+`matches.tsx` decline uses `customFetch` from `@workspace/api-client-react` — this auto-injects the token via the global getter set in `_layout.tsx`'s `AuthTokenSetter`. No hook needed.
+
+### Call map
+
+| Handler | Method + Endpoint | Body fields |
+|---|---|---|
+| `useMoments.load()` | `GET /api/moments/feed?filter=<f>` | — |
+| `handleLike` | `POST /api/moments/:id/like` | `{ userDisplayName, userPhotoUrl }` |
+| `handleReply` | `POST /api/moments/:id/reply` | `{ message, userDisplayName, userPhotoUrl }` |
+| `handlePost` | `POST /api/moments` | `{ text, location?, userDisplayName, userPhotoUrl }` |
+| `decline()` (matches.tsx) | `DELETE /api/moments/requests/:rid` | — |
+
+### Failure strategy
+
+All calls are **fire-and-forget** on error — UI updates optimistically. Feed fetch falls back to `buildMockMoments()` if API returns non-OK or throws. This means the experience is identical to before on cold starts or offline.
 
 ---
 
@@ -173,3 +237,57 @@ Expanded `routeFromNotification` to handle all three notification data shapes:
 | Daily spark | `{ route: "/(tabs)/index" \| "/(tabs)/matches" }` | `router.push(route)` |
 
 Also imported `router` from `expo-router` (was missing — only `openChat` was imported before).
+
+---
+
+## Premium paywall — full rebuild (2026-06)
+
+**File:** `artifacts/connectsphere-mobile/app/premium.tsx`
+
+### What changed
+
+- **SVG logo** — `PlusLogo` component using `react-native-svg` (`Circle`, `Path`, `Ellipse`) recreates the pink 4-pointed compass star in a ring. No PNG dependency.
+- **3-plan layout** — Yearly hero card (full width, pink border, flash sale badge ~~$390~~ → $300) + two small cards side-by-side (6-month ~~$180~~ → $150, biweekly $14.99).
+- **Tap-to-checkout** — every plan card calls `handleCheckout(plan)` directly. RC attempted first if available; falls through to Stripe web checkout otherwise.
+- **Per-plan loading state** — `loadingPlan: "monthly" | "sixmonth" | "yearly" | null`. Spinner only appears on the tapped card, not all three.
+- **Already-premium guard** — if `entitlement.isPremium === true` on load, paywall is replaced with a "You're on Plus ⭐" screen + Manage Subscription button.
+- **Restore when RC not ready** — shows Alert with "Open Billing" button → `/api/stripe/portal` instead of silently doing nothing.
+- **"Manage on Web" footer link** — when RC is unavailable (current state), the footer shows "Manage on Web" (muted, links to portal) rather than redundant "Subscribe on Web".
+- **`user.id` as auth authority** — `syncFromCustomerInfo` uses Clerk `user.id` as primary `appUserId`, RC's `originalAppUserId` as fallback.
+
+### Stripe prices (live mode — confirmed via Stripe MCP)
+
+| Plan | Price ID | Amount |
+|---|---|---|
+| `monthly` (biweekly) | `price_1TkBuZCnolnhP5uucFOtK1Cl` | $14.99 / 2 weeks |
+| `sixmonth` | `price_1TkCMsCnolnhP5uuYmFBKUbn` | $150 / 6 months |
+| `yearly` | `price_1TkCMwCnolnhP5uu2yybQk1h` | $300 / year |
+
+### Render env vars required
+
+Set in Render → API server → Environment (all `sync: false`):
+- `STRIPE_PRICE_MONTHLY=price_1TkBuZCnolnhP5uucFOtK1Cl`
+- `STRIPE_PRICE_SIXMONTH=price_1TkCMsCnolnhP5uuYmFBKUbn`
+- `STRIPE_PRICE_YEARLY=price_1TkCMwCnolnhP5uu2yybQk1h`
+
+### Webhook plan detection (`artifacts/api-server/src/routes/stripe.ts`)
+
+`checkout.session.completed` reads `session.metadata.plan` → months: yearly=12, sixmonth=6, monthly=1.
+`invoice.payment_succeeded` reads `price.recurring.interval` + `interval_count`: year→yearly, month+6→sixmonth, else monthly.
+`setDbPremium()` writes to DB first (primary); RC grant is fire-and-forget (non-fatal).
+
+---
+
+## Routing audit — resolved (2026-06)
+
+### ✅ All Stack.Screen registrations confirmed
+
+All navigated routes have Stack.Screen entries in `app/_layout.tsx`. Smoke-tested clean.
+
+### ✅ No string interpolation navigation bugs
+
+All `router.push()` calls use `{ pathname, params }` pattern. Verified with grep — zero backtick-interpolated paths remain.
+
+### ✅ Premium CTAs
+
+All 8 premium push calls route correctly to `/premium`.

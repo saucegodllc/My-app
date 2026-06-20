@@ -1,0 +1,27 @@
+appId: ${APP_ID}
+name: ConnectSphere Match to Chat smoke
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "discover-card-stack"
+- extendedWaitUntil:
+    visible:
+      id: "discover-shot-tooltip-dismiss"
+    timeout: 10000
+- tapOn:
+    id: "discover-shot-tooltip-dismiss"
+- tapOn:
+    id: "discover-action-vibe"
+- extendedWaitUntil:
+    visible:
+      id: "dating-match-modal"
+    timeout: 10000
+- tapOn:
+    id: "dating-match-start-chat"
+- extendedWaitUntil:
+    visible:
+      id: "dating-chat-thread"
+    timeout: 10000
+- assertVisible:
+    id: "dating-chat-message-input"

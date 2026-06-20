@@ -1,0 +1,67 @@
+services:
+  - type: web
+    name: connectsphere-api
+    runtime: node
+    rootDir: artifacts/api-server
+    buildCommand: pnpm install && pnpm --filter @workspace/db push && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: REVENUECAT_API_SECRET_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: TICKETMASTER_API_KEY
+        sync: false
+      - key: EVENTS_USE_MOCKS
+        value: "false"
+      - key: EVENTS_CACHE_TTL_MS
+        value: "21600000"
+      - key: EVENTS_FAIL_RETRY_MS
+        value: "300000"
+
+  - type: cron
+    name: connectsphere-daily-spark
+    runtime: node
+    rootDir: artifacts/api-server
+    buildCommand: pnpm install
+    schedule: "0 23 * * *"
+    startCommand: >
+      curl -s -X POST
+      "${API_BASE_URL}/api/notifications/daily-spark/broadcast"
+      -H "x-cron-secret: ${CRON_SECRET}"
+      -H "Content-Type: application/json"
+    envVars:
+      - key: API_BASE_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+
+  - type: cron
+    name: connectsphere-anti-ghost
+    runtime: node
+    rootDir: artifacts/api-server
+    buildCommand: pnpm install
+    schedule: "0 15 * * *"
+    startCommand: >
+      curl -s -X POST
+      "${API_BASE_URL}/api/notifications/anti-ghost/broadcast"
+      -H "x-cron-secret: ${CRON_SECRET}"
+      -H "Content-Type: application/json"
+    envVars:
+      - key: API_BASE_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false
