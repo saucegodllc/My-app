@@ -4,6 +4,7 @@
  * Routes through the API server so the Anthropic key stays server-side only.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { apiUrl } from "./apiBase";
 
 export type AiChatMode = "dating" | "friends";
 
@@ -75,6 +76,11 @@ function withDeadline(ms: number, callerSignal?: AbortSignal): {
   return { signal: controller.signal, clear };
 }
 
+function toAbortError(signal?: AbortSignal): Error {
+  if (signal?.reason instanceof Error) return signal.reason;
+  return Object.assign(new Error("aborted"), { name: "AbortError" });
+}
+
 // ─── Message factory helpers ─────────────────────────────────────────────────
 
 function makeId(): string {
@@ -100,7 +106,6 @@ export async function sendAiChatMessage(
   history: AiChatMessage[],
   signal?: AbortSignal,
 ): Promise<string> {
-  const { apiUrl } = await import("./apiBase");
   const messages = history.map(({ role, content }) => ({ role, content }));
   const { signal: deadline, clear } = withDeadline(NON_STREAM_TIMEOUT_MS, signal);
   let res: Response;
@@ -183,12 +188,11 @@ export async function sendAiChatMessageStreaming(
     return reply;
   }
 
-  const { apiUrl } = await import("./apiBase");
   const url = apiUrl("/api/ai-chat/stream");
   const messages = history.map(({ role, content }) => ({ role, content }));
 
   // Try expo/fetch for streaming; fall back to non-streaming if unavailable.
-  let expoFetch: typeof fetch | undefined;
+  let expoFetch: typeof fetch | undefined = fetch;
   try {
     const mod = await import("expo/fetch");
     expoFetch = mod.fetch as unknown as typeof fetch;
@@ -206,12 +210,12 @@ export async function sendAiChatMessageStreaming(
 
   let res: Response;
   try {
-    res = await (expoFetch as typeof fetch)(url, {
+    res = await expoFetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode, messages }),
       signal: deadline,
-    }) as Response;
+    });
   } catch (e) {
     clearDeadline();
     const err = e as Error;
@@ -226,7 +230,11 @@ export async function sendAiChatMessageStreaming(
   }
   clearDeadline(); // connected — cancel the deadline, tokens will flow
 
-  if (!res.ok) throw errorFromStatus(res.status);
+  if (deadline.aborted) {
+    clearDeadline();
+    throw toAbortError(deadline);
+  }
+  if (!res.ok) throw new AiChatError("stream", `AI stream failed: ${res.status}`, res.status);
 
   if (!res.body) {
     // Streaming unsupported on this runtime — degrade gracefully.
@@ -257,6 +265,7 @@ export async function sendAiChatMessageStreaming(
   try {
     let stopped = false;
     while (!stopped) {
+      if (signal?.aborted) throw toAbortError(signal);
       const { done, value } = await reader.read();
       if (done) break;
 

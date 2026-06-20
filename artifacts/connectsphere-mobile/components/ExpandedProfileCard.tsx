@@ -626,6 +626,7 @@ export function ExpandedProfileCard({
 
   const [photoIdx, setPhotoIdx] = useState(0);
   const [feedbackAction, setFeedbackAction] = useState<ProfileAction | null>(null);
+  const actionInFlightRef = useRef(false);
   const feedbackAnim = useRef(new Animated.Value(0)).current;
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -673,13 +674,15 @@ export function ExpandedProfileCard({
     });
 
   const handleAction = async (action: ProfileAction) => {
-    if (feedbackAction) return;
+    if (feedbackAction || actionInFlightRef.current) return;
+    actionInFlightRef.current = true;
 
     if (intent === "dating" && action === "shot") {
       // Double-pulse haptic so the tap feels intentional before the sheet opens
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
       setTimeout(() => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}), 100);
       onShot?.();
+      actionInFlightRef.current = false;
       return;
     }
 
@@ -693,12 +696,16 @@ export function ExpandedProfileCard({
 
     // Fire the overlay animation and the action handler concurrently — the visual
     // response is instant, and the action isn't held back waiting for the animation.
-    const [, result] = await Promise.all([
-      playActionFeedback(action),
-      Promise.resolve().then(() => onAction?.(action)),
-    ]);
-    if (result !== false)
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    try {
+      const [, result] = await Promise.all([
+        playActionFeedback(action),
+        Promise.resolve().then(() => onAction?.(action)),
+      ]);
+      if (result !== false)
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } finally {
+      actionInFlightRef.current = false;
+    }
   };
 
   const goNext = () => setPhotoIdx((i) => Math.min(allPhotos.length - 1, i + 1));

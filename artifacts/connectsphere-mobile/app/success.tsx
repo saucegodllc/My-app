@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { VideoView } from "expo-video";
 import { useEffect, useRef } from "react";
 import {
@@ -23,8 +23,10 @@ const PINK = "#FF299B";
 const TRIGGER_S = 1.6;
 const DISSOLVE_MS = 1400;
 
-function goToDating() {
-  router.replace({ pathname: "/(tabs)", params: { intent: "dating" } } as never);
+type SuccessIntent = "dating" | "friends" | "spaces";
+
+function goToDating(intent: SuccessIntent = "dating") {
+  router.replace({ pathname: "/(tabs)", params: { intent } } as never);
 }
 
 function goToFriends() {
@@ -36,6 +38,7 @@ function goToSpaces() {
 }
 
 export default function SuccessScreen() {
+  const params = useLocalSearchParams<{ intent?: string }>();
   const insets = useSafeAreaInsets();
   const topPad = (Platform.OS === "web" ? 60 : insets.top) + 36;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -50,6 +53,22 @@ export default function SuccessScreen() {
   const aIsActive = useRef(true);
   const fading = useRef(false);
   const ctx = useSuccessVideoPlayers();
+  const selectedIntent: SuccessIntent =
+    params.intent === "friends" || params.intent === "spaces" || params.intent === "dating"
+      ? params.intent
+      : "dating";
+
+  const goToSelectedIntent = () => {
+    if (selectedIntent === "friends") {
+      goToFriends();
+      return;
+    }
+    if (selectedIntent === "spaces") {
+      goToSpaces();
+      return;
+    }
+    goToDating("dating");
+  };
 
   useEffect(() => {
     if (!ctx) return;
@@ -167,7 +186,7 @@ export default function SuccessScreen() {
         <Animated.View style={[styles.pathPanel, { paddingBottom: bottomInset, opacity: subFade }]}>
           <Text style={styles.pathEyebrow}>Start here</Text>
           <View style={styles.pathGrid}>
-            <Pressable style={styles.pathPrimary} onPress={goToDating}>
+            <Pressable style={styles.pathPrimary} onPress={goToSelectedIntent}>
               <LinearGradient colors={[PINK, "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.pathPrimaryGrad}>
                 <Ionicons name="heart" size={18} color="#fff" />
                 <Text style={styles.pathPrimaryText}>Find a date</Text>

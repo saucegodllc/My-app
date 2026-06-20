@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as WebBrowser from "expo-web-browser";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -71,6 +72,7 @@ export default function PremiumScreen() {
   const [loadingPlan, setLoadingPlan]         = useState<WebPlan | null>(null);
   const [entitlement, setEntitlement]         = useState<PremiumEntitlement | null>(null);
   const [revenueCatReady, setRevenueCatReady] = useState(false);
+  const browserInFlightRef = useRef(false);
 
   // ── Load RevenueCat offerings ──────────────────────────────────────────────
   useEffect(() => {
@@ -122,8 +124,24 @@ export default function PremiumScreen() {
   }
 
   // ── Web / Stripe checkout ──────────────────────────────────────────────────
+  async function openBillingUrl(url: string) {
+    if (browserInFlightRef.current) return;
+    browserInFlightRef.current = true;
+    try {
+      if (Platform.OS === "web") {
+        await Linking.openURL(url);
+      } else {
+        await WebBrowser.openBrowserAsync(url);
+      }
+    } catch {
+      await Linking.openURL(url);
+    } finally {
+      browserInFlightRef.current = false;
+    }
+  }
+
   async function handleWebCheckout(plan: WebPlan) {
-    if (!user?.id) return;
+    if (!user?.id || browserInFlightRef.current) return;
     const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
     if (!apiUrl) {
       Alert.alert("Checkout unavailable", "The production API URL is not configured for this build.");
@@ -131,7 +149,12 @@ export default function PremiumScreen() {
     }
     const url = `${apiUrl}/api/stripe/subscribe?userId=${encodeURIComponent(user.id)}&plan=${plan}`;
     track("web_checkout_tapped", { plan });
-    await Linking.openURL(url);
+    setLoadingPlan(plan);
+    try {
+      await openBillingUrl(url);
+    } finally {
+      setLoadingPlan(null);
+    }
   }
 
   // ── Main purchase handler ─────────────────────────────────────────────────
@@ -193,7 +216,7 @@ export default function PremiumScreen() {
         "Manage your subscription",
         "If you subscribed via the web, manage your plan at connectsphere.app/billing.",
         [
-          { text: "Open Billing", onPress: () => Linking.openURL(`${apiUrl}/api/stripe/portal?userId=${user?.id ?? ""}`) },
+          { text: "Open Billing", onPress: () => void openBillingUrl(`${apiUrl}/api/stripe/portal?userId=${user?.id ?? ""}`) },
           { text: "Cancel", style: "cancel" },
         ],
       );
@@ -228,7 +251,7 @@ export default function PremiumScreen() {
       );
       return;
     }
-    await Linking.openURL(url);
+    await openBillingUrl(url);
   }
 
   // ── Deep-link from Stripe success page ────────────────────────────────────

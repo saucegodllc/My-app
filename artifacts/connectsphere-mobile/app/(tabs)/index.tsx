@@ -1994,7 +1994,11 @@ function DiscoverScreenInner() {
             end={{ x: 1, y: 0 }}
             style={styles.headerTopLine}
           />
-          {/* Spark AI shortcut — absolute top-right of header */}
+          <View style={styles.titleHeadlineRow}>
+            <Text style={styles.titleHeadlineWord}>Discover</Text>
+            <Text style={styles.titleHeadlineMiami}>Miami</Text>
+            <MaterialCommunityIcons name="palm-tree" size={28} color="#F9A8D4" style={styles.titlePalm} />
+          </View>
           <Pressable
             onPress={() => router.push({ pathname: "/chat/ai-bot", params: { mode: "dating" } } as never)}
             style={styles.sparkHeaderBtn}
@@ -2002,14 +2006,9 @@ function DiscoverScreenInner() {
             accessibilityLabel="Chat with Spark AI"
             accessibilityRole="button"
           >
-            <Text style={styles.sparkHeaderEmoji}>✨</Text>
+            <Ionicons name="sparkles" size={13} color="#F9A8D4" />
+            <Text style={styles.sparkHeaderText}>Spark AI</Text>
           </Pressable>
-
-          <View style={styles.titleHeadlineRow}>
-            <Text style={styles.titleHeadlineWord}>Discover</Text>
-            <Text style={styles.titleHeadlineMiami}>Miami</Text>
-            <MaterialCommunityIcons name="palm-tree" size={28} color="#F9A8D4" style={styles.titlePalm} />
-          </View>
           <View style={styles.taglineRow}>
             <View style={styles.taglineLine} />
             <Text style={styles.taglineText}>MEET. CONNECT. VIBE.</Text>
@@ -2721,22 +2720,21 @@ const styles = StyleSheet.create({
   // exactly one viewport (h-screen overflow-hidden in the web spec).
   main: { flex: 1, paddingHorizontal: 20 },
 
-  // Spark AI shortcut button — absolute top-right of the Discover header
+  // Spark AI shortcut button — visible without floating over the Miami header.
   sparkHeaderBtn: {
-    position: "absolute",
-    top: 4,
-    right: 0,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    marginTop: 8,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
     backgroundColor: "rgba(255,45,168,0.15)",
     borderWidth: 1,
     borderColor: "rgba(255,45,168,0.35)",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 10,
   },
-  sparkHeaderEmoji: { fontSize: 18, lineHeight: 22 },
+  sparkHeaderText: { color: "#F9A8D4", fontSize: 11, fontFamily: "Inter_900Black" },
 
   // Header — minimalist single headline (web spec: `shrink-0 pb-3 text-center`).
   header: {

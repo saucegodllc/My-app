@@ -54,6 +54,7 @@ import { parsePlanEnvelope } from "@/lib/planRequestEnvelope";
 import { buildLocalConvs } from "@/lib/buildLocalConvs";
 import {
   acceptRequest,
+  acceptMomentRequest,
   declineRequest,
   declineMomentRequest,
   getInboxReactions,
@@ -84,7 +85,7 @@ const MUTED = "rgba(255,255,255,0.58)";
 const FAINT = "rgba(255,255,255,0.32)";
 const GREEN = "#22C55E";
 
-type ConnectSegment = "matches" | "chats" | "moments";
+type ConnectSegment = "matches" | "chats";
 
 function timeAgo(input: string | number | undefined): string {
   if (!input) return "";
@@ -125,7 +126,6 @@ function SegmentControl({
   const items: Array<{ key: ConnectSegment; label: string; count: number }> = [
     { key: "chats", label: "Chats", count: chatCount },
     { key: "matches", label: "Matches", count: pendingCount },
-    { key: "moments", label: "Moments", count: 0 },
   ];
 
   return (
@@ -1048,30 +1048,41 @@ function MomentsConnectSection() {
     fromDisplayName: string;
     fromPhotoUrl?: string;
   }) => {
-    navigateProfile(person.fromUserId, "moments", {
+    navigateProfile(person.fromUserId, "matches", {
       name: person.fromDisplayName,
       photoUrl: person.fromPhotoUrl,
     });
   };
 
-  const accept = (rid: string) => {
+  const accept = async (rid: string) => {
     const req = requests.find(r => r.id === rid);
     if (!req) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setRequests(prev => prev.filter(r => r.id !== rid));
     setAcceptedFlash(`Accepted ${req.fromDisplayName}'s request!`);
-    // Navigate to their profile so the user can start a conversation
-    setTimeout(() => {
+    try {
+      const result = await acceptMomentRequest(rid);
+      const chatId = result.chatId ?? result.conversationId;
       setAcceptedFlash(null);
-      navigateProfile(req.fromUserId, "moments", {
+      if (chatId) {
+        openChat(chatId);
+        return;
+      }
+      navigateProfile(result.openChatWithUserId ?? req.fromUserId, "matches", {
         name: req.fromDisplayName,
         photoUrl: req.fromPhotoUrl,
       });
-    }, 800);
+    } catch {
+      setAcceptedFlash(null);
+      navigateProfile(req.fromUserId, "matches", {
+        name: req.fromDisplayName,
+        photoUrl: req.fromPhotoUrl,
+      });
+    }
   };
 
   const decline = (rid: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRequests(prev => prev.filter(r => r.id !== rid));
     declineMomentRequest(rid).catch(() => {}); // fire-and-forget
   };
@@ -1322,7 +1333,7 @@ export default function ConnectScreen() {
   const insets = useSafeAreaInsets();
   const topInset = Platform.OS === "web" ? 16 : insets.top;
   const bottomInset = Platform.OS === "web" ? 96 : 78 + insets.bottom;
-  const { openChatId, segment: segmentParam } = useLocalSearchParams<{ openChatId?: string; segment?: ConnectSegment }>();
+  const { openChatId, segment: segmentParam } = useLocalSearchParams<{ openChatId?: string; segment?: string }>();
   const consumedRef = useRef<string | null>(null);
   const lastLoadedAtRef = useRef<number>(0);
   const { trigger: triggerAccept } = useFeedback("accept");
@@ -1345,7 +1356,6 @@ export default function ConnectScreen() {
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [likingBackId, setLikingBackId] = useState<string | null>(null);
   const [matchMoment, setMatchMoment] = useState<DopamineMatch | null>(null);
-  const [paywallIntent, setPaywallIntent] = useState<string | null>(null);
   const [shotActionId, setShotActionId] = useState<string | null>(null);
   const [shotMatchMoment, setShotMatchMoment] = useState<{ name: string; photoUrl?: string; chatId: string } | null>(null);
 
@@ -1501,7 +1511,8 @@ export default function ConnectScreen() {
 
   useEffect(() => {
     const target = Array.isArray(segmentParam) ? segmentParam[0] : segmentParam;
-    if (target === "matches" || target === "chats" || target === "moments") setSegment(target);
+    if (target === "matches" || target === "moments") setSegment("matches");
+    else if (target === "chats") setSegment("chats");
   }, [segmentParam]);
 
   const onRefresh = useCallback(async () => {
@@ -1662,9 +1673,21 @@ export default function ConnectScreen() {
           <Text style={styles.headerTitle}>Connect 🔗</Text>
           <Text style={styles.headerSub}>Matches, sparks, plans, and texts.</Text>
         </View>
-        <Pressable style={styles.iconBtn} onPress={() => setShowInviteModal(true)} hitSlop={8}>
-          <Ionicons name="person-add-outline" size={22} color={TEXT} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            style={styles.sparkAiHeaderBtn}
+            onPress={() => router.push({ pathname: "/chat/ai-bot", params: { mode: "dating" } } as never)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Open Spark AI"
+          >
+            <Ionicons name="sparkles" size={14} color={PINK} />
+            <Text style={styles.sparkAiHeaderText}>Spark</Text>
+          </Pressable>
+          <Pressable style={styles.iconBtn} onPress={() => setShowInviteModal(true)} hitSlop={8}>
+            <Ionicons name="person-add-outline" size={22} color={TEXT} />
+          </Pressable>
+        </View>
       </View>
 
       <SegmentControl
@@ -1741,7 +1764,7 @@ export default function ConnectScreen() {
                           index={index}
                           isFreeMatch={!isPremium && index === 0}
                           onOpenProfile={openProfile}
-                          onReveal={() => setPaywallIntent(card.label)}
+                          onReveal={() => openPremium("connect")}
                           onLikeBack={(reaction) => void handleLikeBack(reaction)}
                           onIgnore={(reaction) => void handleIgnoreReaction(reaction)}
                           onAccept={(request) => void handleAcceptRequest(request)}
@@ -1801,6 +1824,7 @@ export default function ConnectScreen() {
                   </View>
                 </View>
               ) : null}
+              <MomentsConnectSection />
             </Animated.View>
           ) : (
             <Animated.View entering={FadeInUp.duration(190)} exiting={FadeOut.duration(120)} style={styles.segmentContent}>
@@ -1933,11 +1957,6 @@ export default function ConnectScreen() {
           {/* ─────────────────────────────────────────────────────────────
               MOMENTS SEGMENT — Requests + Likes from the Moments tab
           ───────────────────────────────────────────────────────────── */}
-          {segment === "moments" && (
-            <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} style={styles.segmentContent}>
-              <MomentsConnectSection />
-            </Animated.View>
-          )}
         </ScrollView>
       )}
 
@@ -1984,11 +2003,6 @@ export default function ConnectScreen() {
         onClose={() => setShowInviteModal(false)}
         userId={userId ?? ""}
       />
-      <PlusPaywallSheet
-        visible={!!paywallIntent}
-        intentLabel={paywallIntent ?? "Spark"}
-        onClose={() => setPaywallIntent(null)}
-      />
     </View>
   );
 }
@@ -1998,7 +2012,10 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingBottom: 12 },
   headerTitle: { color: TEXT, fontSize: 30, fontWeight: "900", letterSpacing: -0.6 },
   headerSub: { color: MUTED, fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: CARD, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: BORDER },
+  sparkAiHeaderBtn: { height: 40, borderRadius: 20, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "rgba(255,45,168,0.12)", borderWidth: 1, borderColor: "rgba(255,45,168,0.28)" },
+  sparkAiHeaderText: { color: PINK, fontSize: 12, fontWeight: "900" },
   segmentWrap: { flexDirection: "row", marginHorizontal: 0, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: BORDER, marginBottom: 4 },
   segmentHit: { flex: 1 },
   segmentTab: { alignItems: "center", paddingTop: 4 },

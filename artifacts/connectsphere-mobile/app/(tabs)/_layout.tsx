@@ -36,7 +36,6 @@ const ICONS: Record<string, IconPair> = {
   matches:      { active: "people",           inactive: "people-outline" },
   events:       { active: "calendar",         inactive: "calendar-outline" },
   communities:  { active: "planet",           inactive: "planet-outline" },
-  moments:      { active: "sparkles",         inactive: "sparkles-outline" },
 };
 
 const LABELS: Record<string, string> = {
@@ -44,11 +43,10 @@ const LABELS: Record<string, string> = {
   matches:      "Connect",
   events:       "Events",
   communities:  "Spaces",
-  moments:      "Moments",
 };
 
 // Profile is no longer a tab — it lives as a floating avatar button in the tab bar.
-const TAB_ORDER = ["index", "matches", "events", "communities", "moments"];
+const TAB_ORDER = ["index", "matches", "events", "communities"];
 
 // ── Unread badge ──────────────────────────────────────────────────────────────
 function UnreadBadge({ count }: { count: number }) {
@@ -251,7 +249,7 @@ function AuthenticatedTabs() {
       <Tabs.Screen name="events"       options={{ title: "Events" }} />
       <Tabs.Screen name="communities"  options={{ title: "Spaces" }} />
       {/* Moments: 5th tab — ephemeral story-style posts */}
-      <Tabs.Screen name="moments"      options={{ title: "Moments" }} />
+      <Tabs.Screen name="moments"      options={{ title: "Moments", href: null }} />
       {/* Profile: no longer a tab — accessed via avatar button in tab bar */}
       <Tabs.Screen name="profile"      options={{ title: "Profile", href: null }} />
     </Tabs>

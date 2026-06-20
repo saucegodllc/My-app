@@ -1379,10 +1379,20 @@ export default function OnboardingScreen() {
       }
 
       // Celebration flash → navigate
+      const successIntent =
+        intent === "friendship" ? "friends" :
+        intent === "all" ? "dating" :
+        intent || "dating";
+
       Animated.sequence([
         Animated.timing(celebAnim, { toValue: 0.55, duration: 220, useNativeDriver: true }),
         Animated.timing(celebAnim, { toValue: 0, duration: 480, useNativeDriver: true }),
-      ]).start(() => router.replace("/success"));
+      ]).start(() => {
+        router.replace({
+          pathname: "/success",
+          params: { intent: successIntent },
+        } as never);
+      });
     } catch (e) {
       const msg = isAbortError(e)
         ? "Saving your profile is taking too long. Check your connection and try again."

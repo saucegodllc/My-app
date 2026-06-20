@@ -219,7 +219,10 @@ export function buildIncomingActionCards({
       ];
     });
 
-  return [...reactionCards, ...requestCards].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
+  return [...reactionCards, ...requestCards]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .map((card, index) => ({
+      ...card,
+      isLocked: isPremium ? false : index > 0,
+    }));
 }

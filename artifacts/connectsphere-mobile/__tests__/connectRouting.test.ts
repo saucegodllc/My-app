@@ -16,7 +16,12 @@
 const mockPush = jest.fn();
 
 jest.mock("expo-router", () => ({
-  router: { push: mockPush },
+  __esModule: true,
+  router: {
+    push: (...args: unknown[]) => mockPush(...args),
+    replace: jest.fn(),
+    back: jest.fn(),
+  },
 }));
 
 // ─── Imports ────────────────────────────────────────────────────────────────

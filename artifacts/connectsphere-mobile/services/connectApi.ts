@@ -287,6 +287,18 @@ export async function declineMomentRequest(requestId: string): Promise<{ decline
   });
 }
 
+export async function acceptMomentRequest(requestId: string): Promise<{
+  accepted: boolean;
+  chatId?: string;
+  conversationId?: string;
+  openChatWithUserId?: string;
+  momentContext?: string;
+}> {
+  return customFetch(`/api/moments/requests/${encodeURIComponent(requestId)}/accept`, {
+    method: "PUT",
+  });
+}
+
 // ── Messages ──────────────────────────────────────────────────────────────
 
 export async function getConversationMessages(
