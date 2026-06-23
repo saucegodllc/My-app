@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConnectSphere Plus — Paywall Routing Completeness</title>
+<style>
+  :root {
+    --bg: #050508;
+    --surface: #0d0d12;
+    --surface2: #12121a;
+    --border: rgba(255,20,147,0.12);
+    --border-soft: rgba(255,255,255,0.06);
+    --pink: #FF2DA8;
+    --pink-light: #ff6ec7;
+    --pink-dim: rgba(255,45,168,0.18);
+    --pink-glow: rgba(255,45,168,0.08);
+    --text: #fff;
+    --muted: rgba(255,255,255,0.45);
+    --ok: #39ff9a;
+    --ok-dim: rgba(57,255,154,0.12);
+    --ok-border: rgba(57,255,154,0.4);
+    --gap: #ffd600;
+    --gap-dim: rgba(255,214,0,0.1);
+    --gap-border: rgba(255,214,0,0.45);
+    --dead: #ff4444;
+    --dead-dim: rgba(255,68,68,0.1);
+    --dead-border: rgba(255,68,68,0.4);
+    --sync: #00e5ff;
+    --sync-dim: rgba(0,229,255,0.1);
+    --sync-border: rgba(0,229,255,0.4);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 36px 32px 48px;
+    min-width: 860px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-size: 26px;
+    font-weight: 900;
+    color: var(--pink);
+    letter-spacing: -0.5px;
+    text-shadow: 0 0 40px rgba(255,45,168,0.5);
+  }
+  .logo span { color: #fff; }
+  .subtitle { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .badge {
+    background: var(--pink-dim);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 11px;
+    color: var(--pink-light);
+    font-weight: 600;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+  }
+  .li { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); font-weight: 500; }
+  .ld { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+  /* ── Section ── */
+  .section { margin-bottom: 30px; }
+  .slabel {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--pink);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .slabel::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  hr { border: none; border-top: 1px solid var(--border-soft); margin: 6px 0 26px; }
+
+  /* ── Entry grid ── */
+  .entry-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .entry-card {
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1.5px solid;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  .entry-card .ep {
+    font-size: 9.5px;
+    font-weight: 400;
+    margin-top: 3px;
+    opacity: 0.6;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .entry-card .fp {
+    font-size: 9px;
+    font-weight: 400;
+    margin-top: 2px;
+    opacity: 0.5;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* Entry card variants */
+  .ec-ok {
+    background: var(--ok-dim);
+    border-color: var(--ok-border);
+    color: var(--ok);
+  }
+  .ec-gap {
+    background: var(--gap-dim);
+    border-color: var(--gap-border);
+    color: var(--gap);
+  }
+  .ec-muted {
+    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.1);
+    color: var(--muted);
+  }
+
+  /* ── Funnel arrow ── */
+  .funnel-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin: 22px 0;
+  }
+  .funnel-line {
+    width: 2px;
+    height: 28px;
+    background: linear-gradient(to bottom, transparent, var(--pink));
+  }
+  .funnel-label { font-size: 9.5px; color: var(--muted); letter-spacing: 0.5px; }
+  .paywall-node {
+    padding: 14px 40px;
+    border-radius: 14px;
+    border: 2.5px solid var(--pink);
+    background: var(--pink-dim);
+    font-size: 16px;
+    font-weight: 900;
+    color: #fff;
+    text-align: center;
+    letter-spacing: -0.3px;
+    box-shadow: 0 0 48px rgba(255,45,168,0.25), inset 0 0 24px rgba(255,45,168,0.06);
+    text-shadow: 0 0 20px rgba(255,45,168,0.6);
+  }
+  .paywall-sub {
+    font-size: 10px;
+    color: var(--pink-light);
+    font-weight: 400;
+    margin-top: 3px;
+  }
+
+  /* ── Screen internals grid ── */
+  .screen-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  .si {
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .si-ok  { background: var(--ok-dim);   border-color: var(--ok-border);   color: var(--ok); }
+  .si-gap { background: var(--gap-dim);  border-color: var(--gap-border);  color: var(--gap); }
+
+  /* ── Exit paths ── */
+  .exit-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    align-items: start;
+  }
+  .exit-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .exit-box {
+    width: 100%;
+    padding: 8px 8px;
+    border-radius: 8px;
+    border: 1.5px solid;
+    font-size: 10px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.35;
+  }
+  .exit-box .esub { font-size: 8.5px; font-weight: 400; opacity: 0.65; display: block; margin-top: 2px; }
+  .exit-connector {
+    width: 2px;
+    height: 14px;
+    background: rgba(255,255,255,0.12);
+    margin: 0 auto;
+  }
+  .eb-ok   { background: var(--ok-dim);   border-color: var(--ok-border);   color: var(--ok); }
+  .eb-gap  { background: var(--gap-dim);  border-color: var(--gap-border);  color: var(--gap); }
+  .eb-dead { background: var(--dead-dim); border-color: var(--dead-border); color: var(--dead); }
+  .eb-pink { background: var(--pink-dim); border-color: var(--pink);        color: #fff; }
+  .eb-muted { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: var(--muted); }
+
+  /* ── Sync row ── */
+  .sync-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .sync-item {
+    padding: 9px 11px;
+    border-radius: 8px;
+    border: 1.5px solid;
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .sync-item .ss { font-size: 9px; font-weight: 400; opacity: 0.6; display: block; margin-top: 3px; font-family: 'SF Mono', monospace; }
+  .s-ok  { background: var(--sync-dim);  border-color: var(--sync-border); color: var(--sync); }
+  .s-gap { background: var(--gap-dim);   border-color: var(--gap-border);  color: var(--gap); }
+
+  /* ── Gaps list ── */
+  .gap-list { display: flex; flex-direction: column; gap: 8px; }
+  .gap-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1.5px solid;
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+  .gap-item.g-warn { background: var(--gap-dim);  border-color: var(--gap-border); }
+  .gap-item.g-dead { background: var(--dead-dim); border-color: var(--dead-border); }
+  .gn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 900;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .g-warn .gn { background: rgba(255,214,0,0.2); color: var(--gap); }
+  .g-dead .gn { background: rgba(255,68,68,0.2); color: var(--dead); }
+  .gap-item strong { font-weight: 800; }
+  .gap-fix { font-size: 10.5px; opacity: 0.55; display: block; margin-top: 3px; font-family: 'SF Mono', monospace; }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 10.5px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+  footer span { color: var(--pink); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">💎 Connect<span>Sphere</span> Plus</div>
+    <div class="subtitle">Paywall Routing Model — verified entry points, state sync, exits &amp; gaps</div>
+  </div>
+  <div class="badge">Verified against app code · 2026-06-23</div>
+</header>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="li"><div class="ld" style="background:var(--ok)"></div>Complete ✅</div>
+  <div class="li"><div class="ld" style="background:var(--gap)"></div>Gap / Warning ⚠️</div>
+  <div class="li"><div class="ld" style="background:var(--dead)"></div>Dead / Broken ❌</div>
+  <div class="li"><div class="ld" style="background:var(--sync)"></div>State sync</div>
+  <div class="li"><div class="ld" style="background:var(--pink)"></div>Paywall screen</div>
+</div>
+
+<div style="margin:-12px 0 28px;padding:12px 16px;border:1px solid var(--sync-border);background:var(--sync-dim);border-radius:10px;color:var(--sync);font-size:11px;">
+  Authoritative contract: <strong>docs/architecture/ROUTING.md</strong>.
+  Payment completion returns from <strong>/premium</strong>; the existing
+  <strong>/success</strong> route is for onboarding intent completion, not
+  Stripe or RevenueCat success.
+</div>
+
+<!-- ── 1. ENTRY POINTS ── -->
+<div class="section">
+  <div class="slabel">1 — Entry points → /premium</div>
+  <div class="entry-grid">
+
+    <div class="entry-card ec-ok">
+      🤖 AI Spark — msg 5
+      <div class="ep">chat/ai-bot.tsx</div>
+      <div class="fp">Soft nudge chip in reply</div>
+    </div>
+
+    <div class="entry-card ec-ok">
+      🚫 AI Spark — msg 6+
+      <div class="ep">chat/ai-bot.tsx</div>
+      <div class="fp">HTTP 402 → upsell banner replaces input</div>
+    </div>
+
+    <div class="entry-card ec-ok">
+      ↩️ Rewind (undo swipe)
+      <div class="ep">(tabs)/index.tsx</div>
+      <div class="fp">feature=rewind</div>
+    </div>
+
+    <div class="entry-card ec-ok">
+      🚀 Profile Boost
+      <div class="ep">(tabs)/index.tsx</div>
+      <div class="fp">feature=boost</div>
+    </div>
+
+    <div class="entry-card ec-ok">
+      👁️ Profile Views blur
+      <div class="ep">profile-views.tsx</div>
+      <div class="fp">CTA button above blurred rows</div>
+    </div>
+
+    <div class="entry-card ec-ok">
+      ❤️ Likes You blur
+      <div class="ep">likes-you.tsx</div>
+      <div class="fp">feature=reactions · card tap + top banner</div>
+    </div>
+
+    <div class="entry-card ec-ok">
+      🏀 Shots
+      <div class="ep">settings.tsx</div>
+      <div class="fp">feature=shots</div>
+    </div>
+
+    <div class="entry-card ec-ok">
+      👫 Best Friend
+      <div class="ep">settings.tsx</div>
+      <div class="fp">feature=best-friend</div>
+    </div>
+
+    <div class="entry-card ec-ok">
+      🔴 API 402 error
+      <div class="ep">(tabs)/index.tsx</div>
+      <div class="fp">server 402 / premiumRequired flag</div>
+    </div>
+
+    <div class="entry-card ec-ok">
+      👤 Profile tab CTA
+      <div class="ep">(tabs)/profile.tsx</div>
+      <div class="fp">subscription row → /premium</div>
+    </div>
+
+    <div class="entry-card ec-gap">
+      ⚠️ Reactions — Connect tab
+      <div class="ep">matches.tsx</div>
+      <div class="fp">isLocked cards — no router.push confirmed</div>
+    </div>
+
+    <div class="entry-card ec-gap">
+      ⚠️ Unlimited swipes gate
+      <div class="ep">(tabs)/index.tsx</div>
+      <div class="fp">Perk listed — no cap enforced in code</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FUNNEL -->
+<div class="funnel-wrap">
+  <div class="funnel-label">all entry points funnel into →</div>
+  <div class="funnel-line"></div>
+  <div>
+    <div class="paywall-node">💎 /premium — ConnectSphere Plus</div>
+    <div class="paywall-sub" style="text-align:center;">premium.tsx</div>
+  </div>
+  <div class="funnel-line" style="background:linear-gradient(to bottom, var(--pink), transparent)"></div>
+</div>
+
+<!-- ── 2. PREMIUM SCREEN INTERNALS ── -->
+<div class="section">
+  <div class="slabel">2 — /premium screen — internal completeness</div>
+  <div class="screen-grid">
+    <div class="si si-ok">✅ 3-plan layout — yearly hero card + 6-month + biweekly</div>
+    <div class="si si-ok">✅ Already-premium guard — "You're on Plus ⭐" + Manage button</div>
+    <div class="si si-ok">✅ RevenueCat in-app purchase — iOS &amp; Android</div>
+    <div class="si si-ok">✅ Stripe web checkout fallback when RC unavailable</div>
+    <div class="si si-ok">✅ Per-plan loading spinner — only tapped card spins</div>
+    <div class="si si-ok">✅ RC fail → auto-fallback to Stripe (non-cancel errors)</div>
+    <div class="si si-ok">✅ Restore: RC path + web/Stripe Portal fallback Alert</div>
+    <div class="si si-ok">✅ Analytics: paywall_viewed, web_checkout_tapped, purchase_restore_started</div>
+    <div class="si si-ok">✅ User-cancelled detection — no error shown on cancel</div>
+    <div class="si si-gap">⚠️ feature= param tracked in analytics but paywall copy is always generic — user from "Rewind" sees same screen as user from "Boost"</div>
+  </div>
+</div>
+
+<!-- ── 3. EXIT PATHS ── -->
+<div class="section">
+  <div class="slabel">3 — Purchase completion → exit paths</div>
+  <div class="exit-grid">
+
+    <!-- RC success -->
+    <div class="exit-col">
+      <div class="exit-box eb-pink">RC purchase<br><span class="esub">in-app iOS/Android</span></div>
+      <div class="exit-connector"></div>
+      <div class="exit-box eb-ok">Alert "Welcome to Plus!" ✅</div>
+      <div class="exit-connector"></div>
+      <div class="exit-box eb-ok">router.back() ✅</div>
+    </div>
+
+    <!-- Stripe + user taps deep link -->
+    <div class="exit-col">
+      <div class="exit-box eb-pink">Stripe checkout<br><span class="esub">opens in browser</span></div>
+      <div class="exit-connector"></div>
+      <div class="exit-box eb-ok">Success HTML page ✅</div>
+      <div class="exit-connector"></div>
+      <div class="exit-box eb-ok">User taps "Open App" → deep link fires ✅</div>
+      <div class="exit-connector"></div>
+      <div class="exit-box eb-ok">syncFromCustomerInfo() → Alert → back() ✅</div>
+    </div>
+
+    <!-- Browser closed without tapping -->
+    <div class="exit-col">
+      <div class="exit-box eb-gap">⚠️ Browser closed<br><span class="esub">without tapping "Open App"</span></div>
+      <div class="exit-connector"></div>
+      <div class="exit-box eb-gap">⚠️ No in-app alert — silent success</div>
+      <div class="exit-connector"></div>
+      <div class="exit-box eb-ok">DB correct via webhook ✅<br><span class="esub">isPremium=true written by server</span></div>
+    </div>
+
+    <!-- Stripe cancel -->
+    <div class="exit-col">
+      <div class="exit-box eb-pink">Stripe cancel<br><span class="esub">user backs out</span></div>
+      <div class="exit-connector"></div>
+      <div class="exit-box eb-ok">Cancel HTML page ✅</div>
+      <div class="exit-connector"></div>
+      <div class="exit-box eb-ok">Deep link → re-opens /premium ✅<br><span class="esub">APP_SCHEME://premium</span></div>
+    </div>
+
+    <!-- Dead /success route -->
+    <div class="exit-col">
+      <div class="exit-box eb-dead">❌ /success route<br><span class="esub">exists in _layout.tsx</span></div>
+      <div class="exit-connector"></div>
+      <div class="exit-box eb-dead">❌ Nothing navigates to it<br><span class="esub">dead route — wire it or remove it</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── 4. STATE SYNC ── -->
+<div class="section">
+  <div class="slabel">4 — Post-purchase state sync</div>
+  <div class="sync-grid">
+    <div class="sync-item s-ok">
+      ✅ Stripe webhook → DB
+      <span class="ss">checkout.session.completed + invoice.payment_succeeded → setDbPremium()</span>
+    </div>
+    <div class="sync-item s-ok">
+      ✅ RC → DB sync
+      <span class="ss">syncRevenueCatEntitlement() called after in-app purchase</span>
+    </div>
+    <div class="sync-item s-ok">
+      ✅ Deep link re-sync
+      <span class="ss">Purchases.getCustomerInfo() on premium-success URL event</span>
+    </div>
+    <div class="sync-item s-gap">
+      ⚠️ spark_memory table missing in prod
+      <span class="ss">run: pnpm --filter @workspace/db push from Render Shell</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── 5. GAPS ── -->
+<div class="section">
+  <div class="slabel">5 — Gaps to fix — priority order</div>
+  <div class="gap-list">
+
+    <div class="gap-item g-warn">
+      <div class="gn">1</div>
+      <div>
+        <strong>Reactions in Connect tab — locked cards have no /premium tap handler.</strong>
+        <span class="gap-fix">matches.tsx: add onPress={() =&gt; router.push("/premium")} when isFreeLocked === true</span>
+      </div>
+    </div>
+
+    <div class="gap-item g-warn">
+      <div class="gn">2</div>
+      <div>
+        <strong>Stripe browser close = silent success — no in-app celebration fires.</strong>
+        <span class="gap-fix">premium.tsx: add AppState listener → poll getPremiumEntitlement() on foreground resume</span>
+      </div>
+    </div>
+
+    <div class="gap-item g-warn">
+      <div class="gn">3</div>
+      <div>
+        <strong>Paywall copy is always generic — feature context is ignored in the UI.</strong>
+        <span class="gap-fix">premium.tsx: use params.feature to customize heroSub — e.g. "rewind" → "Undo your last swipe — and a lot more."</span>
+      </div>
+    </div>
+
+    <div class="gap-item g-dead">
+      <div class="gn">4</div>
+      <div>
+        <strong style="color:var(--dead);">/success route exists in _layout.tsx but nothing navigates to it.</strong>
+        <span class="gap-fix">Option A: navigate to /success after confirmed RC purchase instead of router.back(). Option B: remove the route.</span>
+      </div>
+    </div>
+
+    <div class="gap-item g-warn">
+      <div class="gn">5</div>
+      <div>
+        <strong>"Unlimited swipes" perk is listed but no swipe cap is enforced for free users.</strong>
+        <span class="gap-fix">Option A: add a daily free swipe cap (e.g. 20/day) in index.tsx. Option B: remove perk from PERKS array in premium.tsx.</span>
+      </div>
+    </div>
+
+    <div class="gap-item g-dead">
+      <div class="gn">6</div>
+      <div>
+        <strong style="color:var(--dead);">spark_memory DB table not created in production — Spark memory crashes at 10+ messages.</strong>
+        <span class="gap-fix">Render Dashboard → API server service → Shell tab → pnpm --filter @workspace/db push</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <div>ConnectSphere Plus · premium.tsx · ai-bot.tsx · matches.tsx · likes-you.tsx · profile-views.tsx · settings.tsx · stripe.ts</div>
+  <div>Generated <span>2026-06-23</span> · connectsphere-plus-paywall-routing.html</div>
+</footer>
+
+</body>
+</html>

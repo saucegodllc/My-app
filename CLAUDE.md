@@ -1,5 +1,9 @@
 # CLAUDE.md — ConnectSphere Session Notes
 
+> Before making changes, read `AGENTS.md` and
+> `docs/agent-handoffs/CURRENT.md`. Shared project state and branch ownership
+> live there. This file contains Claude-specific implementation history only.
+
 Project overview and conventions are in `replit.md`. This file tracks non-obvious decisions, gotchas, and recent changes so future sessions (and future Claude contexts) don't repeat the same mistakes.
 
 ---

@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConnectSphere — App Routing Map</title>
+<style>
+  :root {
+    --bg: #0e0e14;
+    --surface: #16161f;
+    --border: rgba(255,255,255,0.08);
+    --text: #e2e8f0;
+    --muted: rgba(255,255,255,0.4);
+
+    /* Color system */
+    --auth:    #818cf8; /* indigo  — auth / onboarding */
+    --tab:     #f472b6; /* pink    — tab bar */
+    --chat:    #34d399; /* emerald — chat screens */
+    --modal:   #fbbf24; /* amber   — modals / sheets */
+    --screen:  #a78bfa; /* violet  — full screens */
+    --deep:    #22d3ee; /* cyan    — deep links / global */
+    --notif:   #fb923c; /* orange  — push notifications */
+    --api:     #94a3b8; /* slate   — API / fire-and-forget */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 32px;
+    min-width: 900px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+  .logo { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+  .logo span { color: var(--tab); }
+  .subtitle { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .badge {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 28px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  /* ── Section ── */
+  .section { margin-bottom: 28px; }
+  .section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    padding-left: 2px;
+  }
+
+  /* ── Node types ── */
+  .node {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .box {
+    padding: 7px 13px;
+    border-radius: 9px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1.5px solid;
+    text-align: center;
+    line-height: 1.35;
+  }
+  .sub {
+    font-size: 9.5px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  /* Color variants */
+  .auth   { background: rgba(129,140,248,0.12); border-color: rgba(129,140,248,0.5); color: var(--auth); }
+  .tab    { background: rgba(244,114,182,0.14); border-color: rgba(244,114,182,0.6); color: var(--tab); }
+  .chat   { background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.5); color: var(--chat); }
+  .modal  { background: rgba(251,191,36,0.11); border-color: rgba(251,191,36,0.45); color: var(--modal); }
+  .screen { background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.5); color: var(--screen); }
+  .deep   { background: rgba(34,211,238,0.11); border-color: rgba(34,211,238,0.45); color: var(--deep); }
+  .notif  { background: rgba(251,146,60,0.11); border-color: rgba(251,146,60,0.45); color: var(--notif); }
+  .start  { background: rgba(244,114,182,0.28); border-color: rgba(244,114,182,0.8); color: #fff; font-size: 13px; }
+
+  /* ── Layout helpers ── */
+  .row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+  .col { display: flex; flex-direction: column; gap: 8px; }
+  .arr {
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    color: var(--muted);
+    font-size: 15px;
+    margin-top: 9px;
+    flex-shrink: 0;
+  }
+  .or {
+    font-size: 9px;
+    color: var(--muted);
+    padding: 0 4px;
+    margin-top: 12px;
+  }
+
+  /* ── Tabs grid ── */
+  .tabs-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .tab-col {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .tab-header {
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    padding: 7px 6px;
+    border-radius: 8px;
+    margin-bottom: 2px;
+    border: 1.5px solid;
+  }
+  .tab-item {
+    font-size: 10.5px;
+    font-weight: 500;
+    text-align: center;
+    padding: 6px 8px;
+    border-radius: 7px;
+    line-height: 1.35;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.55);
+  }
+
+  /* Tab item colors */
+  .ti-chat   { border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.07); color: var(--chat); }
+  .ti-modal  { border-color: rgba(251,191,36,0.28); background: rgba(251,191,36,0.06); color: var(--modal); }
+  .ti-screen { border-color: rgba(167,139,250,0.28); background: rgba(167,139,250,0.07); color: var(--screen); }
+  .ti-api    { border-color: rgba(148,163,184,0.25); background: rgba(148,163,184,0.05); color: var(--api); }
+  .ti-deep   { border-color: rgba(34,211,238,0.25); background: rgba(34,211,238,0.06); color: var(--deep); }
+  .ti-hidden { border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: var(--muted); font-style: italic; font-size: 9.5px; }
+
+  /* ── Divider ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 8px 0 24px; }
+
+  /* ── Global screens ── */
+  .global-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ── Notification table ── */
+  .notif-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+  }
+  .notif-table th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 12px 8px;
+  }
+  .notif-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .notif-table tr:last-child td { border-bottom: none; }
+  .notif-table .notif-type { color: var(--notif); font-weight: 600; }
+  .notif-table .notif-shape { color: var(--muted); font-family: 'SF Mono', monospace; font-size: 10.5px; }
+  .notif-table .notif-dest { color: var(--chat); font-weight: 500; }
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 12px 0;
+  }
+
+  /* ── Auth flow row ── */
+  .auth-branches {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .branch-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .branch-label {
+    font-size: 9px;
+    color: var(--muted);
+    font-style: italic;
+    margin-left: 6px;
+    white-space: nowrap;
+  }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Connect<span>Sphere</span></div>
+    <div class="subtitle">App Routing Map — screens, guards, parameters &amp; transitions</div>
+  </div>
+  <div class="badge">Verified against app code · 2026-06-23</div>
+</header>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--auth)"></div>Auth / Onboarding</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--tab)"></div>Tab / Entry point</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--chat)"></div>Chat screen</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--modal)"></div>Modal / Bottom sheet</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--screen)"></div>Full screen (stack)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--deep)"></div>Deep link / Global</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--notif)"></div>Push notification</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--api)"></div>API call (fire-and-forget)</div>
+</div>
+
+<div style="margin:-12px 0 28px;padding:12px 16px;border:1px solid rgba(34,211,238,0.35);background:rgba(34,211,238,0.07);border-radius:10px;color:var(--deep);font-size:11px;">
+  Authoritative contract: <strong>docs/architecture/ROUTING.md</strong>.
+  Critical invariant: <strong>local:</strong> chat IDs use
+  <strong>/chat/dating/[id]</strong>; server chat IDs use
+  <strong>/chat/[matchId]</strong>.
+</div>
+
+<!-- AUTH FLOW -->
+<div class="section">
+  <div class="section-title">Auth flow — app start (index.tsx)</div>
+  <div class="col">
+    <div class="branch-row">
+      <div class="node"><div class="box start">Splash</div><div class="sub">index.tsx</div></div>
+      <div class="arr">→</div>
+      <div class="node"><div class="box auth">/(auth)/welcome</div></div>
+      <div class="arr">→</div>
+      <div class="node"><div class="box auth">Sign Up</div></div>
+      <div class="or">or</div>
+      <div class="node"><div class="box auth">Sign In</div></div>
+      <div class="arr">→</div>
+      <div class="node"><div class="box auth">/onboarding</div></div>
+      <div class="arr">→</div>
+      <div class="node"><div class="box tab">/(tabs)</div></div>
+      <div class="branch-label">← new user</div>
+    </div>
+    <div class="branch-row">
+      <div class="node" style="opacity:0"><div class="box start">Splash</div></div>
+      <div class="arr">→</div>
+      <div class="node"><div class="box tab">/(tabs)</div></div>
+      <div class="branch-label">← signed in + onboardingComplete</div>
+    </div>
+    <div class="branch-row">
+      <div class="node" style="opacity:0"><div class="box start">Splash</div></div>
+      <div class="arr">→</div>
+      <div class="node"><div class="box auth">/onboarding</div></div>
+      <div class="arr">→</div>
+      <div class="node"><div class="box tab">/(tabs)</div></div>
+      <div class="branch-label">← signed in, onboarding unfinished</div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- TABS -->
+<div class="section">
+  <div class="section-title">Tab bar — 4 visible tabs + floating profile avatar</div>
+  <div class="tabs-grid">
+
+    <!-- DISCOVER -->
+    <div class="tab-col">
+      <div class="tab-header tab">🧭 Discover</div>
+      <div class="tab-item">Swipe cards — like / pass</div>
+      <div class="tab-item ti-screen">Mutual like → /congrats</div>
+      <div class="tab-item ti-chat">→ chat/dating/[id]<br>(dating chat)</div>
+      <div class="tab-item ti-screen">Deck empty<br>→ /(tabs)/moments</div>
+      <div class="tab-item ti-screen">Likes You CTA<br>→ /likes-you 💎</div>
+      <div class="tab-item ti-screen">Profile views<br>→ /profile-views</div>
+      <div class="tab-item ti-deep">Tap card<br>→ /user/[userId]</div>
+    </div>
+
+    <!-- CONNECT -->
+    <div class="tab-col">
+      <div class="tab-header tab">👥 Connect</div>
+      <div class="tab-item ti-hidden">4 segments: Chats · Requests · Reactions · Moments</div>
+      <div class="tab-item ti-chat">Chats → chat/[matchId]<br>or chat/dating/[id]</div>
+      <div class="tab-item ti-screen">Requests: accept<br>→ /user/[userId]</div>
+      <div class="tab-item ti-screen">Reactions: like back<br>→ match → chat</div>
+      <div class="tab-item ti-modal">Moment Requests:<br>accept → profile</div>
+      <div class="tab-item ti-deep">Moment Likes<br>→ /user/[userId]</div>
+      <div class="tab-item ti-chat">Spark AI<br>→ chat/ai-bot</div>
+    </div>
+
+    <!-- EVENTS -->
+    <div class="tab-col">
+      <div class="tab-header tab">📅 Events</div>
+      <div class="tab-item ti-modal">Tap card<br>→ EventDetailSheet<br>(bottom sheet)</div>
+      <div class="tab-item ti-modal">RSVP / Join<br>stays in-sheet</div>
+      <div class="tab-item">Filter by category<br>(in-screen)</div>
+      <div class="tab-item">Create plan from event<br>→ Connect tab</div>
+    </div>
+
+    <!-- SPACES -->
+    <div class="tab-col">
+      <div class="tab-header tab">🪐 Spaces</div>
+      <div class="tab-item ti-screen">Community card<br>→ /communities/[id]</div>
+      <div class="tab-item ti-screen">Thread tap<br>→ /communities/<br>thread/[postId]</div>
+      <div class="tab-item ti-screen">Create<br>→ /communities/create</div>
+      <div class="tab-item">Post / reply<br>in-screen</div>
+    </div>
+
+    <!-- MOMENTS -->
+    <div class="tab-col">
+      <div class="tab-header tab">✨ Moments</div>
+      <div class="tab-item ti-hidden">href: null — hidden tab.<br>Enter from Discover when deck is empty.</div>
+      <div class="tab-item ti-modal">Story ring / card tap<br>→ MomentViewer</div>
+      <div class="tab-item ti-api">Reply → POST API<br>then → Connect/moments</div>
+      <div class="tab-item ti-api">Like → POST API<br>(optimistic)</div>
+      <div class="tab-item ti-modal">Post new<br>→ CreateMomentSheet</div>
+      <div class="tab-item ti-screen">Requests btn<br>→ Connect?segment=moments</div>
+    </div>
+
+  </div>
+</div>
+
+<hr>
+
+<!-- PROFILE -->
+<div class="section">
+  <div class="section-title">Profile — floating avatar in tab bar</div>
+  <div class="row">
+    <div class="node"><div class="box tab">👤 /(tabs)/profile</div></div>
+    <div class="arr">→</div>
+    <div class="col">
+      <div class="row">
+        <div class="node"><div class="box screen">/settings</div></div>
+        <div class="arr">→</div>
+        <div class="col">
+          <div class="node"><div class="box screen">/blocked-users</div></div>
+          <div class="node"><div class="box screen">/legal/privacy &amp; /legal/terms</div></div>
+          <div class="node"><div class="box auth">Sign Out → /(auth)/welcome</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="width:24px"></div>
+    <div class="node"><div class="box modal">/premium 💎</div></div>
+    <div class="arr">→</div>
+    <div class="node"><div class="box screen">Stripe checkout<br>(web) or RevenueCat</div></div>
+    <div class="arr">→</div>
+    <div class="node"><div class="box screen">/success</div></div>
+  </div>
+  <div style="margin-top:10px">
+    <div class="row">
+      <div class="node"><div class="box screen">/referral</div></div>
+      <div style="width:16px"></div>
+      <div class="node"><div class="box deep">/invite/[code]</div><div class="sub">deep link</div></div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- CHATS -->
+<div class="section">
+  <div class="section-title">Chat screens</div>
+  <div class="row" style="gap:12px; flex-wrap:wrap;">
+    <div class="node">
+      <div class="box chat">chat/dating/[id]</div>
+      <div class="sub">local dating matches</div>
+      <div class="sub">chatId.startsWith("local:")</div>
+    </div>
+    <div class="node">
+      <div class="box chat">chat/[matchId]</div>
+      <div class="sub">server matches</div>
+    </div>
+    <div class="node">
+      <div class="box chat">chat/ai-bot</div>
+      <div class="sub">Spark / Vibe AI companion</div>
+      <div class="sub">5 free msgs → HTTP 402 paywall</div>
+    </div>
+  </div>
+  <div style="margin-top:10px; font-size:10.5px; color:var(--muted);">All chats: tap avatar → /user/[userId] &nbsp;·&nbsp; Report/Block → ReportBlockSheet</div>
+</div>
+
+<hr>
+
+<!-- GLOBAL SCREENS -->
+<div class="section">
+  <div class="section-title">Global screens + deep links</div>
+  <div class="global-wrap">
+    <div class="node"><div class="box deep">/user/[userId]</div><div class="sub">any profile</div></div>
+    <div class="node"><div class="box deep">/likes-you</div><div class="sub">who liked you 💎</div></div>
+    <div class="node"><div class="box deep">/profile-views</div><div class="sub">who viewed you</div></div>
+    <div class="node"><div class="box deep">/congrats</div><div class="sub">match celebration</div></div>
+    <div class="node"><div class="box deep">/referral</div><div class="sub">invite friends</div></div>
+    <div class="node"><div class="box deep">/invite/[code]</div><div class="sub">invite deep link</div></div>
+    <div class="node"><div class="box deep">/u/[username]</div><div class="sub">profile deep link</div></div>
+    <div class="node"><div class="box screen">/resume</div><div class="sub">onboarding resume</div></div>
+    <div class="node"><div class="box screen">/success</div><div class="sub">post-payment</div></div>
+  </div>
+</div>
+
+<hr>
+
+<!-- PUSH NOTIFICATIONS -->
+<div class="section">
+  <div class="section-title">Push notifications → routing (PushTokenRegistrar.tsx)</div>
+  <div class="table-wrap">
+    <table class="notif-table">
+      <thead>
+        <tr>
+          <th>Notification type</th>
+          <th>data shape</th>
+          <th>Routes to</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="notif-type">message · friend_accept · plan_invite · plan_join · double_date_match</td>
+          <td class="notif-shape">{ chatId, matchId, url, type }</td>
+          <td class="notif-dest">openChat(chatId)</td>
+        </tr>
+        <tr>
+          <td class="notif-type">Anti-ghost nudge</td>
+          <td class="notif-shape">{ route: "/chat/dating/&lt;id&gt;" }</td>
+          <td class="notif-dest">chat/dating/[id]</td>
+        </tr>
+        <tr>
+          <td class="notif-type">Daily spark</td>
+          <td class="notif-shape">{ route: "/(tabs)/index" | "/(tabs)/matches" }</td>
+          <td class="notif-dest">Discover or Connect tab</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<hr>
+
+<!-- PAYWALL -->
+<div class="section">
+  <div class="section-title">Paywall — Spark / Vibe AI (chat/ai-bot)</div>
+  <div class="row" style="flex-wrap:wrap; gap:8px;">
+    <div class="node"><div class="box chat">Message 1–4</div><div class="sub">normal replies</div></div>
+    <div class="arr">→</div>
+    <div class="node"><div class="box modal">Message 5 (isLastFree)</div><div class="sub">soft nudge + [GO:premium:Unlock Plus ⚡] chip</div></div>
+    <div class="arr">→</div>
+    <div class="node"><div class="box screen">Message 6+ (isOverLimit)</div><div class="sub">HTTP 402 → upsell banner → /premium</div></div>
+  </div>
+</div>
+
+<footer>
+  <span>ConnectSphere · Expo Router v6 · Express API on Render · PostgreSQL via Drizzle ORM · Clerk auth</span>
+  <span>connectsphere-routing-map.html</span>
+</footer>
+
+</body>
+</html>
