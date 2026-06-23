@@ -4,6 +4,7 @@
 
 - Branch: `main`
 - Application commit: `933636c7c9ed23d5b654a991d40294bf80d232df`
+- Workflow/routing commit: `b943ea5` (`docs: unify agent handoff and routing contract`)
 - Claude checkpoint included: `4dac179` (`chore: checkpoint claude launch work`)
 - Codex follow-up included: `933636c` (`fix: resolve connectsphere launch regressions`)
 - Agent: Codex reconciliation
@@ -77,8 +78,8 @@ handoff workflow.
 
 ## Next task
 
-Commit this workflow checkpoint, then fix the documented baseline test and tap
-audit debt on a dedicated `codex/baseline-quality-gates` or
+Fix the documented baseline test and tap audit debt on a dedicated
+`codex/baseline-quality-gates` or
 `claude/baseline-quality-gates` branch. Push unified `main` as a reviewed branch
 before changing the remote default branch.
 
