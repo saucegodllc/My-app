@@ -127,7 +127,8 @@ function sanitizeMessages(
 const aiChatRateLimit = rateLimit({ key: "ai-chat", windowMs: 60 * 60 * 1000, max: 20 });
 
 // ─── POST /api/ai-chat — standard JSON response ──────────────────────────────
-router.post("/api/ai-chat", aiChatRateLimit, async (req: Request, res: Response) => {
+// app.ts mounts this router at /api, so register local route paths here.
+router.post("/ai-chat", aiChatRateLimit, async (req: Request, res: Response) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return res.status(503).json({ error: "AI service not configured." });
@@ -185,7 +186,7 @@ router.post("/api/ai-chat", aiChatRateLimit, async (req: Request, res: Response)
 // Client reads the response as a stream; each SSE event is:
 //   data: {"delta":"<token>"}\n\n   — partial text tokens as they arrive
 //   data: {"done":true}\n\n         — signals end of stream
-router.post("/api/ai-chat/stream", aiChatRateLimit, async (req: Request, res: Response) => {
+router.post("/ai-chat/stream", aiChatRateLimit, async (req: Request, res: Response) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return res.status(503).json({ error: "AI service not configured." });
@@ -233,6 +234,8 @@ router.post("/api/ai-chat/stream", aiChatRateLimit, async (req: Request, res: Re
     });
 
     if (!response.ok || !response.body) {
+      const err = await response.json().catch(() => ({}));
+      console.error("[aiChat/stream] Anthropic error:", response.status, err);
       send({ error: "AI service temporarily unavailable" });
       return res.end();
     }
@@ -269,11 +272,11 @@ router.post("/api/ai-chat/stream", aiChatRateLimit, async (req: Request, res: Re
     }
 
     send({ done: true });
-    res.end();
+    return res.end();
   } catch (err) {
     console.error("[aiChat/stream] error:", err);
     send({ error: "Stream interrupted" });
-    res.end();
+    return res.end();
   }
 });
 
