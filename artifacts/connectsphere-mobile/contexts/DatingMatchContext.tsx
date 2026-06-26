@@ -18,6 +18,7 @@ import { doc, getDoc, getFirestore } from "firebase/firestore";
 import { DatingMatchModal } from "@/components/DatingMatchModal";
 import type { VibeCheckAnswers } from "@/components/VibeCheckQuiz";
 import { useSessionState } from "@/hooks/useSessionState";
+import { isDiscoverySwipeLimitError, remainingSwipesFromDiscoveryResult } from "@/lib/discoverySwipeAuthority";
 import {
   getDatingReactions,
   getIncomingShots,
@@ -166,6 +167,9 @@ type Ctx = {
   reactionsPremiumRequired: boolean;
   premiumPrompt: "shot" | "spark" | null;
   clearPremiumPrompt: () => void;
+  serverRemainingSwipes: number | null;
+  swipeLimitNoticeId: number;
+  clearSwipeLimitNotice: () => void;
   recordVibe: (profile: DatingProfileSnapshot) => DatingMatch | null;
   recordSpark: (profile: DatingProfileSnapshot) => DatingMatch | null;
   recordPass: (profile: DatingProfileSnapshot) => void;
@@ -332,6 +336,8 @@ export function DatingMatchProvider({ children }: { children: ReactNode }) {
   const [reactionCounts, setReactionCounts] = useState<DatingReactionsResponse["counts"]>({ total: 0, like: 0, spark: 0, shot: 0 });
   const [reactionsPremiumRequired, setReactionsPremiumRequired] = useState(false);
   const [premiumPrompt, setPremiumPrompt] = useState<"shot" | "spark" | null>(null);
+  const [serverRemainingSwipes, setServerRemainingSwipes] = useState<number | null>(null);
+  const [swipeLimitNoticeId, setSwipeLimitNoticeId] = useState(0);
   const [localShotUsage, setLocalShotUsage] = useState({ date: todayKey(), count: 0 });
   const [modalMatch, setModalMatch] = useState<DatingMatch | null>(null);
   const [myVibeAnswers, setMyVibeAnswers] = useState<VibeCheckAnswers | null>(null);
@@ -595,6 +601,8 @@ export function DatingMatchProvider({ children }: { children: ReactNode }) {
             ),
           )
           .then((result) => {
+            const remaining = remainingSwipesFromDiscoveryResult(result);
+            if (remaining !== null) setServerRemainingSwipes(remaining);
             queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
             if (result.matched && result.match) {
               const serverMatch = matchFromApi(result.match, currentUserId);
@@ -602,7 +610,12 @@ export function DatingMatchProvider({ children }: { children: ReactNode }) {
             }
           })
           .catch((error) => {
-            if (isPremiumLimit(error)) setPremiumPrompt(type === "spark" ? "spark" : "shot");
+            if (isDiscoverySwipeLimitError(error)) {
+              setServerRemainingSwipes(0);
+              setSwipeLimitNoticeId((value) => value + 1);
+            } else if (isPremiumLimit(error)) {
+              setPremiumPrompt(type === "spark" ? "spark" : "shot");
+            }
           });
         return null;
       }
@@ -668,8 +681,17 @@ export function DatingMatchProvider({ children }: { children: ReactNode }) {
             { headers: authHeaders(token) },
           ),
         )
-        .then(() => queryClient.invalidateQueries({ queryKey: ["/api/discovery"] }))
-        .catch(() => {});
+        .then((result) => {
+          const remaining = remainingSwipesFromDiscoveryResult(result);
+          if (remaining !== null) setServerRemainingSwipes(remaining);
+          queryClient.invalidateQueries({ queryKey: ["/api/discovery"] });
+        })
+        .catch((error) => {
+          if (isDiscoverySwipeLimitError(error)) {
+            setServerRemainingSwipes(0);
+            setSwipeLimitNoticeId((value) => value + 1);
+          }
+        });
     }
   }, [currentUserId, getToken, queryClient]);
 
@@ -973,6 +995,9 @@ export function DatingMatchProvider({ children }: { children: ReactNode }) {
       reactionsPremiumRequired,
       premiumPrompt,
       clearPremiumPrompt: () => setPremiumPrompt(null),
+      serverRemainingSwipes,
+      swipeLimitNoticeId,
+      clearSwipeLimitNotice: () => setSwipeLimitNoticeId(0),
       recordVibe,
       recordSpark,
       recordPass,
@@ -999,6 +1024,8 @@ export function DatingMatchProvider({ children }: { children: ReactNode }) {
       reactionCounts,
       reactionsPremiumRequired,
       premiumPrompt,
+      serverRemainingSwipes,
+      swipeLimitNoticeId,
       recordVibe,
       recordSpark,
       recordPass,

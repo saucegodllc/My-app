@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { db } from "@workspace/db";
-import { profilesTable, likesTable, matchesTable, blocksTable } from "@workspace/db";
+import { profilesTable, likesTable, matchesTable, blocksTable, discoveryActionUsageTable } from "@workspace/db";
 import { PerformDiscoveryActionBody, GetDiscoveryFeedQueryParams } from "@workspace/api-zod";
 import { getAuth } from "@clerk/express";
 import { rateLimit } from "../middlewares/rateLimit";
@@ -13,6 +13,8 @@ import { shouldUseLocalDbFallback } from "../launchGuards";
 
 const router = Router();
 const FREE_SPARKS_PER_DAY = 1;
+const FREE_DATING_SWIPES_PER_DAY = 5;
+const DISCOVERY_SWIPE_BUCKET = "dating_swipe";
 
 // ── Local JSON fallback helpers (dev only) ───────────────────────────────────
 const workspaceRoot = process.cwd().endsWith(join("artifacts", "api-server"))
@@ -29,7 +31,8 @@ function localFallbackUserId(req: Parameters<typeof getAuth>[0]) {
 type LocalLike = { id: string; fromUserId: string; toUserId: string; action: string; createdAt: string };
 type LocalMatch = { id: string; userId1: string; userId2: string; matchedAt: string };
 type LocalProfile = { id: string; userId: string; displayName: string; birthDate?: string; gender?: string; intent?: string; connectionSubtype?: string; modeData?: Record<string, unknown>; photos?: string[]; interests?: string[]; bio?: string; location?: string; country?: string; isPremium?: boolean; isVerified?: boolean; [k: string]: unknown };
-type LocalDb = { profiles?: LocalProfile[]; likes?: LocalLike[]; matches?: LocalMatch[]; [k: string]: unknown };
+type LocalDiscoveryActionUsage = { id: string; userId: string; dateKey: string; actionBucket: string; count: number; createdAt: string; updatedAt: string };
+type LocalDb = { profiles?: LocalProfile[]; likes?: LocalLike[]; matches?: LocalMatch[]; discoveryActionUsage?: LocalDiscoveryActionUsage[]; [k: string]: unknown };
 
 function readLocalDb(): LocalDb {
   if (!existsSync(localDbPath)) return {};
@@ -43,6 +46,98 @@ function writeLocalDb(data: LocalDb) {
 function calcAge(birthDate?: string | null) {
   if (!birthDate) return undefined;
   return Math.floor((Date.now() - new Date(birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+}
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function swipeLimitResponse() {
+  return {
+    error: "Daily swipe limit reached",
+    code: "SWIPE_LIMIT_REACHED",
+    remainingSwipes: 0,
+    premiumRequired: true,
+  };
+}
+
+function localRemainingSwipes(localDb: LocalDb, userId: string) {
+  const usage = (localDb.discoveryActionUsage ?? []).find(
+    (item) => item.userId === userId && item.dateKey === todayKey() && item.actionBucket === DISCOVERY_SWIPE_BUCKET,
+  );
+  return Math.max(0, FREE_DATING_SWIPES_PER_DAY - (usage?.count ?? 0));
+}
+
+function consumeLocalSwipe(localDb: LocalDb, userId: string, premium: boolean) {
+  if (premium) return { allowed: true, remaining: null as number | null };
+  const dateKey = todayKey();
+  localDb.discoveryActionUsage = localDb.discoveryActionUsage ?? [];
+  let usage = localDb.discoveryActionUsage.find(
+    (item) => item.userId === userId && item.dateKey === dateKey && item.actionBucket === DISCOVERY_SWIPE_BUCKET,
+  );
+  if (!usage) {
+    usage = {
+      id: randomUUID(),
+      userId,
+      dateKey,
+      actionBucket: DISCOVERY_SWIPE_BUCKET,
+      count: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    localDb.discoveryActionUsage.push(usage);
+  }
+  if (usage.count >= FREE_DATING_SWIPES_PER_DAY) {
+    return { allowed: false, remaining: 0 };
+  }
+  usage.count += 1;
+  usage.updatedAt = new Date().toISOString();
+  return { allowed: true, remaining: Math.max(0, FREE_DATING_SWIPES_PER_DAY - usage.count) };
+}
+
+async function remainingSwipes(userId: string, premium: boolean) {
+  if (premium) return null;
+  const [usage] = await db
+    .select({ count: discoveryActionUsageTable.count })
+    .from(discoveryActionUsageTable)
+    .where(
+      and(
+        eq(discoveryActionUsageTable.userId, userId),
+        eq(discoveryActionUsageTable.dateKey, todayKey()),
+        eq(discoveryActionUsageTable.actionBucket, DISCOVERY_SWIPE_BUCKET),
+      ),
+    )
+    .limit(1);
+  return Math.max(0, FREE_DATING_SWIPES_PER_DAY - Number(usage?.count ?? 0));
+}
+
+async function consumeServerSwipe(userId: string, premium: boolean) {
+  if (premium) return { allowed: true, remaining: null as number | null };
+  const [usage] = await db
+    .insert(discoveryActionUsageTable)
+    .values({
+      id: randomUUID(),
+      userId,
+      dateKey: todayKey(),
+      actionBucket: DISCOVERY_SWIPE_BUCKET,
+      count: 1,
+    })
+    .onConflictDoUpdate({
+      target: [
+        discoveryActionUsageTable.userId,
+        discoveryActionUsageTable.dateKey,
+        discoveryActionUsageTable.actionBucket,
+      ],
+      set: {
+        count: sql`${discoveryActionUsageTable.count} + 1`,
+        updatedAt: new Date(),
+      },
+      where: sql`${discoveryActionUsageTable.count} < ${FREE_DATING_SWIPES_PER_DAY}`,
+    })
+    .returning({ count: discoveryActionUsageTable.count });
+
+  if (!usage) return { allowed: false, remaining: 0 };
+  return { allowed: true, remaining: Math.max(0, FREE_DATING_SWIPES_PER_DAY - Number(usage.count ?? 0)) };
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -171,23 +266,32 @@ router.post("/discovery/action", rateLimit({ key: "discovery_action", windowMs: 
     const likes: LocalLike[] = localDb.likes ?? [];
     const matches: LocalMatch[] = localDb.matches ?? [];
     const profiles: LocalProfile[] = localDb.profiles ?? [];
+    const senderProfile = profiles.find((p) => p.userId === userId);
+    const premium = senderProfile?.isPremium === true;
 
     // Record the like/pass
     const existing = likes.find((l) => l.fromUserId === userId && l.toUserId === targetUserId);
+    const swipeUsage = existing
+      ? { allowed: true, remaining: premium ? null : localRemainingSwipes(localDb, userId) }
+      : consumeLocalSwipe(localDb, userId, premium);
+    if (!swipeUsage.allowed) {
+      return res.status(429).json(swipeLimitResponse());
+    }
+
     if (!existing) {
       likes.push({ id: randomUUID(), fromUserId: userId, toUserId: targetUserId, action, createdAt: new Date().toISOString() });
     }
 
     if (action === "pass") {
       writeLocalDb({ ...localDb, likes });
-      return res.json({ matched: false, pending: false });
+      return res.json({ matched: false, pending: false, remainingSwipes: swipeUsage.remaining });
     }
 
     // Check mutual like
     const theyLikedUs = likes.find((l) => l.fromUserId === targetUserId && l.toUserId === userId && l.action !== "pass");
     if (!theyLikedUs) {
       writeLocalDb({ ...localDb, likes });
-      return res.json({ matched: false, pending: true });
+      return res.json({ matched: false, pending: true, remainingSwipes: swipeUsage.remaining });
     }
 
     // Already matched?
@@ -196,7 +300,7 @@ router.post("/discovery/action", rateLimit({ key: "discovery_action", windowMs: 
     );
     if (existingMatch) {
       writeLocalDb({ ...localDb, likes });
-      return res.json({ matched: true, chatId: existingMatch.id, match: { ...existingMatch, chatId: existingMatch.id } });
+      return res.json({ matched: true, chatId: existingMatch.id, match: { ...existingMatch, chatId: existingMatch.id }, remainingSwipes: swipeUsage.remaining });
     }
 
     const newMatch: LocalMatch = { id: randomUUID(), userId1: userId, userId2: targetUserId, matchedAt: new Date().toISOString() };
@@ -205,7 +309,7 @@ router.post("/discovery/action", rateLimit({ key: "discovery_action", windowMs: 
 
     const otherProfileRaw = profiles.find((p) => p.userId === targetUserId);
     const otherProfile = otherProfileRaw ? { ...otherProfileRaw, age: calcAge(otherProfileRaw.birthDate as string | undefined) } : undefined;
-    return res.json({ matched: true, chatId: newMatch.id, match: { ...newMatch, chatId: newMatch.id, otherProfile, unreadCount: 0 } });
+    return res.json({ matched: true, chatId: newMatch.id, match: { ...newMatch, chatId: newMatch.id, otherProfile, unreadCount: 0 }, remainingSwipes: swipeUsage.remaining });
   }
 
   // From here on: real Postgres path
@@ -221,12 +325,24 @@ router.post("/discovery/action", rateLimit({ key: "discovery_action", windowMs: 
     .limit(1);
   if (block) return res.status(403).json({ error: "This interaction is blocked." });
 
-  if (action === "superlike") {
-    const [profile] = await db
-      .select({ isPremium: profilesTable.isPremium })
-      .from(profilesTable)
-      .where(eq(profilesTable.userId, userId))
-      .limit(1);
+  const [existingLike] = await db
+    .select()
+    .from(likesTable)
+    .where(and(eq(likesTable.fromUserId, userId), eq(likesTable.toUserId, targetUserId)))
+    .limit(1);
+
+  const [profile] = await db
+    .select({ isPremium: profilesTable.isPremium })
+    .from(profilesTable)
+    .where(eq(profilesTable.userId, userId))
+    .limit(1);
+  const premium = profile?.isPremium === true;
+  let swipeUsage = {
+    allowed: true,
+    remaining: await remainingSwipes(userId, premium),
+  };
+
+  if (action === "superlike" && !existingLike) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const [{ count }] = await db
@@ -250,18 +366,25 @@ router.post("/discovery/action", rateLimit({ key: "discovery_action", windowMs: 
     }
   }
 
-  await db
-    .insert(likesTable)
-    .values({
-      id: randomUUID(),
-      fromUserId: userId,
-      toUserId: targetUserId,
-      action,
-    })
-    .onConflictDoNothing();
+  if (!existingLike) {
+    swipeUsage = await consumeServerSwipe(userId, premium);
+    if (!swipeUsage.allowed) {
+      return res.status(429).json(swipeLimitResponse());
+    }
+
+    await db
+      .insert(likesTable)
+      .values({
+        id: randomUUID(),
+        fromUserId: userId,
+        toUserId: targetUserId,
+        action,
+      })
+      .onConflictDoNothing();
+  }
 
   if (action === "pass") {
-    return res.json({ matched: false, pending: false });
+    return res.json({ matched: false, pending: false, remainingSwipes: swipeUsage.remaining });
   }
 
   const [theyLikedUs] = await db
@@ -277,7 +400,7 @@ router.post("/discovery/action", rateLimit({ key: "discovery_action", windowMs: 
     .limit(1);
 
   if (!theyLikedUs) {
-    return res.json({ matched: false, pending: true });
+    return res.json({ matched: false, pending: true, remainingSwipes: swipeUsage.remaining });
   }
 
   const [existingMatch] = await db
@@ -292,6 +415,7 @@ router.post("/discovery/action", rateLimit({ key: "discovery_action", windowMs: 
     return res.json({
       matched: true,
       chatId: existingMatch.id,
+      remainingSwipes: swipeUsage.remaining,
       match: await buildMatchThreadResponse({
         match: existingMatch,
         viewerUserId: userId,
@@ -337,6 +461,7 @@ router.post("/discovery/action", rateLimit({ key: "discovery_action", windowMs: 
   return res.json({
     matched: true,
     chatId: match.id,
+    remainingSwipes: swipeUsage.remaining,
     match: {
       ...(await buildMatchThreadResponse({
         match,

@@ -1548,14 +1548,14 @@ function DiscoverScreenInner() {
 
     if (decision.type === "paywall") {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      router.push({ pathname: "/premium", params: { feature: "rewind" } } as any);
+      openPremium("rewind");
       return;
     }
     if (decision.type === "noop") return;
 
     if (!subscription?.isActive) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      router.push({ pathname: "/premium", params: { feature: "rewind" } } as any);
+      openPremium("rewind");
       return;
     }
     const last = lastSwipeRef.current;
@@ -1676,6 +1676,22 @@ function DiscoverScreenInner() {
 
 
   const dating = useDatingMatches();
+  useEffect(() => {
+    if (typeof dating.serverRemainingSwipes === "number") {
+      setSwipesLeft(dating.serverRemainingSwipes);
+    }
+  }, [dating.serverRemainingSwipes]);
+
+  useEffect(() => {
+    if (dating.swipeLimitNoticeId <= 0) return;
+    setSwipesLeft(0);
+    setSwipeLimitModalVisible(true);
+    Analytics.swipeLimitHit({ intent: "dating", swipesUsed: DAILY_SWIPE_LIMIT });
+    Analytics.paywallSeen("swipes", { intent: "dating", source: "server_swipe_guard" });
+    dating.clearSwipeLimitNotice();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dating.swipeLimitNoticeId]);
+
   const recordDatingAction = (action: SwipeAction) => {
     if (activeIntent !== "dating") return;
     if (!profile) return;
@@ -1999,16 +2015,6 @@ function DiscoverScreenInner() {
             <Text style={styles.titleHeadlineMiami}>Miami</Text>
             <MaterialCommunityIcons name="palm-tree" size={28} color="#F9A8D4" style={styles.titlePalm} />
           </View>
-          <Pressable
-            onPress={() => router.push({ pathname: "/chat/ai-bot", params: { mode: "dating" } } as never)}
-            style={styles.sparkHeaderBtn}
-            hitSlop={10}
-            accessibilityLabel="Chat with Spark AI"
-            accessibilityRole="button"
-          >
-            <Ionicons name="sparkles" size={13} color="#F9A8D4" />
-            <Text style={styles.sparkHeaderText}>Spark AI</Text>
-          </Pressable>
           <View style={styles.taglineRow}>
             <View style={styles.taglineLine} />
             <Text style={styles.taglineText}>MEET. CONNECT. VIBE.</Text>
@@ -2093,7 +2099,7 @@ function DiscoverScreenInner() {
           <Pressable
             onPress={() => {
               void Haptics.selectionAsync();
-              router.push({ pathname: "/premium", params: { feature: "boost" } } as never);
+              openPremium("boost");
             }}
             style={styles.controlsBoost}
             hitSlop={10}
@@ -2408,7 +2414,7 @@ function DiscoverScreenInner() {
         }}
       />
       <SenderPlusModal visible={dating.premiumPrompt !== null} feature="shots" onClose={dating.clearPremiumPrompt} />
-      <SenderPlusModal visible={friendPremiumVisible} feature="friends" onClose={() => setFriendPremiumVisible(false)} />
+      <SenderPlusModal visible={friendPremiumVisible} feature="best-friend" onClose={() => setFriendPremiumVisible(false)} />
 
       {/* Daily swipe limit modal */}
       <Modal
@@ -2425,7 +2431,7 @@ function DiscoverScreenInner() {
             <Text style={styles.swipeLimitEmoji}>💔</Text>
             <Text style={styles.swipeLimitTitle}>You're out of likes for today</Text>
             <Text style={styles.swipeLimitBody}>
-              Free accounts get {DAILY_SWIPE_LIMIT} likes per day. Come back tomorrow — or upgrade to ConnectSphere Plus for unlimited likes.
+              Upgrade to ConnectSphere Plus for unlimited likes.
             </Text>
             <Pressable
               onPress={() => {
@@ -2460,10 +2466,10 @@ function DiscoverScreenInner() {
   );
 }
 
-function SenderPlusModal({ visible, feature, onClose }: { visible: boolean; feature: "shots" | "friends"; onClose: () => void }) {
+function SenderPlusModal({ visible, feature, onClose }: { visible: boolean; feature: "shots" | "best-friend"; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const copy =
-    feature === "friends"
+    feature === "best-friend"
       ? {
           eyebrow: "Friend moves unlocked",
           title: "Make every friend request count.",
@@ -2719,22 +2725,6 @@ const styles = StyleSheet.create({
   // Top-level main column. Replaces the old ScrollView so the screen fits
   // exactly one viewport (h-screen overflow-hidden in the web spec).
   main: { flex: 1, paddingHorizontal: 20 },
-
-  // Spark AI shortcut button — visible without floating over the Miami header.
-  sparkHeaderBtn: {
-    marginTop: 8,
-    flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,45,168,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,168,0.35)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sparkHeaderText: { color: "#F9A8D4", fontSize: 11, fontFamily: "Inter_900Black" },
 
   // Header — minimalist single headline (web spec: `shrink-0 pb-3 text-center`).
   header: {
