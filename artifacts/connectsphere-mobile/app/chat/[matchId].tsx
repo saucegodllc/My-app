@@ -640,11 +640,11 @@ function ChatPromptTriggers({
   );
 }
 
-// ── Quick Feature Bar ────────────────────────────────────────────────────────
-// Pinned row of labeled shortcut chips shown for the first 10 messages.
-// Surfaces the GIF picker, photo sender, and plan sheet — features that were
-// previously invisible or mislabeled in the composer bar.
-function QuickFeatureBar({
+// ── Attachment Tray ──────────────────────────────────────────────────────────
+// Slides up when the + button is tapped. Three purposeful options:
+// GIF (browse hundreds of reactions), Photo (camera roll), Plan (real meetup).
+// Animates in on mount via useEffect so the enter feels alive.
+function AttachmentTray({
   onGif,
   onPhoto,
   onPlan,
@@ -655,34 +655,75 @@ function QuickFeatureBar({
   onPlan: () => void;
   colors: ReturnType<typeof useColors>;
 }) {
-  const chips = [
-    { icon: "film-outline" as const, label: "GIF", onPress: onGif },
-    { icon: "image-outline" as const, label: "Photo", onPress: onPhoto },
-    { icon: "calendar-outline" as const, label: "Plan", onPress: onPlan },
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(anim, {
+      toValue: 1,
+      useNativeDriver: true,
+      damping: 18,
+      stiffness: 240,
+    }).start();
+  }, [anim]);
+
+  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [44, 0] });
+
+  const items = [
+    {
+      icon: "film-outline" as const,
+      label: "GIF",
+      sub: "Browse hundreds of reactions",
+      onPress: onGif,
+    },
+    {
+      icon: "image-outline" as const,
+      label: "Photo",
+      sub: "Share from your camera roll",
+      onPress: onPhoto,
+    },
+    {
+      icon: "calendar-outline" as const,
+      label: "Plan",
+      sub: "Browse events or create your own",
+      onPress: onPlan,
+    },
   ] as const;
+
   return (
-    <View style={[styles.quickFeatureBar, { borderTopColor: colors.border + "60", backgroundColor: colors.background }]}>
-      {chips.map(({ icon, label, onPress }) => (
+    <Animated.View
+      style={[
+        styles.attachTray,
+        {
+          borderTopColor: colors.border,
+          backgroundColor: colors.background,
+          opacity: anim,
+          transform: [{ translateY }],
+        },
+      ]}
+    >
+      {items.map(({ icon, label, sub, onPress }) => (
         <Pressable
           key={label}
-          onPress={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onPress();
-          }}
+          onPress={onPress}
           style={({ pressed }) => [
-            styles.quickFeatureChip,
+            styles.attachTrayItem,
             {
-              opacity: pressed ? 0.7 : 1,
+              opacity: pressed ? 0.65 : 1,
               borderColor: colors.border,
               backgroundColor: colors.card,
             },
           ]}
         >
-          <Ionicons name={icon} size={16} color={colors.primary} />
-          <Text style={[styles.quickFeatureLabel, { color: colors.foreground }]}>{label}</Text>
+          <View style={[styles.attachTrayIconWrap, { backgroundColor: colors.primary + "1A" }]}>
+            <Ionicons name={icon} size={22} color={colors.primary} />
+          </View>
+          <View style={styles.attachTrayText}>
+            <Text style={[styles.attachTrayLabel, { color: colors.foreground }]}>{label}</Text>
+            <Text style={[styles.attachTraySub, { color: colors.mutedForeground }]}>{sub}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={15} color={colors.mutedForeground} />
         </Pressable>
       ))}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -718,6 +759,8 @@ export default function ChatScreen() {
   const [showTyping, setShowTyping] = useState(false);
   const [pickerMessage, setPickerMessage] = useState<Message | null>(null);
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [showAttachTray, setShowAttachTray] = useState(false);
+  const plusAnim = useRef(new Animated.Value(0)).current;
   const [offlineWarning, setOfflineWarning] = useState(false);
   const [nextMoveDismissed, setNextMoveDismissed] = useState(false);
   const isFirstMessageRef = useRef(true);
@@ -735,6 +778,57 @@ export default function ChatScreen() {
     }
   }, [openPlan]);
   const [planStatuses, setPlanStatuses] = useState<Record<string, "pending" | "accepted" | "declined">>({});
+
+  // Attachment tray — + button opens/closes the tray; plus icon rotates 45° when open.
+  useEffect(() => {
+    Animated.spring(plusAnim, {
+      toValue: showAttachTray ? 1 : 0,
+      useNativeDriver: true,
+      damping: 15,
+      stiffness: 200,
+    }).start();
+  }, [showAttachTray, plusAnim]);
+
+  const toggleAttachTray = useCallback(() => {
+    setShowAttachTray((prev) => !prev);
+  }, []);
+
+  // Tray action: GIF — close tray, then open picker after tray animates away
+  const handleGifFromTray = useCallback(() => {
+    setShowAttachTray(false);
+    setTimeout(() => setShowGifPicker(true), 180);
+  }, []);
+
+  // Tray action: Photo — close tray then open camera roll
+  const handlePhotoFromTray = useCallback(() => {
+    setShowAttachTray(false);
+  }, []);
+
+  // Tray action: Plan — Alert lets user pick "Browse events" or "Create a plan"
+  const handlePlanFromTray = useCallback(() => {
+    setShowAttachTray(false);
+    setTimeout(() => {
+      Alert.alert(
+        "Start a plan",
+        "Browse upcoming events or create your own.",
+        [
+          {
+            text: "Browse events",
+            onPress: () => router.push("/(tabs)/events" as any),
+          },
+          {
+            text: "Create a plan",
+            onPress: () => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setShowPlanSheet(true);
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ],
+      );
+    }, 120);
+  }, []);
+
   const { trigger: triggerMsgFeedback, animatedStyle: sendBtnAnim, BurstOverlay: MsgBurst } = useFeedback("message");
   // Seed from the session cache so re-entry renders instantly (spec 1.2).
   const cachedChat = matchId ? chatScreenCache.get(matchId) : undefined;
@@ -1614,19 +1708,6 @@ export default function ChatScreen() {
         />
       )}
 
-      {/* Quick feature bar — labeled shortcuts for first 10 messages */}
-      {!isMatchGone && foldedMessages.filter((m) => !m.system && m.senderId !== "system").length < 10 && (
-        <QuickFeatureBar
-          onGif={() => setShowGifPicker(true)}
-          onPhoto={handleImageSend}
-          onPlan={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setShowPlanSheet(true);
-          }}
-          colors={colors}
-        />
-      )}
-
       {/* Icebreaker bar — personalized 1-tap openers on first open */}
       <IcebreakerBar
         icebreakers={icebreakers}
@@ -1647,6 +1728,16 @@ export default function ChatScreen() {
         />
       )}
 
+      {/* Attachment tray — shown when + button is tapped */}
+      {showAttachTray && (
+        <AttachmentTray
+          onGif={handleGifFromTray}
+          onPhoto={() => { handlePhotoFromTray(); handleImageSend(); }}
+          onPlan={handlePlanFromTray}
+          colors={colors}
+        />
+      )}
+
       {/* Input bar */}
       <View
         style={[
@@ -1658,12 +1749,36 @@ export default function ChatScreen() {
           },
         ]}
       >
-        {/* Attachment buttons */}
-        <Pressable onPress={() => setShowGifPicker(true)} style={styles.attachBtn} hitSlop={6}>
-          <Ionicons name="film-outline" size={22} color={colors.mutedForeground} />
-        </Pressable>
-        <Pressable onPress={handleImageSend} style={styles.attachBtn} hitSlop={6}>
-          <Ionicons name="image-outline" size={22} color={colors.mutedForeground} />
+        {/* + button: opens attachment tray (GIF / Photo / Plan) */}
+        <Pressable
+          onPress={toggleAttachTray}
+          hitSlop={6}
+          style={[
+            styles.plusBtn,
+            {
+              backgroundColor: showAttachTray ? colors.primary : colors.card,
+              borderColor: showAttachTray ? colors.primary : colors.border,
+            },
+          ]}
+        >
+          <Animated.View
+            style={{
+              transform: [
+                {
+                  rotate: plusAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ["0deg", "45deg"],
+                  }),
+                },
+              ],
+            }}
+          >
+            <Ionicons
+              name="add"
+              size={22}
+              color={showAttachTray ? "#fff" : colors.mutedForeground}
+            />
+          </Animated.View>
         </Pressable>
 
         <View style={[styles.inputWrapper, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -1917,25 +2032,43 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,45,168,0.20)",
   },
   openerChipText: { fontSize: 12, fontWeight: "700", color: "#fff" },
-  // Quick feature bar
-  quickFeatureBar: {
-    flexDirection: "row",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  quickFeatureChip: {
-    flex: 1,
-    flexDirection: "row",
+  // + button (opens attachment tray)
+  plusBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 2,
   },
-  quickFeatureLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  // Attachment tray (GIF · Photo · Plan)
+  attachTray: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  attachTrayItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 7,
+  },
+  attachTrayIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attachTrayText: { flex: 1 },
+  attachTrayLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  attachTraySub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
   // Next-move banner
   nextMoveBanner: {
     marginHorizontal: 12,
