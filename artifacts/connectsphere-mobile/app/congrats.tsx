@@ -187,7 +187,7 @@ export default function CongratsScreen() {
           style={[styles.playCtaWrap, { opacity: subFade, transform: [{ translateY: subSlide }] }]}
         >
           <Pressable
-            onPress={() => router.replace("/(tabs)/communities" as any)}
+            onPress={() => router.replace("/(tabs)")}
             style={styles.playCtaBtn}
           >
             <LinearGradient
