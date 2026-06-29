@@ -361,7 +361,7 @@ router.put("/profiles/me", rateLimit({ key: "profile_update", windowMs: 60_000, 
       return res.status(400).json({ error: "Date of birth is required." });
     }
     if (effectiveAge < MIN_AGE) {
-      return res.status(400).json({ error: `You must be at least ${MIN_AGE} years old to use ConnectSphere.` });
+      return res.status(403).json({ error: "underage", message: `You must be at least ${MIN_AGE} years old to use ConnectSphere.` });
     }
 
     const alreadyAccepted = !!existing?.communityCodeAcceptedAt;
@@ -443,7 +443,7 @@ router.put("/profiles/me", rateLimit({ key: "profile_update", windowMs: 60_000, 
     return res.status(400).json({ error: "Date of birth is required." });
   }
   if (effectiveAge < MIN_AGE) {
-    return res.status(400).json({ error: `You must be at least ${MIN_AGE} years old to use ConnectSphere.` });
+    return res.status(403).json({ error: "underage", message: `You must be at least ${MIN_AGE} years old to use ConnectSphere.` });
   }
 
   // Community Code must be accepted before we'll create/finalize a profile.

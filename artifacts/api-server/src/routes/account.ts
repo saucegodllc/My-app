@@ -1,10 +1,49 @@
 import { Router } from "express";
 import { and, eq, or } from "drizzle-orm";
+import { existsSync, readFileSync, writeFileSync } from "fs";
+import { join } from "path";
 import { getAuth } from "@clerk/express";
-import { db, blocksTable, messagesTable, profilesTable, reportsTable } from "@workspace/db";
+import { db, blocksTable, matchesTable, messagesTable, profilesTable, reportsTable } from "@workspace/db";
 import { createOpsId, nowIso, readOpsStore, writeOpsStore } from "../lib/operationalStore";
 import { captureApiError, logLaunchEvent } from "../lib/monitoring";
 import { rateLimit } from "../middlewares/rateLimit";
+
+// JSON-db helpers for local fallback data cleanup on account deletion.
+const workspaceRoot = process.cwd().endsWith(join("artifacts", "api-server"))
+  ? join(process.cwd(), "..", "..")
+  : process.cwd();
+const localDbPath = join(workspaceRoot, "artifacts", "api-server", "db.json");
+
+type JsonDb = Record<string, unknown[]>;
+
+function purgeUserFromJsonDb(userId: string): void {
+  if (!existsSync(localDbPath)) return;
+  try {
+    const raw = JSON.parse(readFileSync(localDbPath, "utf8")) as JsonDb;
+    const userFields: Record<string, string[]> = {
+      profiles:  ["userId"],
+      shots:     ["fromUserId", "toUserId"],
+      friends:   ["userId", "friendId"],
+      plans:     ["creatorId"],
+      planMembers: ["userId"],
+      reactions: ["userId"],
+      likes:     ["fromUserId", "toUserId"],
+      matches:   ["userId1", "userId2"],
+    };
+    let changed = false;
+    for (const [key, fields] of Object.entries(userFields)) {
+      if (!Array.isArray(raw[key])) continue;
+      const before = raw[key].length;
+      raw[key] = (raw[key] as Record<string, unknown>[]).filter(
+        (row) => !fields.some((f) => row[f] === userId),
+      );
+      if (raw[key].length !== before) changed = true;
+    }
+    if (changed) writeFileSync(localDbPath, JSON.stringify(raw, null, 2), "utf8");
+  } catch {
+    // Non-fatal — JSON-db is dev-only fallback.
+  }
+}
 
 const router = Router();
 const RETAINED_DATA = [
@@ -118,10 +157,16 @@ router.post("/account/delete", rateLimit({ key: "account_delete", windowMs: 60_0
   writeOpsStore(store);
 
   try {
+    // Deletion order: messages → matches → blocks → unreviewable reports → profile → JSON-db → Clerk
     await db.delete(messagesTable).where(eq(messagesTable.senderId, userId));
+    await db.delete(matchesTable).where(
+      or(eq(matchesTable.userId1, userId), eq(matchesTable.userId2, userId)),
+    );
     await db.delete(blocksTable).where(or(eq(blocksTable.blockerUserId, userId), eq(blocksTable.blockedUserId, userId)));
     await db.delete(reportsTable).where(and(eq(reportsTable.reporterUserId, userId), eq(reportsTable.isReviewed, false)));
     await db.delete(profilesTable).where(eq(profilesTable.userId, userId));
+    // Clean up any JSON-db (local fallback) records for this user.
+    purgeUserFromJsonDb(userId);
     const clerkDeleted = await deleteClerkUser(userId).catch((err) => {
       captureApiError(err, { userId, action: "clerk_delete" });
       return false;

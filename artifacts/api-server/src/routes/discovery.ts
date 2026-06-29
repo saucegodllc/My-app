@@ -152,7 +152,14 @@ router.get("/discovery", async (req, res) => {
     const profiles = localDb.profiles ?? [];
     const likes = localDb.likes ?? [];
     const alreadySeen = new Set(likes.filter((l) => l.fromUserId === userId).map((l) => l.toUserId));
-    const available = profiles.filter((p) => p.userId !== userId && !alreadySeen.has(p.userId));
+    const legalCutoff = new Date();
+    legalCutoff.setFullYear(legalCutoff.getFullYear() - 18);
+    const available = profiles.filter((p) => {
+      if (p.userId === userId || alreadySeen.has(p.userId)) return false;
+      // Exclude profiles without a DOB or under 18 — App Store requirement.
+      if (!p.birthDate) return false;
+      return new Date(p.birthDate as string) <= legalCutoff;
+    });
     const withAge = available.map((p) => ({ ...p, age: calcAge(p.birthDate as string | undefined) }));
     return res.json({ profiles: withAge, total: withAge.length, page: 1, hasMore: false });
   }
@@ -186,7 +193,15 @@ router.get("/discovery", async (req, res) => {
 
   const excludeIds = [...new Set([userId, ...alreadySeen, ...blockedByMe, ...blockedMe])];
 
-  const conditions = [ne(profilesTable.userId, userId)];
+  // Always exclude under-18 profiles — App Store requirement, not query-param-driven.
+  const minLegalBirthDate = new Date();
+  minLegalBirthDate.setFullYear(minLegalBirthDate.getFullYear() - 18);
+  const minLegalDobStr = minLegalBirthDate.toISOString().split("T")[0];
+
+  const conditions = [
+    ne(profilesTable.userId, userId),
+    lte(profilesTable.birthDate, minLegalDobStr),
+  ];
   if (excludeIds.length > 0) {
     conditions.push(notInArray(profilesTable.userId, excludeIds));
   }

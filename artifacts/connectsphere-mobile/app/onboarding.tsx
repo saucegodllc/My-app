@@ -1329,6 +1329,8 @@ export default function OnboardingScreen() {
               ...user.unsafeMetadata,
               onboardingComplete: true,
               onboardingProgress: null,
+              // Store DOB as a top-level ISO string so any screen can read age without hitting the API.
+              dateOfBirth: dobIsoString() ?? null,
               launchProfile: profilePayload,
             },
           }),

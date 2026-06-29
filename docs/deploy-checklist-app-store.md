@@ -93,6 +93,8 @@ Expected current blockers are missing dashboard/file values, not an app submissi
 - [ ] Events loads and event details open.
 - [ ] Premium opens checkout and restore flow.
 - [ ] Report and block actions complete.
+- [ ] Age gate: attempt onboarding with a DOB < 18 years — confirm underage screen appears and profile is not created.
+- [ ] Account deletion: Settings → Delete Account → type DELETE → confirm profile and all data are removed.
 - [ ] Push token registration appears for the signed-in user.
 - [ ] Daily Spark notification can be sent and received.
 - [ ] Offline/network-error states do not crash the app.
@@ -120,6 +122,7 @@ eas submit --platform ios
 - [ ] `PrivacyInfo.xcprivacy` remains included.
 - [ ] App Store listing copy is ready.
 - [ ] Required iPhone screenshots are ready.
+- [ ] Age rating set to **17+** in App Store Connect (required for dating apps; ConnectSphere enforces 18+ server-side via birthDate on PUT /profiles/me and in the discovery feed — App Store minimum is 17+).
 - [ ] Age rating questionnaire is ready for social/dating-style features.
 - [ ] In-app purchases are created and attached in App Store Connect.
 
