@@ -640,6 +640,52 @@ function ChatPromptTriggers({
   );
 }
 
+// ── Quick Feature Bar ────────────────────────────────────────────────────────
+// Pinned row of labeled shortcut chips shown for the first 10 messages.
+// Surfaces the GIF picker, photo sender, and plan sheet — features that were
+// previously invisible or mislabeled in the composer bar.
+function QuickFeatureBar({
+  onGif,
+  onPhoto,
+  onPlan,
+  colors,
+}: {
+  onGif: () => void;
+  onPhoto: () => void;
+  onPlan: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const chips = [
+    { icon: "film-outline" as const, label: "GIF", onPress: onGif },
+    { icon: "image-outline" as const, label: "Photo", onPress: onPhoto },
+    { icon: "calendar-outline" as const, label: "Plan", onPress: onPlan },
+  ] as const;
+  return (
+    <View style={[styles.quickFeatureBar, { borderTopColor: colors.border + "60", backgroundColor: colors.background }]}>
+      {chips.map(({ icon, label, onPress }) => (
+        <Pressable
+          key={label}
+          onPress={() => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onPress();
+          }}
+          style={({ pressed }) => [
+            styles.quickFeatureChip,
+            {
+              opacity: pressed ? 0.7 : 1,
+              borderColor: colors.border,
+              backgroundColor: colors.card,
+            },
+          ]}
+        >
+          <Ionicons name={icon} size={16} color={colors.primary} />
+          <Text style={[styles.quickFeatureLabel, { color: colors.foreground }]}>{label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 // ── Session-level chat cache (spec 1.2) ──────────────────────────────────────
 // Keyed by matchId. Survives navigation so re-entering a chat renders the last
 // known data instantly while a background refresh hydrates it. An entry with
@@ -1568,6 +1614,19 @@ export default function ChatScreen() {
         />
       )}
 
+      {/* Quick feature bar — labeled shortcuts for first 10 messages */}
+      {!isMatchGone && foldedMessages.filter((m) => !m.system && m.senderId !== "system").length < 10 && (
+        <QuickFeatureBar
+          onGif={() => setShowGifPicker(true)}
+          onPhoto={handleImageSend}
+          onPlan={() => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setShowPlanSheet(true);
+          }}
+          colors={colors}
+        />
+      )}
+
       {/* Icebreaker bar — personalized 1-tap openers on first open */}
       <IcebreakerBar
         icebreakers={icebreakers}
@@ -1601,7 +1660,7 @@ export default function ChatScreen() {
       >
         {/* Attachment buttons */}
         <Pressable onPress={() => setShowGifPicker(true)} style={styles.attachBtn} hitSlop={6}>
-          <Ionicons name="happy-outline" size={22} color={colors.mutedForeground} />
+          <Ionicons name="film-outline" size={22} color={colors.mutedForeground} />
         </Pressable>
         <Pressable onPress={handleImageSend} style={styles.attachBtn} hitSlop={6}>
           <Ionicons name="image-outline" size={22} color={colors.mutedForeground} />
@@ -1858,6 +1917,25 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,45,168,0.20)",
   },
   openerChipText: { fontSize: 12, fontWeight: "700", color: "#fff" },
+  // Quick feature bar
+  quickFeatureBar: {
+    flexDirection: "row",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  quickFeatureChip: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  quickFeatureLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   // Next-move banner
   nextMoveBanner: {
     marginHorizontal: 12,
