@@ -980,6 +980,14 @@ export default function ChatScreen() {
     return (other as any)?.photoUrl as string | undefined;
   }, [isInboxChat, inboxChat?.conversation, jsonChat?.participants, currentUserId]);
 
+  const openPeerProfile = useCallback(() => {
+    if (otherUserId) {
+      router.push({ pathname: "/user/[userId]" as any, params: { userId: otherUserId } });
+    } else {
+      Alert.alert("Profile unavailable", "This user's profile is no longer available.");
+    }
+  }, [otherUserId]);
+
   const presenceLabel = useMemo(() => {
     if (showTyping) return "typing...";
     if (!messages.length) return "online now";
@@ -1361,7 +1369,7 @@ export default function ChatScreen() {
         {/* Avatar — taps to full profile, no sheet/modal */}
         <Pressable
           style={styles.headerAvatarBtn}
-          onPress={() => otherUserId ? router.push({ pathname: "/user/[userId]" as any, params: { userId: otherUserId } }) : undefined}
+          onPress={openPeerProfile}
           hitSlop={4}
         >
           {peerPhotoUrl ? (
@@ -1381,7 +1389,7 @@ export default function ChatScreen() {
         {/* Name + presence — also navigates to profile */}
         <Pressable
           style={styles.headerTitleWrap}
-          onPress={() => otherUserId ? router.push({ pathname: "/user/[userId]" as any, params: { userId: otherUserId } }) : undefined}
+          onPress={openPeerProfile}
           hitSlop={4}
         >
           <Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>
@@ -1461,7 +1469,7 @@ export default function ChatScreen() {
           photoUrl={peerPhotoUrl}
           name={headerTitle}
           presence={presenceLabel}
-          onPress={otherUserId ? () => router.push({ pathname: "/user/[userId]" as any, params: { userId: otherUserId } }) : undefined}
+          onPress={openPeerProfile}
           colors={colors}
         />
       )}
