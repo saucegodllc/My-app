@@ -1,5 +1,13 @@
 # Current Claude ↔ Codex handoff
 
+## Update — 2026-07-01 (Claude)
+
+- Branch: `main`, commit `2c62395` (`chore: checkpoint session work`) on top of `a35b43d`.
+- Committed 29 real dirty files (Sentry wiring for mobile + API, Spark AI chat updates, premium/routing docs, launch audit docs, EAS projectId). No visual changes.
+- Note: ~650 files appeared modified due to CRLF/LF line-ending differences only; `core.autocrlf=true` set in repo config, phantom diffs resolved, nothing mangled.
+- Pushed `main` to GitHub as `unified-main` (origin/main NOT force-overwritten; it remains legacy history).
+- Next: review `unified-main` on GitHub, set it as default branch, verify Render deploys from it, then archive legacy `origin/main`.
+
 ## Current checkpoint
 
 - Branch: `main`
@@ -70,21 +78,4 @@ handoff workflow.
 ## Unfinished work
 
 - Publish unified `main` safely. Remote `origin/main` is an older divergent
-  visual history and must not be force-overwritten.
-- Change the GitHub default branch only after unified `main` is pushed and
-  reviewed.
-- Remove stale branches/worktrees only after archive refs are pushed.
-- Future feature work must use `claude/<task>` or `codex/<task>`.
-
-## Next task
-
-Fix the documented baseline test and tap audit debt on a dedicated
-`codex/baseline-quality-gates` or
-`claude/baseline-quality-gates` branch. Push unified `main` as a reviewed branch
-before changing the remote default branch.
-
-## File ownership
-
-- Active owner: Codex
-- Owned files: shared workflow documentation and root repository index
-- Protected files: all active application files listed in `AGENTS.md`
+  
