@@ -906,7 +906,9 @@ export function DatingMatchProvider({ children }: { children: ReactNode }) {
             : []),
         ];
         createdMatch = createMatchInternal(sender, seedMessages);
-        setModalMatch(createdMatch);
+        // No setModalMatch here: the calling screen (matches.tsx handleAcceptShot)
+        // shows its own MatchMomentOverlay. Firing the provider-level
+        // DatingMatchModal too stacked two celebrations for the same match.
       }
 
       return { success: true, shot: updated, chatId: createdMatch?.chatId, match: createdMatch };
