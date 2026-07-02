@@ -8,6 +8,24 @@
 - Pushed `main` to GitHub as `unified-main` (origin/main NOT force-overwritten; it remains legacy history).
 - Next: review `unified-main` on GitHub, set it as default branch, verify Render deploys from it, then archive legacy `origin/main`.
 
+## Update - 2026-07-01 (Codex)
+
+- Deployment target: `origin/unified-main` at commit `f47631b`
+  (`fix(api): persist db.json social data via Postgres snapshot - survives deploys`).
+- Render service to deploy: `connectsphere-api`.
+- Render branch/source should be `unified-main`.
+- Active deployment config is the root `render.yaml`, whose API build command is
+  `pnpm install && pnpm --filter @workspace/db push && pnpm build`.
+- That build command should push the `social_store` schema automatically before
+  building the API.
+- After deploy boot, confirm logs include
+  `[socialStore] Backup loop started`. That is the proof that `db.json` social
+  data backup/restore is active for plans, interests, and push tokens.
+- Verification caveat: local `pnpm run typecheck` could not complete because
+  pnpm dependency hydration timed out/missed tarballs before TypeScript ran.
+  The commit was still pushed by user request after release-engineer judgment.
+- Visual changes: none.
+
 ## Current checkpoint
 
 - Branch: `main`
