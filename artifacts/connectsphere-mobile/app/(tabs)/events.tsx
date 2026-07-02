@@ -29,7 +29,7 @@ import { useSessionState } from "@/hooks/useSessionState";
 import CreateFriendPlanSheet from "@/components/CreateFriendPlanSheet";
 import { useFeedback } from "@/components/ActionFeedback";
 import { eventContextIdsChanged, getEventsForScreen } from "@/lib/eventsScreenState";
-import { shouldUseDemoSeeds } from "@/lib/launchConfig";
+import { shouldUseDemoEvents } from "@/lib/launchConfig";
 import { MOCK_EVENTS, MOCK_USERS } from "@/lib/mockData";
 import { openChat as openChatRoute, openProfile } from "@/lib/routes";
 import { requestJoinFriendPlan, type PlanLocationOption } from "@/services/friendsApi";
@@ -845,7 +845,9 @@ export default function EventsScreen() {
 
   const eventsData = data as EventsPayload | undefined;
   const apiEvents = getEventsForScreen(eventsData) as Event[];
-  const demoSeedMode = shouldUseDemoSeeds();
+  // Demo events require explicit EXPO_PUBLIC_ENABLE_DEMO_SEEDS opt-in (e2e builds).
+  // Plain dev builds and all production builds only ever show real server events.
+  const demoSeedMode = shouldUseDemoEvents();
   const demoEvents = useMemo(
     () => (demoSeedMode && apiEvents.length === 0 ? buildDemoEvents() : []),
     [apiEvents.length, demoSeedMode],

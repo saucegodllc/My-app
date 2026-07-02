@@ -10,3 +10,15 @@ export const demoSeedsEnabled =
 export function shouldUseDemoSeeds() {
   return !isProductionLaunch && demoSeedsEnabled;
 }
+
+// ── Events feed ───────────────────────────────────────────────────────────────
+// Demo events require an EXPLICIT opt-in (EXPO_PUBLIC_ENABLE_DEMO_SEEDS=1|true).
+// Unlike shouldUseDemoSeeds(), plain __DEV__ is NOT enough — the Events tab must
+// never silently fall back to mock content. Production never shows demo events.
+export const demoSeedsExplicitlyEnabled =
+  process.env.EXPO_PUBLIC_ENABLE_DEMO_SEEDS === "1" ||
+  process.env.EXPO_PUBLIC_ENABLE_DEMO_SEEDS === "true";
+
+export function shouldUseDemoEvents() {
+  return !isProductionLaunch && demoSeedsExplicitlyEnabled;
+}

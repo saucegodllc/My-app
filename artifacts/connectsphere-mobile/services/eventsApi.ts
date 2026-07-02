@@ -18,7 +18,10 @@ export type FallbackEvent = {
   sourceType: "mock";
 };
 
-export const FALLBACK_EVENTS: FallbackEvent[] = [
+// Dates below are placeholders — normalized to the upcoming week at load time
+// (see FALLBACK_EVENTS export). Hardcoded absolute dates go stale and would
+// show users events that already happened.
+const RAW_FALLBACK_EVENTS: FallbackEvent[] = [
   {
     id: "fallback-1",
     name: "Friday Night Live at Bayfront Park",
@@ -116,6 +119,16 @@ export const FALLBACK_EVENTS: FallbackEvent[] = [
     price: "$20–$40",
   },
 ];
+
+// Re-date each entry onto the next 8 days (keeping the original time of day)
+// so fallback content is always upcoming, never expired.
+export const FALLBACK_EVENTS: FallbackEvent[] = RAW_FALLBACK_EVENTS.map((event, index) => {
+  const target = new Date();
+  target.setDate(target.getDate() + index + 1);
+  const time = event.date.slice(10); // "T21:00:00"
+  const day = target.toISOString().slice(0, 10);
+  return { ...event, date: `${day}${time}` };
+});
 
 export type EventContext = {
   sourceId: string;
