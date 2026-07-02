@@ -14,7 +14,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -34,6 +33,7 @@ import Animated, {
 import { Analytics } from "@/lib/analytics";
 import { useColors } from "@/hooks/useColors";
 import { getBoostPressDecision } from "@/lib/retentionFeatures";
+import { openPremium } from "@/lib/routes";
 import { usePersistentBoost } from "@/hooks/usePersistentBoost";
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ export default function ProfileBoostBanner({ userId, isPremium }: ProfileBoostBa
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (decision.type === "paywall") {
       Analytics.paywallSeen("boost");
-      router.push({ pathname: "/premium", params: { feature: "boost" } } as never);
+      openPremium("boost");
       return;
     }
     if (decision.type === "used-today") {

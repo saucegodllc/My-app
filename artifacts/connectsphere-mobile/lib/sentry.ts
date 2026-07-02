@@ -1,8 +1,14 @@
-type SentryLike = {
+export type SentryLike = {
   init: (options: Record<string, unknown>) => void;
   setUser: (user: { id: string; username?: string } | null) => void;
   captureException: (error: unknown) => void;
   captureMessage: (message: string) => void;
+  flush?: (timeout?: number) => PromiseLike<boolean>;
+  metrics?: {
+    count: (name: string, value: number, options?: Record<string, unknown>) => void;
+    gauge: (name: string, value: number, options?: Record<string, unknown>) => void;
+    distribution: (name: string, value: number, options?: Record<string, unknown>) => void;
+  };
   reactNativeTracingIntegration?: () => unknown;
 };
 
@@ -55,20 +61,9 @@ export function clearSentryUser() {
   void loadSentry().then((client) => client?.setUser(null));
 }
 
-export const Sentry = {
-  captureException(error: unknown, extra?: Record<string, unknown>) {
-    void loadSentry().then((client) => {
-      if (!client) return;
-      // Pass optional extra context (e.g. componentStack from ErrorBoundary)
-      if (extra) {
-        (client as unknown as { captureException(e: unknown, hint: unknown): void })
-          .captureException(error, { extra });
-      } else {
-        client.captureException(error);
-      }
-    });
-  },
-  captureMessage(message: string) {
-    void loadSentry().then((client) => client?.captureMessage(message));
-  },
-};
+export function isSentrySmokeEnabled(
+  env: Record<string, string | undefined> = process.env,
+  isDev = __DEV__,
+) {
+  const flag = env.EXPO_PUBLIC_ENABLE_SENTRY_SMOKE?.trim().toLowerCase();
+  if (["1", "true", "yes", "on", "enabled"].includes(flag ?? "")) return true;

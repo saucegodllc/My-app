@@ -96,6 +96,11 @@
       "androidMode": "default",
       "androidCollapsedTitle": "ConnectSphere"
     },
-    "experiments": { "typedRoutes": true, "reactCompiler": true }
+    "experiments": { "typedRoutes": true, "reactCompiler": true },
+    "extra": {
+      "eas": {
+        "projectId": "c96a7563-306d-4b3a-9e46-7d2d574bfa9c"
+      }
+    }
   }
 }

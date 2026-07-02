@@ -79,9 +79,17 @@ export function ShotBottomSheet({
 
   useEffect(() => {
     if (visible) {
-      // Suggestions arrive as a GHOST, never as prefilled real text (spec 4.1).
-      setMessage("");
-      setGhost(initialMessage ? initialMessage.slice(0, 120) : null);
+      // When a suggestion was pre-chosen outside the sheet (from ExpandedProfileCard),
+      // land it directly in the editable input — the user already picked it deliberately.
+      // Inline sheet chips (below the input) still use ghost so they don't auto-send.
+      // The "Send Shot" button still requires an explicit tap, so spec 4.1 is satisfied.
+      if (initialMessage) {
+        setMessage(initialMessage.slice(0, 120));
+        setGhost(null);
+      } else {
+        setMessage("");
+        setGhost(null);
+      }
       Animated.parallel([
         Animated.timing(fade, { toValue: 1, duration: 180, useNativeDriver: true }),
         Animated.spring(slide, { toValue: 0, damping: 20, stiffness: 220, useNativeDriver: true }),
@@ -348,20 +356,21 @@ export function ShotToast({
           <View style={styles.shotSentHero}>
             <Animated.View style={[styles.shotSentRing, { opacity: ringOpacity, transform: [{ scale: pulseScale }] }]} />
             <Animated.View style={[styles.shotSentIcon, { transform: [{ scale: pulseScale }] }]}>
-              <Ionicons name="paper-plane" size={28} color="#fff" />
+              <Text style={{ fontSize: 30, lineHeight: 36 }}>🏀</Text>
             </Animated.View>
             {photo ? <Image source={{ uri: photo }} style={styles.shotSentAvatar} contentFit="cover" /> : null}
           </View>
-          <Text style={styles.shotSentTitle}>Shot's live 🔥</Text>
+          <Text style={styles.shotSentTitle}>Shot Sent!</Text>
+          <Text style={styles.shotSentEmphasis}>Damn, you just shot your shot.</Text>
           <Text style={styles.shotSentSub}>
             {target?.name
-              ? `Your opener just landed in ${target.name}'s Reactions. Ball's in their court.`
-              : "Your opener is live in Reactions. Ball's in their court."}
+              ? `Your opener landed in ${target.name}'s court. Now we wait. 🔥`
+              : "Your opener is live. Ball's in their court now. 🔥"}
           </Text>
           <View style={styles.shotSentStats}>
             <View style={styles.shotSentStat}>
-              <Ionicons name="sparkles" size={13} color="#F9A8D4" />
-              <Text style={styles.shotSentStatText}>High-intent</Text>
+              <Ionicons name="basketball" size={13} color="#F9A8D4" />
+              <Text style={styles.shotSentStatText}>Bold move</Text>
             </View>
             <View style={styles.shotSentStat}>
               <Ionicons name="chatbubble-ellipses" size={13} color="#C4B5FD" />
@@ -592,8 +601,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#090007",
   },
-  shotSentTitle: { color: "#fff", fontSize: 29, fontFamily: "Sora_800ExtraBold", letterSpacing: -0.4 },
-  shotSentSub: { color: "rgba(255,255,255,0.70)", fontSize: 14, fontFamily: "Inter_600SemiBold", textAlign: "center", lineHeight: 20, marginTop: 6 },
+  shotSentTitle: { color: "#fff", fontSize: 32, fontFamily: "Sora_800ExtraBold", letterSpacing: -0.6, marginTop: 2 },
+  shotSentEmphasis: { color: "#F9A8D4", fontSize: 15, fontFamily: "Inter_800ExtraBold", textAlign: "center", marginTop: 4, letterSpacing: 0.2 },
+  shotSentSub: { color: "rgba(255,255,255,0.65)", fontSize: 13, fontFamily: "Inter_600SemiBold", textAlign: "center", lineHeight: 19, marginTop: 6 },
   shotSentStats: { flexDirection: "row", gap: 8, marginTop: 16, marginBottom: 18 },
   shotSentStat: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.07)", paddingHorizontal: 10, paddingVertical: 7 },
   shotSentStatText: { color: "#FCE7F3", fontSize: 11, fontFamily: "Inter_800ExtraBold" },

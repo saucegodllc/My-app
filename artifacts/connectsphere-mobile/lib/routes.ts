@@ -1,5 +1,24 @@
 import { router, type Href } from "expo-router";
 
+export const PREMIUM_FEATURE_KEYS = [
+  "rewind",
+  "boost",
+  "shots",
+  "best-friend",
+  "reactions",
+  "connect",
+  "moments",
+  "profile-views",
+  "spark",
+  "swipes",
+] as const;
+
+export type PremiumFeatureKey = (typeof PREMIUM_FEATURE_KEYS)[number];
+
+export function isPremiumFeatureKey(feature: string): feature is PremiumFeatureKey {
+  return (PREMIUM_FEATURE_KEYS as readonly string[]).includes(feature);
+}
+
 export const routes = {
   discovery: "/(tabs)" as const,
   connect: "/(tabs)/matches" as const,
@@ -31,7 +50,7 @@ export const routes = {
       params: { openChatId: chatId },
     } as Href;
   },
-  premiumFor(feature: string) {
+  premiumFor(feature: PremiumFeatureKey) {
     return {
       pathname: "/premium",
       params: { feature },
@@ -51,7 +70,7 @@ export function openProfile(
   router.push(routes.profile(userId, from, fallback));
 }
 
-export function openPremium(feature?: string) {
+export function openPremium(feature?: PremiumFeatureKey) {
   if (feature) {
     router.push(routes.premiumFor(feature));
     return;

@@ -1779,7 +1779,10 @@ function DiscoverScreenInner() {
   }, [advanceDeck, closeExpandedProfile]);
 
   const openShotSheet = useCallback(async (target: Profile, initialMessage?: string) => {
-    if (activeIntent !== "dating") return;
+    // Check the TARGET profile's intent, not the screen toggle — the toggle can be
+    // "friends" while the expanded profile is a dating-intent person, which was
+    // silently blocking suggestion-row taps in ExpandedProfileCard.
+    if ((target.intent ?? "dating") !== "dating") return;
     const allowed = await guardDiscoverAction("shot");
     if (!allowed) return;
     setShotError(null);
@@ -1788,7 +1791,7 @@ function DiscoverScreenInner() {
     const limitReached = await checkShotLimitReached();
     setShotPremiumRequired(limitReached);
     setShotProfile(target);
-  }, [activeIntent, checkShotLimitReached, guardDiscoverAction]);
+  }, [checkShotLimitReached, guardDiscoverAction]);
 
   const sendShotToProfile = useCallback(async (message: string) => {
     if (!shotProfile) return false;
@@ -2329,22 +2332,21 @@ function DiscoverScreenInner() {
               profile={selectedProfile}
               onClose={() => closeExpandedProfile()}
               onAction={async (action) => {
+                // Validate only — guard check + record. Do NOT close the modal here.
+                // Closing happens in onActionComplete, AFTER the overlay animation
+                // finishes, so the animation is never cut short by the modal closing.
                 const actionTarget = selectedProfile;
                 if (activeIntent === "friends") {
                   if (action === "create_plan" || action === "create_group") {
                     const mode = action === "create_group" ? "group" : "plan";
                     const allowed = await guardDiscoverAction(mode === "group" ? "create_group" : "create_plan");
                     if (!allowed) return false;
-                    closeExpandedProfile(() => openFriendPlan(actionTarget, mode, true));
-                    return true;
+                    return true; // close happens in onActionComplete below
                   }
                   const friendAction = action === "best_friend" ? "best_friend" : action === "vibe" ? "connect" : "pass";
                   const allowed = await handleFriendAction(actionTarget, friendAction);
                   if (!allowed) return false;
                   if (action === "pass") markPassed(actionTarget);
-                  closeExpandedProfile(() => {
-                    if (action !== "pass") advanceDeck();
-                  });
                   return true;
                 } else if (action === "vibe" || action === "spark" || action === "pass") {
                   const allowed = await guardDiscoverAction(action);
@@ -2352,10 +2354,22 @@ function DiscoverScreenInner() {
                   recordDatingAction(action);
                 }
                 if (action === "pass") markPassed(actionTarget);
+                return true;
+              }}
+              onActionComplete={(action) => {
+                // Called AFTER the in-card overlay animation completes (~720 ms).
+                // This is when we close the expanded profile and advance the deck,
+                // so the user sees the full animation before anything moves.
+                if (activeIntent === "friends" && (action === "create_plan" || action === "create_group")) {
+                  const mode = action === "create_group" ? "group" : "plan";
+                  // selectedProfile is still non-null here — setSelectedProfile(null)
+                  // only fires inside closeExpandedProfile's completion callback.
+                  closeExpandedProfile(() => openFriendPlan(selectedProfile ?? undefined, mode, true));
+                  return;
+                }
                 closeExpandedProfile(() => {
                   if (action !== "pass") advanceDeck();
                 });
-                return true;
               }}
               onShot={(initialMessage) => {
                 // Stay IN the expanded profile — the shot sheet floats above

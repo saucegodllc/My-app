@@ -26,6 +26,8 @@ import DiscoveryFiltersSheet from "@/components/DiscoveryFilters";
 import DevPushSmokePanel from "@/components/DevPushSmokePanel";
 import { useTranslation } from "react-i18next";
 import { setAnalyticsConsent } from "@/lib/analytics";
+import { openPremium } from "@/lib/routes";
+import { isSentrySmokeEnabled, sendSentrySmokeTest } from "@/lib/sentry";
 
 type DisplayIntent = "dating" | "friendship" | "all";
 type ModeData = Record<string, unknown>;
@@ -239,6 +241,7 @@ export default function SettingsScreen() {
   const [deletionSubmitting, setDeletionSubmitting] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [showDiscoveryFilters, setShowDiscoveryFilters] = useState(false);
+  const [sentrySmokeSending, setSentrySmokeSending] = useState(false);
 
   const originalUsername = normalizeUsername(profileExtras?.username);
   const currentModeData = useMemo(() => modeDataOf(profileExtras), [profileExtras]);
@@ -492,6 +495,28 @@ export default function SettingsScreen() {
     void Linking.openURL(link.url).catch(() => Alert.alert("Could not open link", link.url));
   }
 
+  async function handleSentrySmoke() {
+    setSentrySmokeSending(true);
+    try {
+      const result = await sendSentrySmokeTest();
+      if (!result.sent) {
+        Alert.alert("Sentry unavailable", "The Sentry SDK did not load. Check the DSN and rebuild environment.");
+        return;
+      }
+      Alert.alert(
+        "Sentry test sent",
+        result.metricsSent
+          ? "Check Sentry Issues and Metrics for the ConnectSphere smoke event."
+          : "Check Sentry Issues for the ConnectSphere smoke message. Metrics were not available on this SDK runtime.",
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not send the Sentry smoke event.";
+      Alert.alert("Sentry test failed", message);
+    } finally {
+      setSentrySmokeSending(false);
+    }
+  }
+
   const saveUsernameDisabled =
     usernameChecking ||
     !!usernameError ||
@@ -658,12 +683,12 @@ export default function SettingsScreen() {
 
         <Text style={styles.sectionHeader}>ConnectSphere Plus</Text>
         <View style={styles.plusGrid}>
-          <Pressable onPress={() => router.push({ pathname: "/premium", params: { feature: "shots" } } as any)} style={styles.plusCard}>
+          <Pressable onPress={() => openPremium("shots")} style={styles.plusCard}>
             <Ionicons name="paper-plane" size={22} color="#FF007F" />
             <Text style={styles.plusTitle}>Get more Shots</Text>
             <Text style={styles.plusText}>Send more high-intent openers without waiting.</Text>
           </Pressable>
-          <Pressable onPress={() => router.push({ pathname: "/premium", params: { feature: "best-friend" } } as any)} style={styles.plusCard}>
+          <Pressable onPress={() => openPremium("best-friend")} style={styles.plusCard}>
             <Ionicons name="ribbon" size={22} color="#FF007F" />
             <Text style={styles.plusTitle}>More Best Friend sends</Text>
             <Text style={styles.plusText}>Stand out in Friends reactions with a premium badge.</Text>
@@ -749,6 +774,24 @@ export default function SettingsScreen() {
         </View>
 
         <DevPushSmokePanel />
+
+        {isSentrySmokeEnabled() ? (
+          <>
+            <Text style={styles.sectionHeader}>Sentry Smoke</Text>
+            <View style={styles.card}>
+              <Pressable onPress={handleSentrySmoke} disabled={sentrySmokeSending} style={styles.navRow}>
+                <View style={styles.navIcon}>
+                  <Ionicons name="bug-outline" size={19} color="#FF007F" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.navTitle}>Send Sentry test</Text>
+                  <Text style={styles.navMeta}>Send a smoke message and metrics to the configured Sentry project.</Text>
+                </View>
+                {sentrySmokeSending ? <ActivityIndicator color="#FF007F" /> : <Ionicons name="chevron-forward" size={18} color="#71717A" />}
+              </Pressable>
+            </View>
+          </>
+        ) : null}
 
         {/* Discovery preferences */}
         <Text style={styles.sectionHeader}>Discovery</Text>

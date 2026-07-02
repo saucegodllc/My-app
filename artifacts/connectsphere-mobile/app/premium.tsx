@@ -20,6 +20,7 @@ import { useUser } from "@clerk/clerk-expo";
 
 import { useColors } from "@/hooks/useColors";
 import { Analytics, track } from "@/lib/analytics";
+import { isPremiumFeatureKey, type PremiumFeatureKey } from "@/lib/routes";
 import {
   getPremiumEntitlement,
   syncRevenueCatEntitlement,
@@ -47,7 +48,6 @@ function PlusLogo({ size = 72, color = "#FF2DA8" }: { size?: number; color?: str
 
 // ── Perks ─────────────────────────────────────────────────────────────────────
 const PERKS = [
-  { icon: "infinite-outline",       label: "Unlimited swipes" },
   { icon: "return-up-back-outline", label: "Rewind — undo your last swipe" },
   { icon: "paper-plane-outline",    label: "More Sparks & Shots" },
   { icon: "rocket-outline",         label: "Daily Profile Boost" },
@@ -57,6 +57,20 @@ const PERKS = [
   { icon: "pricetag-outline",       label: "Exclusive restaurant & retailer deals" },
 ] as const;
 
+// ── Feature-specific hero subtitle ────────────────────────────────────────────
+const FEATURE_SUBTITLES: Record<PremiumFeatureKey, string> = {
+  rewind:    "Undo your last swipe — and unlock every\nother premium feature while you're at it.",
+  boost:     "Put your profile at the top of the stack —\nplus every premium perk in one plan.",
+  reactions: "See every reaction you're getting —\nplus unlimited AI chats, boosts, and more.",
+  shots:     "Send unlimited Shots to anyone —\nplus every premium perk in one plan.",
+  "best-friend": "Send Best Friend requests without limits —\nplus every premium feature included.",
+  connect:   "See everyone who wants to connect with you —\nand unlock every premium feature.",
+  moments:   "See who viewed your Moments —\nand unlock every premium feature.",
+  "profile-views": "See everyone checking out your profile —\nand unlock every premium feature.",
+  spark:     "Chat with Spark AI as much as you want —\nplus every other premium feature included.",
+  swipes:    "Keep discovering without the daily swipe limit —\nplus every premium perk in one plan.",
+};
+
 type WebPlan = "monthly" | "sixmonth" | "yearly";
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -65,6 +79,7 @@ export default function PremiumScreen() {
   const insets    = useSafeAreaInsets();
   const { user }  = useUser();
   const params    = useLocalSearchParams<{ feature?: string }>();
+  const feature   = params.feature && isPremiumFeatureKey(params.feature) ? params.feature : undefined;
   const topInset    = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -72,13 +87,15 @@ export default function PremiumScreen() {
   const [loadingPlan, setLoadingPlan]         = useState<WebPlan | null>(null);
   const [entitlement, setEntitlement]         = useState<PremiumEntitlement | null>(null);
   const [revenueCatReady, setRevenueCatReady] = useState(false);
-  const browserInFlightRef = useRef(false);
+  const browserInFlightRef   = useRef(false);
+  const purchaseHandledRef   = useRef(false); // prevents double-alert if deep link + poll both fire
+  const stripeOpenedRef      = useRef(false); // true while Stripe browser is open
 
   // ── Load RevenueCat offerings ──────────────────────────────────────────────
   useEffect(() => {
     async function loadOfferings() {
       try {
-        track("paywall_viewed", { feature: params.feature ?? "plus" });
+        track("paywall_viewed", { feature: feature ?? "plus" });
         getPremiumEntitlement().then(setEntitlement).catch(() => undefined);
 
         const apiKey =
@@ -103,7 +120,7 @@ export default function PremiumScreen() {
       }
     }
     loadOfferings();
-  }, [user?.id, params.feature]);
+  }, [user?.id, feature]);
 
   // ── Sync RC entitlement to DB ──────────────────────────────────────────────
   async function syncFromCustomerInfo(
@@ -150,9 +167,26 @@ export default function PremiumScreen() {
     const url = `${apiUrl}/api/stripe/subscribe?userId=${encodeURIComponent(user.id)}&plan=${plan}`;
     track("web_checkout_tapped", { plan });
     setLoadingPlan(plan);
+    purchaseHandledRef.current = false;
+    stripeOpenedRef.current    = true;
     try {
       await openBillingUrl(url);
+      // Browser closed — deep link may or may not have fired.
+      // Wait briefly for the webhook to land, then poll for entitlement.
+      await new Promise((resolve) => setTimeout(resolve, 1800));
+      if (!purchaseHandledRef.current) {
+        const synced = await getPremiumEntitlement().catch(() => null);
+        if (synced?.isPremium) {
+          purchaseHandledRef.current = true;
+          track("web_checkout_succeeded");
+          setEntitlement(synced);
+          Alert.alert("Welcome to Plus! ⭐", "Your premium access is now active.", [
+            { text: "Let's Go! 🚀", onPress: () => router.back() },
+          ]);
+        }
+      }
     } finally {
+      stripeOpenedRef.current = false;
       setLoadingPlan(null);
     }
   }
@@ -258,6 +292,8 @@ export default function PremiumScreen() {
   useEffect(() => {
     async function handleDeepLink(event: { url: string }) {
       if (!event.url.includes("premium-success")) return;
+      if (purchaseHandledRef.current) return; // poll already handled it
+      purchaseHandledRef.current = true;
       try {
         if (revenueCatReady) {
           const info   = await Purchases.getCustomerInfo();
@@ -269,6 +305,8 @@ export default function PremiumScreen() {
             ]);
           }
         } else {
+          const synced = await getPremiumEntitlement().catch(() => null);
+          if (synced) setEntitlement(synced);
           track("web_checkout_succeeded");
           Alert.alert("Welcome to Plus! ⭐", "Your premium access is now active.", [
             { text: "Let's Go! 🚀", onPress: () => router.back() },
@@ -287,6 +325,8 @@ export default function PremiumScreen() {
   // ── Render ────────────────────────────────────────────────────────────────
   const PRIMARY = colors.primary;
   const alreadyPremium = entitlement?.isPremium === true;
+  const heroSub = (feature && FEATURE_SUBTITLES[feature])
+    ?? "Unlock every feature. Meet more people.\nGet exclusive deals in your city.";
 
   // Already a member — show a simple "you're covered" screen instead of the paywall
   if (alreadyPremium) {
@@ -334,7 +374,7 @@ export default function PremiumScreen() {
           <PlusLogo size={76} color={PRIMARY} />
           <Text style={[styles.heroTitle, { color: colors.foreground }]}>ConnectSphere Plus</Text>
           <Text style={[styles.heroSub, { color: colors.mutedForeground }]}>
-            Unlock every feature. Meet more people.{"\n"}Get exclusive deals in your city.
+            {heroSub}
           </Text>
         </View>
 

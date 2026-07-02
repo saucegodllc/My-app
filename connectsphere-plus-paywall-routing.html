@@ -335,13 +335,13 @@
     <div class="entry-card ec-ok">
       🤖 AI Spark — msg 5
       <div class="ep">chat/ai-bot.tsx</div>
-      <div class="fp">Soft nudge chip in reply</div>
+      <div class="fp">feature=spark · soft nudge chip in reply</div>
     </div>
 
     <div class="entry-card ec-ok">
       🚫 AI Spark — msg 6+
       <div class="ep">chat/ai-bot.tsx</div>
-      <div class="fp">HTTP 402 → upsell banner replaces input</div>
+      <div class="fp">feature=spark · HTTP 402 upsell banner</div>
     </div>
 
     <div class="entry-card ec-ok">
@@ -359,7 +359,7 @@
     <div class="entry-card ec-ok">
       👁️ Profile Views blur
       <div class="ep">profile-views.tsx</div>
-      <div class="fp">CTA button above blurred rows</div>
+      <div class="fp">feature=profile-views</div>
     </div>
 
     <div class="entry-card ec-ok">
@@ -392,16 +392,22 @@
       <div class="fp">subscription row → /premium</div>
     </div>
 
-    <div class="entry-card ec-gap">
-      ⚠️ Reactions — Connect tab
+    <div class="entry-card ec-ok">
+      Reactions — Connect tab
       <div class="ep">matches.tsx</div>
-      <div class="fp">isLocked cards — no router.push confirmed</div>
+      <div class="fp">feature=connect</div>
     </div>
 
-    <div class="entry-card ec-gap">
-      ⚠️ Unlimited swipes gate
+    <div class="entry-card ec-ok">
+      Moments viewer list
+      <div class="ep">matches.tsx</div>
+      <div class="fp">feature=moments</div>
+    </div>
+
+    <div class="entry-card ec-ok">
+      Unlimited swipes gate
       <div class="ep">(tabs)/index.tsx</div>
-      <div class="fp">Perk listed — no cap enforced in code</div>
+      <div class="fp">feature=swipes</div>
     </div>
 
   </div>
@@ -535,8 +541,8 @@
     <div class="gap-item g-warn">
       <div class="gn">3</div>
       <div>
-        <strong>Paywall copy is always generic — feature context is ignored in the UI.</strong>
-        <span class="gap-fix">premium.tsx: use params.feature to customize heroSub — e.g. "rewind" → "Undo your last swipe — and a lot more."</span>
+        <strong>Paywall copy now uses feature context for known premium entry points.</strong>
+        <span class="gap-fix">premium.tsx: params.feature drives heroSub for every known feature key.</span>
       </div>
     </div>
 

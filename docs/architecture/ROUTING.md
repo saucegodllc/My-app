@@ -170,6 +170,11 @@ All premium gates end at `/premium`. Preserve the triggering `feature`:
 | `shots` | Shot/settings gate |
 | `best-friend` | Friends/settings gate |
 | `reactions` | Likes/reactions gate |
+| `connect` | Connect incoming-list gate |
+| `moments` | Moments viewer-list gate |
+| `profile-views` | Profile Views visitor-list gate |
+| `spark` | Spark AI chat gate |
+| `swipes` | Discover daily swipe limit gate |
 
 AI chat can route to premium through `[GO:premium:...]` or HTTP 402. Confirmed
 purchase/restore returns with `router.back()`. Do not route payment completion
@@ -229,4 +234,3 @@ The 2026-06-23 baseline tap audit found five controls without handlers in
 Matches and Community screens. These are interaction gaps, not missing route
 registrations. Decide each control's destination or disabled state before
 implementing fixes on a dedicated quality-gates branch.
-

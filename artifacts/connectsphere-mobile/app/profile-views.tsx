@@ -31,6 +31,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useColors } from "@/hooks/useColors";
 import { hasPremiumAccess } from "@/lib/premiumAccess";
+import { openPremium } from "@/lib/routes";
 import { getPremiumEntitlement } from "@/services/launchReadyApi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -219,7 +220,7 @@ export default function ProfileViewsScreen() {
           {/* Premium upsell when not Plus and there are hidden visitors */}
           {!isPremium && visitors.length > 1 && (
             <Pressable
-              onPress={() => router.push("/premium" as any)}
+              onPress={() => openPremium("profile-views")}
               style={styles.upsellWrap}
             >
               <LinearGradient

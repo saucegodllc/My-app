@@ -6,6 +6,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "./apiBase";
 
+// ─── Auth token injection ─────────────────────────────────────────────────────
+// Mirror of the pattern in @workspace/api-client-react/custom-fetch.ts.
+// Call setAiChatTokenGetter once in _layout.tsx alongside setAuthTokenGetter.
+
+type TokenGetter = () => Promise<string | null> | string | null;
+let _tokenGetter: TokenGetter | null = null;
+
+export function setAiChatTokenGetter(getter: TokenGetter | null): void {
+  _tokenGetter = getter;
+}
+
+async function authHeaders(): Promise<Record<string, string>> {
+  if (!_tokenGetter) return {};
+  const token = await _tokenGetter();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export type AiChatMode = "dating" | "friends";
 
 export type AiChatMessage = {
@@ -108,11 +125,12 @@ export async function sendAiChatMessage(
 ): Promise<string> {
   const messages = history.map(({ role, content }) => ({ role, content }));
   const { signal: deadline, clear } = withDeadline(NON_STREAM_TIMEOUT_MS, signal);
+  const auth = await authHeaders();
   let res: Response;
   try {
     res = await fetch(apiUrl("/api/ai-chat"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...auth },
       body: JSON.stringify({ mode, messages }),
       signal: deadline,
     });
@@ -207,12 +225,13 @@ export async function sendAiChatMessageStreaming(
   }
 
   const { signal: deadline, clear: clearDeadline } = withDeadline(STREAM_CONNECT_TIMEOUT_MS, signal);
+  const auth = await authHeaders();
 
   let res: Response;
   try {
     res = await expoFetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...auth },
       body: JSON.stringify({ mode, messages }),
       signal: deadline,
     });

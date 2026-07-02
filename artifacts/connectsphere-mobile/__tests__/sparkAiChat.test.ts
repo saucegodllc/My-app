@@ -36,6 +36,7 @@ import {
   makeAssistantMessage,
   makeUserMessage,
   saveConversation,
+  setAiChatTokenGetter,
   sendAiChatMessageStreaming,
   type AiChatMessage,
 } from "@/lib/aiChat";
@@ -65,6 +66,7 @@ function makeStream(tokens: string[], error?: string): ReadableStream<Uint8Array
 describe("sendAiChatMessageStreaming", () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    setAiChatTokenGetter(null);
   });
 
   it("assembles tokens in order and resolves with full text", async () => {
@@ -102,6 +104,18 @@ describe("sendAiChatMessageStreaming", () => {
     expect(body.mode).toBe("friends");
     expect(body.messages).toHaveLength(3);
     expect(body.messages[2].content).toBe("help me");
+  });
+
+  it("sends Clerk bearer auth to the streaming endpoint", async () => {
+    setAiChatTokenGetter(() => "clerk-test-token");
+    mockFetch.mockResolvedValue({ ok: true, body: makeStream(["ok"]) });
+
+    await sendAiChatMessageStreaming("friends", [makeUserMessage("hey")], () => {});
+
+    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(init.headers).toMatchObject({
+      Authorization: "Bearer clerk-test-token",
+    });
   });
 
   it("throws when the server returns an error event", async () => {

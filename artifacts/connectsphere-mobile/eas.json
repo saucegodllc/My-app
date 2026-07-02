@@ -30,7 +30,9 @@
         "EXPO_PUBLIC_ENVIRONMENT": "preview",
         "EXPO_PUBLIC_API_URL": "https://connectsphere-api.onrender.com",
         "EXPO_PUBLIC_API_BASE_URL": "https://connectsphere-api.onrender.com",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuY29ubmVjdHNwaGVyZS5hcHAk"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuY29ubmVjdHNwaGVyZS5hcHAk",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://4b336f1fc25070755323e195862de437@o4511657234923520.ingest.us.sentry.io/4511657277718528",
+        "EXPO_PUBLIC_ENABLE_SENTRY_SMOKE": "true"
       }
     },
     "e2e": {
@@ -61,7 +63,8 @@
         "EXPO_PUBLIC_ENVIRONMENT": "production",
         "EXPO_PUBLIC_API_URL": "https://connectsphere-api.onrender.com",
         "EXPO_PUBLIC_API_BASE_URL": "https://connectsphere-api.onrender.com",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuY29ubmVjdHNwaGVyZS5hcHAk"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuY29ubmVjdHNwaGVyZS5hcHAk",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://4b336f1fc25070755323e195862de437@o4511657234923520.ingest.us.sentry.io/4511657277718528"
       }
     }
   },
@@ -75,8 +78,4 @@
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "production",
-        "releaseStatus": "completed"
-      }
-    }
-  }
-}
+        "re

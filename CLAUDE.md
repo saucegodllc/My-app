@@ -8,6 +8,49 @@ Project overview and conventions are in `replit.md`. This file tracks non-obviou
 
 ---
 
+## Shoot Your Shot — suggestion buttons + celebration (2026-06)
+
+### Bug fixed: dead suggestion buttons in ExpandedProfileCard
+
+**Root cause:** `openShotSheet` in `app/(tabs)/index.tsx` had a guard:
+```ts
+if (activeIntent !== "dating") return;
+```
+`activeIntent` is the screen-level Dating/Friends toggle — which can be "friends" even when viewing a dating-intent expanded profile. This silently blocked all suggestion row taps.
+
+**Fix:** Changed the guard to check the **target profile's intent** instead:
+```ts
+if ((target.intent ?? "dating") !== "dating") return;
+```
+This means: only block shots if you're trying to shoot at a friends-intent profile. Dating profiles always open the sheet.
+
+**Files changed:**
+- `artifacts/connectsphere-mobile/app/(tabs)/index.tsx` — `openShotSheet` guard fix; removed `activeIntent` from its `useCallback` dependency array
+
+### Shot Sent! celebration upgrade
+
+**Before:** `ShotToast` showed "Shot's live 🔥" with a paper-plane icon.
+**After:** Shows "Shot Sent! 🏀" with basketball emoji, hot-pink emphasis line "Damn, you just shot your shot.", and updated sub copy.
+
+**Files changed:**
+- `artifacts/connectsphere-mobile/components/ShotBottomSheet.tsx` — `ShotToast` title, emphasis line, sub copy, icon, and `shotSentEmphasis` style added
+
+### Flow (complete, verified)
+
+```
+Tap suggestion row in ExpandedProfileCard
+  → onShotIdea(idea) → onShot(idea)
+  → openShotSheet(selectedProfile, idea)  ← now unblocked
+  → ShotBottomSheet opens with ghost pre-fill from suggestion
+  → User edits / accepts → Send Shot
+  → sendShotToProfile() succeeds
+  → setShotToastVisible(true)
+  → ShotToast: "Shot Sent! 🏀 / Damn, you just shot your shot."
+  → Auto-dismisses after 3.6s, advances deck
+```
+
+---
+
 ## Spark / Vibe AI Companions — major upgrade (2026-06)
 
 All changes live in **`artifacts/api-server/src/routes/aiChat.ts`** and the new DB schema file below. The routes are:

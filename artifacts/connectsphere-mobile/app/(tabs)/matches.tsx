@@ -1187,7 +1187,7 @@ function MomentsConnectSection() {
       )}
 
       {/* Upgrade teaser */}
-      <Pressable style={mStyles.upgradeCard}>
+      <Pressable style={mStyles.upgradeCard} onPress={() => openPremium("moments")}>
         <LinearGradient
           colors={["rgba(255,45,168,0.12)","rgba(168,85,247,0.10)"]}
           style={StyleSheet.absoluteFill}

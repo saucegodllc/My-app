@@ -84,8 +84,12 @@ type Props = {
   /** When true: hides swipe/shot actions, shows "Message" CTA instead */
   matchMode?: boolean;
   onClose: () => void;
-  /** Discover mode — swipe action (pass / vibe / spark / shot / create_plan / …) */
+  /** Discover mode — validates the action (guard check + record). Should NOT close the modal.
+   *  Return false to abort (premium gate, etc.); true / void to proceed. */
   onAction?: (action: ProfileAction) => boolean | void | Promise<boolean | void>;
+  /** Called AFTER the in-card overlay animation finishes — the right place to close
+   *  the expanded profile and advance the deck.  This keeps the animation fully visible. */
+  onActionComplete?: (action: ProfileAction) => void;
   /** Discover mode — open shot composer */
   onShot?: (initialMessage?: string) => void;
   /** Match mode — called when user taps the "Message" CTA */
@@ -475,6 +479,138 @@ const friendsBigActions = [
   { label: "Pass", iconName: "close" as keyof typeof Ionicons.glyphMap, action: "pass" as ProfileAction },
 ];
 
+/** Per-action animated button — each swipe type has its own micro-animation
+ *  so the press feels distinct and intentional rather than generic. */
+function BigActionButton({
+  def,
+  accent,
+  onPress,
+}: {
+  def: { label: string; iconName: keyof typeof Ionicons.glyphMap; action: ProfileAction; main?: boolean };
+  accent: [string, string, string];
+  onPress: () => void;
+}) {
+  const pressScale = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const rotateDeg = useRef(new Animated.Value(0)).current;
+
+  const rotateInterp = rotateDeg.interpolate({
+    inputRange: [-30, 30],
+    outputRange: ["-30deg", "30deg"],
+  });
+
+  const playButtonAnim = (action: ProfileAction) => {
+    if (action === "pass") {
+      // Reject shake — quick left-right oscillate + slight shrink
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(translateX, { toValue: -7, duration: 55, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+          Animated.timing(translateX, { toValue: 7, duration: 55, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+          Animated.timing(translateX, { toValue: -4, duration: 45, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+          Animated.timing(translateX, { toValue: 4, duration: 45, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 35, bounciness: 3 }),
+        ]),
+        Animated.sequence([
+          Animated.spring(pressScale, { toValue: 0.83, useNativeDriver: true, speed: 55, bounciness: 0 }),
+          Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, speed: 25, bounciness: 5 }),
+        ]),
+      ]).start();
+    } else if (action === "vibe") {
+      // Heart pop — big overshoot spring, warm and celebratory
+      Animated.sequence([
+        Animated.spring(pressScale, { toValue: 1.30, useNativeDriver: true, speed: 75, bounciness: 24 }),
+        Animated.spring(pressScale, { toValue: 1.0, useNativeDriver: true, speed: 28, bounciness: 6 }),
+      ]).start();
+    } else if (action === "spark") {
+      // Sparkle shimmer — rotation burst + scale pop (magical energy)
+      Animated.parallel([
+        Animated.sequence([
+          Animated.spring(rotateDeg, { toValue: 20, useNativeDriver: true, speed: 68, bounciness: 14 }),
+          Animated.spring(rotateDeg, { toValue: -13, useNativeDriver: true, speed: 55, bounciness: 9 }),
+          Animated.spring(rotateDeg, { toValue: 0, useNativeDriver: true, speed: 40, bounciness: 4 }),
+        ]),
+        Animated.sequence([
+          Animated.spring(pressScale, { toValue: 1.22, useNativeDriver: true, speed: 62, bounciness: 16 }),
+          Animated.spring(pressScale, { toValue: 1.0, useNativeDriver: true, speed: 28, bounciness: 4 }),
+        ]),
+      ]).start();
+    } else if (action === "shot") {
+      // Launch motion — translate right (send) then snap back
+      Animated.sequence([
+        Animated.spring(translateX, { toValue: 10, useNativeDriver: true, speed: 72, bounciness: 0 }),
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 26, bounciness: 10 }),
+      ]).start();
+      Animated.sequence([
+        Animated.spring(pressScale, { toValue: 1.12, useNativeDriver: true, speed: 66, bounciness: 8 }),
+        Animated.spring(pressScale, { toValue: 1.0, useNativeDriver: true, speed: 28, bounciness: 4 }),
+      ]).start();
+    } else if (action === "best_friend") {
+      // Bestie burst — extra generous heart pop, more dramatic than vibe
+      Animated.sequence([
+        Animated.spring(pressScale, { toValue: 1.38, useNativeDriver: true, speed: 72, bounciness: 28 }),
+        Animated.spring(pressScale, { toValue: 1.0, useNativeDriver: true, speed: 26, bounciness: 6 }),
+      ]).start();
+    } else if (action === "create_plan" || action === "create_group") {
+      // Forward motion — similar to shot (you're sending an invite)
+      Animated.sequence([
+        Animated.spring(translateX, { toValue: 8, useNativeDriver: true, speed: 68, bounciness: 0 }),
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 26, bounciness: 9 }),
+      ]).start();
+      Animated.sequence([
+        Animated.spring(pressScale, { toValue: 1.1, useNativeDriver: true, speed: 62, bounciness: 6 }),
+        Animated.spring(pressScale, { toValue: 1.0, useNativeDriver: true, speed: 26, bounciness: 3 }),
+      ]).start();
+    } else {
+      // Generic pop fallback
+      Animated.sequence([
+        Animated.spring(pressScale, { toValue: 1.12, useNativeDriver: true, speed: 60, bounciness: 10 }),
+        Animated.spring(pressScale, { toValue: 1.0, useNativeDriver: true, speed: 26, bounciness: 4 }),
+      ]).start();
+    }
+  };
+
+  const handlePress = () => {
+    playButtonAnim(def.action);
+    onPress();
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      activeOpacity={1}
+      testID={`action-${def.action}`}
+    >
+      <Animated.View
+        style={[
+          expStyles.bigWrap,
+          {
+            transform: [
+              { scale: pressScale },
+              { translateX },
+              { rotate: rotateInterp },
+            ],
+          },
+        ]}
+      >
+        <View style={expStyles.bigBtn}>
+          {def.main ? (
+            <LinearGradient
+              colors={accent}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+            />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, expStyles.bigBtnDefault]} />
+          )}
+          <Ionicons name={def.iconName} size={30} color="#FFF" />
+        </View>
+        <Text style={expStyles.bigLabel}>{def.label}</Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
 function BigActionsBar({
   profile,
   onAction,
@@ -489,28 +625,12 @@ function BigActionsBar({
   return (
     <View style={expStyles.bigActionsRow} testID="expanded-profile-actions-bar">
       {actions.map((def) => (
-        <AnimatedTap
+        <BigActionButton
           key={def.label}
+          def={def}
+          accent={accent}
           onPress={() => onAction(def.action)}
-          style={expStyles.bigWrap}
-          pressScale={def.main ? 0.94 : 0.92}
-          testID={`action-${def.action}`}
-        >
-          <View style={expStyles.bigBtn}>
-            {def.main ? (
-              <LinearGradient
-                colors={accent}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
-              />
-            ) : (
-              <View style={[StyleSheet.absoluteFill, expStyles.bigBtnDefault]} />
-            )}
-            <Ionicons name={def.iconName} size={30} color="#FFF" />
-          </View>
-          <Text style={expStyles.bigLabel}>{def.label}</Text>
-        </AnimatedTap>
+        />
       ))}
     </View>
   );
@@ -617,6 +737,7 @@ export function ExpandedProfileCard({
   matchMode = false,
   onClose,
   onAction,
+  onActionComplete,
   onShot,
   onMessage,
 }: Props) {
@@ -694,15 +815,21 @@ export function ExpandedProfileCard({
         : Haptics.ImpactFeedbackStyle.Medium;
     void Haptics.impactAsync(haptic).catch(() => {});
 
-    // Fire the overlay animation and the action handler concurrently — the visual
-    // response is instant, and the action isn't held back waiting for the animation.
     try {
-      const [, result] = await Promise.all([
-        playActionFeedback(action),
-        Promise.resolve().then(() => onAction?.(action)),
-      ]);
-      if (result !== false)
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      // 1. Validate with parent first (guard check + record). Fast — does NOT close the modal.
+      //    Returns false if the action was blocked (premium gate, friend action rejected, etc.).
+      const result = await Promise.resolve().then(() => onAction?.(action));
+      if (result === false) return;
+
+      // 2. Play the in-card overlay animation. The modal stays open so the full animation
+      //    is visible — previously this raced with closeExpandedProfile and got cut short.
+      await playActionFeedback(action);
+
+      // 3. Success haptic confirms the action landed.
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+
+      // 4. Hand off to parent to close the profile and advance to the next card.
+      onActionComplete?.(action);
     } finally {
       actionInFlightRef.current = false;
     }

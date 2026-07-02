@@ -15,6 +15,7 @@ import { Yellowtail_400Regular } from "@expo-google-fonts/yellowtail";
 import { ClerkProvider, useAuth, useUser } from "@clerk/clerk-expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
+import { setAiChatTokenGetter } from "@/lib/aiChat";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
@@ -56,6 +57,7 @@ function AuthTokenSetter() {
   const { getToken } = useAuth();
   useEffect(() => {
     setAuthTokenGetter(() => getToken());
+    setAiChatTokenGetter(() => getToken());
   }, [getToken]);
   return null;
 }

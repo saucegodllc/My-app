@@ -26,7 +26,7 @@ jest.mock("expo-router", () => ({
 
 // ─── Imports ────────────────────────────────────────────────────────────────
 
-import { routes, openProfile } from "../lib/routes";
+import { isPremiumFeatureKey, routes, openProfile } from "../lib/routes";
 import { buildIncomingActionCards } from "../services/connectIncoming";
 import type { CsConversation, CsReaction, CsRequest } from "../services/connectApi";
 
@@ -224,6 +224,18 @@ describe("routes.profile — fallback params", () => {
     expect(params.fallbackPhoto).toBeUndefined();
     expect(params.fallbackAge).toBeUndefined();
     expect(params.fallbackNeighborhood).toBeUndefined();
+  });
+});
+
+describe("routes.premiumFor", () => {
+  test("preserves Moments feature context for the paywall", () => {
+    expect(isPremiumFeatureKey("moments")).toBe(true);
+    expect((routes.premiumFor("moments") as any).params.feature).toBe("moments");
+  });
+
+  test("preserves profile views feature context for the paywall", () => {
+    expect(isPremiumFeatureKey("profile-views")).toBe(true);
+    expect((routes.premiumFor("profile-views") as any).params.feature).toBe("profile-views");
   });
 });
 

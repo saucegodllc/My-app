@@ -48,6 +48,7 @@ import {
   saveConversation,
   sendAiChatMessageStreaming,
 } from "@/lib/aiChat";
+import { openPremium } from "@/lib/routes";
 
 // ─── Action token parser ──────────────────────────────────────────────────────
 // Spark can embed [GO:route:label] in its replies. We strip them from the
@@ -136,8 +137,8 @@ function ChatBubble({
 
   const handleChip = useCallback((route: string) => {
     void haptic("medium");
-    if (route === "premium") {
-      router.push("/premium" as never);
+    if (route === "premium" || route === "/premium") {
+      openPremium("spark");
     } else {
       router.push(route as never);
     }
@@ -543,7 +544,7 @@ export default function AiBotScreen() {
               style={styles.paywallBtn}
               onPress={() => {
                 void haptic("medium");
-                router.push("/premium" as never);
+                openPremium("spark");
               }}
               accessibilityLabel="Unlock ConnectSphere Plus"
               accessibilityRole="button"

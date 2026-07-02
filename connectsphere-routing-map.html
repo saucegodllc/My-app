@@ -1,527 +1,447 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ConnectSphere — App Routing Map</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ConnectSphere — Routing Map</title>
 <style>
-  :root {
-    --bg: #0e0e14;
-    --surface: #16161f;
-    --border: rgba(255,255,255,0.08);
-    --text: #e2e8f0;
-    --muted: rgba(255,255,255,0.4);
-
-    /* Color system */
-    --auth:    #818cf8; /* indigo  — auth / onboarding */
-    --tab:     #f472b6; /* pink    — tab bar */
-    --chat:    #34d399; /* emerald — chat screens */
-    --modal:   #fbbf24; /* amber   — modals / sheets */
-    --screen:  #a78bfa; /* violet  — full screens */
-    --deep:    #22d3ee; /* cyan    — deep links / global */
-    --notif:   #fb923c; /* orange  — push notifications */
-    --api:     #94a3b8; /* slate   — API / fire-and-forget */
-  }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
-    font-size: 13px;
-    line-height: 1.4;
-    padding: 32px;
-    min-width: 900px;
-  }
-
-  /* ── Header ── */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 32px;
-  }
-  .logo { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
-  .logo span { color: var(--tab); }
-  .subtitle { color: var(--muted); font-size: 12px; margin-top: 2px; }
-  .badge {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 11px;
-    color: var(--muted);
-  }
-
-  /* ── Legend ── */
-  .legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 28px;
-    padding: 14px 18px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-  }
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 11px;
-    color: var(--text);
-    font-weight: 500;
-  }
-  .legend-dot {
-    width: 10px; height: 10px;
-    border-radius: 3px;
-    flex-shrink: 0;
-  }
-
-  /* ── Section ── */
-  .section { margin-bottom: 28px; }
-  .section-title {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1.4px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 12px;
-    padding-left: 2px;
-  }
-
-  /* ── Node types ── */
-  .node {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-  }
-  .box {
-    padding: 7px 13px;
-    border-radius: 9px;
-    font-size: 11.5px;
-    font-weight: 600;
-    white-space: nowrap;
-    border: 1.5px solid;
-    text-align: center;
-    line-height: 1.35;
-  }
-  .sub {
-    font-size: 9.5px;
-    color: var(--muted);
-    font-weight: 400;
-  }
-
-  /* Color variants */
-  .auth   { background: rgba(129,140,248,0.12); border-color: rgba(129,140,248,0.5); color: var(--auth); }
-  .tab    { background: rgba(244,114,182,0.14); border-color: rgba(244,114,182,0.6); color: var(--tab); }
-  .chat   { background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.5); color: var(--chat); }
-  .modal  { background: rgba(251,191,36,0.11); border-color: rgba(251,191,36,0.45); color: var(--modal); }
-  .screen { background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.5); color: var(--screen); }
-  .deep   { background: rgba(34,211,238,0.11); border-color: rgba(34,211,238,0.45); color: var(--deep); }
-  .notif  { background: rgba(251,146,60,0.11); border-color: rgba(251,146,60,0.45); color: var(--notif); }
-  .start  { background: rgba(244,114,182,0.28); border-color: rgba(244,114,182,0.8); color: #fff; font-size: 13px; }
-
-  /* ── Layout helpers ── */
-  .row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0;
-    flex-wrap: wrap;
-  }
-  .col { display: flex; flex-direction: column; gap: 8px; }
-  .arr {
-    display: flex;
-    align-items: center;
-    padding: 0 6px;
-    color: var(--muted);
-    font-size: 15px;
-    margin-top: 9px;
-    flex-shrink: 0;
-  }
-  .or {
-    font-size: 9px;
-    color: var(--muted);
-    padding: 0 4px;
-    margin-top: 12px;
-  }
-
-  /* ── Tabs grid ── */
-  .tabs-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 12px;
-  }
-  .tab-col {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px 10px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-  }
-  .tab-header {
-    font-size: 12px;
-    font-weight: 700;
-    text-align: center;
-    padding: 7px 6px;
-    border-radius: 8px;
-    margin-bottom: 2px;
-    border: 1.5px solid;
-  }
-  .tab-item {
-    font-size: 10.5px;
-    font-weight: 500;
-    text-align: center;
-    padding: 6px 8px;
-    border-radius: 7px;
-    line-height: 1.35;
-    border: 1px solid rgba(255,255,255,0.07);
-    background: rgba(255,255,255,0.03);
-    color: rgba(255,255,255,0.55);
-  }
-
-  /* Tab item colors */
-  .ti-chat   { border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.07); color: var(--chat); }
-  .ti-modal  { border-color: rgba(251,191,36,0.28); background: rgba(251,191,36,0.06); color: var(--modal); }
-  .ti-screen { border-color: rgba(167,139,250,0.28); background: rgba(167,139,250,0.07); color: var(--screen); }
-  .ti-api    { border-color: rgba(148,163,184,0.25); background: rgba(148,163,184,0.05); color: var(--api); }
-  .ti-deep   { border-color: rgba(34,211,238,0.25); background: rgba(34,211,238,0.06); color: var(--deep); }
-  .ti-hidden { border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: var(--muted); font-style: italic; font-size: 9.5px; }
-
-  /* ── Divider ── */
-  hr { border: none; border-top: 1px solid var(--border); margin: 8px 0 24px; }
-
-  /* ── Global screens ── */
-  .global-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  /* ── Notification table ── */
-  .notif-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11.5px;
-  }
-  .notif-table th {
-    text-align: left;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    color: var(--muted);
-    padding: 0 12px 8px;
-  }
-  .notif-table td {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
-  }
-  .notif-table tr:last-child td { border-bottom: none; }
-  .notif-table .notif-type { color: var(--notif); font-weight: 600; }
-  .notif-table .notif-shape { color: var(--muted); font-family: 'SF Mono', monospace; font-size: 10.5px; }
-  .notif-table .notif-dest { color: var(--chat); font-weight: 500; }
-  .table-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    padding: 12px 0;
-  }
-
-  /* ── Auth flow row ── */
-  .auth-branches {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .branch-row {
-    display: flex;
-    align-items: center;
-    gap: 0;
-  }
-  .branch-label {
-    font-size: 9px;
-    color: var(--muted);
-    font-style: italic;
-    margin-left: 6px;
-    white-space: nowrap;
-  }
-
-  /* ── Footer ── */
-  footer {
-    margin-top: 36px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-    font-size: 10px;
-    color: var(--muted);
-    display: flex;
-    justify-content: space-between;
-  }
+  body { background: #000; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; padding: 32px 24px 80px; }
+  h1 { font-size: 28px; font-weight: 900; color: #FF2DA8; letter-spacing: -0.5px; text-align: center; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: rgba(255,255,255,0.45); font-size: 13px; margin-bottom: 40px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 40px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: rgba(255,255,255,0.7); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green { background: #22C55E; } .dot-pink { background: #FF2DA8; } .dot-yellow { background: #F59E0B; } .dot-red { background: #EF4444; } .dot-purple { background: #A855F7; }
+  .section-title { font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #FF2DA8; margin: 40px 0 16px; border-left: 3px solid #FF2DA8; padding-left: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .card { background: #0a0a0a; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 18px 20px; transition: border-color 0.2s; }
+  .card:hover { border-color: rgba(255,45,168,0.4); }
+  .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .card-route { font-size: 13px; font-weight: 800; color: #FF2DA8; font-family: monospace; word-break: break-all; }
+  .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+  .badge-green { background: rgba(34,197,94,0.15); color: #22C55E; border: 1px solid rgba(34,197,94,0.3); }
+  .badge-yellow { background: rgba(245,158,11,0.15); color: #F59E0B; border: 1px solid rgba(245,158,11,0.3); }
+  .badge-purple { background: rgba(168,85,247,0.15); color: #A855F7; border: 1px solid rgba(168,85,247,0.3); }
+  .badge-pink { background: rgba(255,45,168,0.15); color: #FF2DA8; border: 1px solid rgba(255,45,168,0.3); }
+  .card-name { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 5px; }
+  .card-desc { font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.6; margin-bottom: 10px; }
+  .card-links { display: flex; flex-direction: column; gap: 4px; }
+  .link-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: rgba(255,255,255,0.4); }
+  .link-arrow { color: #FF2DA8; font-size: 10px; } .link-dest { color: rgba(255,255,255,0.6); font-family: monospace; }
+  .fix-tag { display: inline-block; font-size: 10px; font-weight: 700; color: #EF4444; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; padding: 2px 7px; margin-top: 8px; }
+  .ok-tag { display: inline-block; font-size: 10px; font-weight: 700; color: #22C55E; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); border-radius: 6px; padding: 2px 7px; margin-top: 8px; }
+  .warn-tag { display: inline-block; font-size: 10px; font-weight: 700; color: #F59E0B; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); border-radius: 6px; padding: 2px 7px; margin-top: 8px; }
+  .flow { background: #0a0a0a; border: 1px solid rgba(255,45,168,0.2); border-radius: 16px; padding: 24px; margin-bottom: 14px; }
+  .flow-title { font-size: 12px; font-weight: 800; color: #FF2DA8; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
+  .flow-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .flow-step { background: rgba(255,45,168,0.1); border: 1px solid rgba(255,45,168,0.25); border-radius: 10px; padding: 7px 12px; font-size: 12px; font-weight: 700; color: #fff; }
+  .flow-step.ok { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.25); color: #22C55E; }
+  .flow-arrow { color: rgba(255,45,168,0.6); font-size: 14px; font-weight: 700; }
+  .priority-list { display: flex; flex-direction: column; gap: 10px; }
+  .priority-item { display: flex; gap: 14px; align-items: flex-start; background: #0a0a0a; border-radius: 12px; padding: 14px 16px; border: 1px solid rgba(255,255,255,0.07); }
+  .priority-num { font-size: 20px; font-weight: 900; color: #FF2DA8; min-width: 28px; line-height: 1; padding-top: 2px; }
+  .priority-body { flex: 1; }
+  .priority-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .priority-desc { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.6; }
+  .priority-file { font-size: 11px; color: #FF2DA8; font-family: monospace; margin-top: 5px; }
+  .tabbar { display: flex; gap: 8px; background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 12px 20px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tab-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 16px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+  .tab-item.active { background: rgba(255,45,168,0.15); color: #FF2DA8; border: 1px solid rgba(255,45,168,0.3); }
+  .tab-item.inactive { color: rgba(255,255,255,0.4); }
+  .tab-icon { font-size: 18px; }
 </style>
 </head>
 <body>
+<h1>ConnectSphere — Full Routing Map</h1>
+<p class="subtitle">Every screen · every flow · what's working · what needs fixing</p>
 
-<header>
-  <div>
-    <div class="logo">Connect<span>Sphere</span></div>
-    <div class="subtitle">App Routing Map — screens, guards, parameters &amp; transitions</div>
-  </div>
-  <div class="badge">Verified against app code · 2026-06-23</div>
-</header>
-
-<!-- LEGEND -->
 <div class="legend">
-  <div class="legend-item"><div class="legend-dot" style="background:var(--auth)"></div>Auth / Onboarding</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--tab)"></div>Tab / Entry point</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--chat)"></div>Chat screen</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--modal)"></div>Modal / Bottom sheet</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--screen)"></div>Full screen (stack)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--deep)"></div>Deep link / Global</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--notif)"></div>Push notification</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--api)"></div>API call (fire-and-forget)</div>
+  <div class="legend-item"><div class="dot dot-green"></div> Working / Done</div>
+  <div class="legend-item"><div class="dot dot-yellow"></div> Needs Testing</div>
+  <div class="legend-item"><div class="dot dot-red"></div> Broken / Fix Now</div>
+  <div class="legend-item"><div class="dot dot-purple"></div> Pending (manual step)</div>
+  <div class="legend-item"><div class="dot dot-pink"></div> Premium / Gated</div>
 </div>
 
-<div style="margin:-12px 0 28px;padding:12px 16px;border:1px solid rgba(34,211,238,0.35);background:rgba(34,211,238,0.07);border-radius:10px;color:var(--deep);font-size:11px;">
-  Authoritative contract: <strong>docs/architecture/ROUTING.md</strong>.
-  Critical invariant: <strong>local:</strong> chat IDs use
-  <strong>/chat/dating/[id]</strong>; server chat IDs use
-  <strong>/chat/[matchId]</strong>.
+<div class="section-title">Entry Flows — What Happens on Launch</div>
+
+<div class="flow">
+  <div class="flow-title">App Launch → Routing Decision</div>
+  <div class="flow-steps">
+    <div class="flow-step ok">App Opens</div><div class="flow-arrow">→</div>
+    <div class="flow-step ok">Splash (index.tsx)</div><div class="flow-arrow">→</div>
+    <div class="flow-step ok">Auth Loaded?</div><div class="flow-arrow">→</div>
+    <div class="flow-step ok">NOT signed in → /(auth)/welcome</div>
+  </div>
+  <div class="flow-steps">
+    <div class="flow-step ok">Signed in</div><div class="flow-arrow">→</div>
+    <div class="flow-step ok">Onboarding complete?</div><div class="flow-arrow">→</div>
+    <div class="flow-step ok">YES → /(tabs)</div><div class="flow-arrow">·</div>
+    <div class="flow-step ok">NO → /onboarding</div>
+  </div>
 </div>
 
-<!-- AUTH FLOW -->
-<div class="section">
-  <div class="section-title">Auth flow — app start (index.tsx)</div>
-  <div class="col">
-    <div class="branch-row">
-      <div class="node"><div class="box start">Splash</div><div class="sub">index.tsx</div></div>
-      <div class="arr">→</div>
-      <div class="node"><div class="box auth">/(auth)/welcome</div></div>
-      <div class="arr">→</div>
-      <div class="node"><div class="box auth">Sign Up</div></div>
-      <div class="or">or</div>
-      <div class="node"><div class="box auth">Sign In</div></div>
-      <div class="arr">→</div>
-      <div class="node"><div class="box auth">/onboarding</div></div>
-      <div class="arr">→</div>
-      <div class="node"><div class="box tab">/(tabs)</div></div>
-      <div class="branch-label">← new user</div>
+<div class="flow">
+  <div class="flow-title">Auth Flow</div>
+  <div class="flow-steps">
+    <div class="flow-step ok">/(auth)/welcome</div><div class="flow-arrow">→</div>
+    <div class="flow-step ok">sign-in.tsx</div><div class="flow-arrow">or</div>
+    <div class="flow-step ok">sign-up.tsx</div><div class="flow-arrow">→</div>
+    <div class="flow-step ok">Clerk auth</div><div class="flow-arrow">→</div>
+    <div class="flow-step ok">/onboarding or /(tabs)</div>
+  </div>
+</div>
+
+<div class="section-title">Tab Bar — Main Navigation</div>
+<div class="tabbar">
+  <div class="tab-item active"><div class="tab-icon">🧭</div>Discover</div>
+  <div class="tab-item inactive"><div class="tab-icon">👥</div>Connect</div>
+  <div class="tab-item inactive"><div class="tab-icon">📅</div>Events</div>
+  <div class="tab-item inactive"><div class="tab-icon">🌐</div>Spaces</div>
+  <div class="tab-item inactive" style="opacity:0.4"><div class="tab-icon">👤</div>Profile (avatar btn)</div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="card-header"><div class="card-route">/(tabs)/index</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Discover</div>
+    <div class="card-desc">Swipe cards for dating and friend matches. Core value of the app.</div>
+    <div class="card-links">
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">user/[userId]</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">/premium</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">/congrats (new match)</span></div>
     </div>
-    <div class="branch-row">
-      <div class="node" style="opacity:0"><div class="box start">Splash</div></div>
-      <div class="arr">→</div>
-      <div class="node"><div class="box tab">/(tabs)</div></div>
-      <div class="branch-label">← signed in + onboardingComplete</div>
+    <span class="ok-tag">✓ Wired</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/(tabs)/matches</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Connect (Matches)</div>
+    <div class="card-desc">Accepted matches and incoming Shots. Match cards open chat or profile. chatId-first routing fix applied.</div>
+    <div class="card-links">
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">chat/dating/[id] (local)</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">chat/[matchId] (server)</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">user/[userId] (fallback)</span></div>
     </div>
-    <div class="branch-row">
-      <div class="node" style="opacity:0"><div class="box start">Splash</div></div>
-      <div class="arr">→</div>
-      <div class="node"><div class="box auth">/onboarding</div></div>
-      <div class="arr">→</div>
-      <div class="node"><div class="box tab">/(tabs)</div></div>
-      <div class="branch-label">← signed in, onboarding unfinished</div>
+    <span class="ok-tag">✓ chatId-first fix applied</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/(tabs)/events</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Events</div>
+    <div class="card-desc">Real Miami events from Ticketmaster. EventDetailSheet bottom modal on every card press.</div>
+    <div class="card-links">
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">EventDetailSheet (bottom modal)</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">/premium (locked RSVP)</span></div>
+    </div>
+    <span class="ok-tag">✓ Bottom sheet wired</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/(tabs)/communities</div><div class="badge badge-yellow">TEST</div></div>
+    <div class="card-name">Spaces (Communities)</div>
+    <div class="card-desc">Community groups. All string interpolation nav bugs replaced with pathname+params pattern.</div>
+    <div class="card-links">
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">communities/[id]</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">communities/create</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">communities/thread/[postId]</span></div>
+    </div>
+    <span class="warn-tag">⚠ Needs cold-start test on device</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/(tabs)/profile</div><div class="badge badge-yellow">TEST</div></div>
+    <div class="card-name">Profile</div>
+    <div class="card-desc">Accessed via floating pink avatar button in tab bar corner — not a visible tab.</div>
+    <div class="card-links">
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">/settings</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">/premium</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">/profile-views</span></div>
+    </div>
+    <span class="warn-tag">⚠ Test avatar tap on device</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/(tabs)/moments</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Moments</div>
+    <div class="card-desc">Ephemeral story-style posts. Hidden from tab bar (href: null). All API calls wired fire-and-forget.</div>
+    <div class="card-links">
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">POST /api/moments</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">POST /api/moments/:id/like</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">POST /api/moments/:id/reply</span></div>
+    </div>
+    <span class="ok-tag">✓ API wired</span>
+  </div>
+</div>
+
+<div class="section-title">Chat Screens</div>
+<div class="grid">
+  <div class="card">
+    <div class="card-header"><div class="card-route">chat/[matchId]</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Server Chat</div>
+    <div class="card-desc">1:1 messaging with server-backed matches. Includes AI reply suggestions.</div>
+    <span class="ok-tag">✓ Stack.Screen registered</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">chat/dating/[id]</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Local Dating Chat</div>
+    <div class="card-desc">Chat for local: prefixed match IDs. Routes correctly from match cards — chatId checked before peerId.</div>
+    <span class="ok-tag">✓ Stack.Screen registered</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">chat/ai-bot</div><div class="badge badge-yellow">JUST FIXED</div></div>
+    <div class="card-name">Spark ✨ / Vibe 🌊 AI Chat</div>
+    <div class="card-desc">AI companion. Was completely broken — no auth token sent to server. Fixed: setAiChatTokenGetter wired in _layout.tsx. Rebuild required.</div>
+    <div class="card-links">
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">POST /api/ai-chat/stream</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">/premium (paywall at msg 6)</span></div>
+    </div>
+    <span class="warn-tag">⚠ Needs rebuild + device test</span>
+  </div>
+</div>
+
+<div class="section-title">Stack Screens (Push / Modal)</div>
+<div class="grid">
+  <div class="card">
+    <div class="card-header"><div class="card-route">/onboarding</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Onboarding</div>
+    <div class="card-desc">Multi-step profile setup. gestureEnabled: false. Guard in both index.tsx and tabs layout.</div>
+    <span class="ok-tag">✓ Guards in place</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/premium</div><div class="badge badge-pink">PREMIUM</div></div>
+    <div class="card-name">Premium Paywall</div>
+    <div class="card-desc">Full-screen modal. 3-plan layout (biweekly $14.99 / 6-month $150 / yearly $300). Stripe prices set. Already-premium guard. Premium CTAs route here with feature context.</div>
+    <div class="card-links">
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">Stripe checkout (web fallback)</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">RevenueCat (when available)</span></div>
+    </div>
+    <span class="ok-tag">✓ Premium CTAs carry feature context · prices set in Render</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/settings</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Settings</div>
+    <div class="card-desc">All settings rows open real screens. No dead buttons. Legal links render in-app or via Linking.</div>
+    <div class="card-links">
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">/blocked-users</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">/legal/privacy · /legal/terms</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">/referral</span></div>
+    </div>
+    <span class="ok-tag">✓ No dead rows</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/user/[userId]</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">User Profile View</div>
+    <div class="card-desc">View another user's profile. Back nav present. Reached from Discover, matches, notifications.</div>
+    <span class="ok-tag">✓ Registered</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/likes-you</div><div class="badge badge-pink">PREMIUM</div></div>
+    <div class="card-name">Likes You</div>
+    <div class="card-desc">See who liked you — premium gated modal. CTA wired from multiple screens.</div>
+    <span class="ok-tag">✓ CTA wired</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/profile-views</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Profile Views</div>
+    <div class="card-desc">Who viewed your profile. Locked visitor upsell routes to /premium with feature=profile-views.</div>
+    <span class="ok-tag">✓ No nav bugs</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/congrats</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Congrats Screen</div>
+    <div class="card-desc">Plays after a new match. gestureEnabled: false. Fade animation out.</div>
+    <span class="ok-tag">✓ Gesture locked</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/success</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Success Screen</div>
+    <div class="card-desc">Post-action success state. 650ms fade animation. No swipe back.</div>
+    <span class="ok-tag">✓ Registered</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/blocked-users</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Blocked Users</div>
+    <div class="card-desc">Manage blocked accounts. Reached from Settings.</div>
+    <span class="ok-tag">✓ Registered</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/referral</div><div class="badge badge-yellow">TEST</div></div>
+    <div class="card-name">Referral</div>
+    <div class="card-desc">Referral program screen. Reached from Settings. Feature not shipped yet.</div>
+    <span class="warn-tag">⚠ Verify content is complete</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/resume</div><div class="badge badge-yellow">TEST</div></div>
+    <div class="card-name">Resume</div>
+    <div class="card-desc">Extended user profile / resume view. Card presentation. Verify entry point exists in the UI.</div>
+    <span class="warn-tag">⚠ Verify entry point in UI</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">/legal/privacy · /legal/terms</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Legal Screens</div>
+    <div class="card-desc">Privacy policy and terms of service. Rendered in-app. Reached from Settings and onboarding.</div>
+    <span class="ok-tag">✓ In-app render</span>
+  </div>
+</div>
+
+<div class="section-title">Communities Stack</div>
+<div class="grid">
+  <div class="card">
+    <div class="card-header"><div class="card-route">communities/[id]</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Community Detail</div>
+    <div class="card-desc">View a community. 3 string interpolation nav bugs fixed — all use pathname+params now.</div>
+    <div class="card-links">
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">communities/thread/[postId]</span></div>
+      <div class="link-row"><span class="link-arrow">→</span><span class="link-dest">communities/create</span></div>
+    </div>
+    <span class="ok-tag">✓ Nav bug fixed</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">communities/create</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Create Community</div>
+    <div class="card-desc">Modal to create a new Spaces group.</div>
+    <span class="ok-tag">✓ Modal · registered</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">communities/thread/[postId]</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">Thread / Post Detail</div>
+    <div class="card-desc">Individual post thread. 2 string interpolation bugs fixed.</div>
+    <span class="ok-tag">✓ Nav bug fixed</span>
+  </div>
+</div>
+
+<div class="section-title">Deep Links & Special Routes</div>
+<div class="grid">
+  <div class="card">
+    <div class="card-header"><div class="card-route">u/[username]</div><div class="badge badge-yellow">TEST</div></div>
+    <div class="card-name">Username Deep Link</div>
+    <div class="card-desc">Public shareable profile link. Test with a real URL: connectsphere.app/u/username</div>
+    <span class="warn-tag">⚠ Test with real share URL</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">invite/[code]</div><div class="badge badge-yellow">TEST</div></div>
+    <div class="card-name">Invite Code Deep Link</div>
+    <div class="card-desc">Referral invite link handler. Redeems invite code on open.</div>
+    <span class="warn-tag">⚠ Test with real invite code</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-route">+not-found</div><div class="badge badge-green">WORKING</div></div>
+    <div class="card-name">404 Screen</div>
+    <div class="card-desc">Catches any unmatched route. Expo Router default behavior.</div>
+    <span class="ok-tag">✓ Registered</span>
+  </div>
+</div>
+
+<div class="section-title">Push Notification Routing (PushTokenRegistrar)</div>
+<div class="flow">
+  <div class="flow-title">Notification Type → Screen</div>
+  <div class="flow-steps">
+    <div class="flow-step ok">message / friend_accept / plan_invite</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step ok">openChat(chatId)</div>
+  </div>
+  <div class="flow-steps">
+    <div class="flow-step ok">Anti-ghost nudge</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step ok">router.push chat/dating/[id]</div>
+  </div>
+  <div class="flow-steps">
+    <div class="flow-step ok">Daily spark</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step ok">router.push (tabs)/index or (tabs)/matches</div>
+  </div>
+</div>
+
+<div class="section-title">🚨 What's Still Blocking Launch — In Order</div>
+<div class="priority-list">
+  <div class="priority-item">
+    <div class="priority-num">1</div>
+    <div class="priority-body">
+      <div class="priority-title">Rebuild the app (Spark auth fix)</div>
+      <div class="priority-desc">Code changes are saved but not built. Run expo start to test locally, or eas build for a real device.</div>
+      <div class="priority-file">cd artifacts/connectsphere-mobile → npx expo start</div>
+    </div>
+  </div>
+  <div class="priority-item">
+    <div class="priority-num">2</div>
+    <div class="priority-body">
+      <div class="priority-title">Trigger Render deploy (creates spark_memory DB table)</div>
+      <div class="priority-desc">The buildCommand runs the DB migration automatically. Until this happens, Spark throws on 10+ message conversations.</div>
+      <div class="priority-file">Render dashboard → API server → Manual Deploy</div>
+    </div>
+  </div>
+  <div class="priority-item">
+    <div class="priority-num">3</div>
+    <div class="priority-body">
+      <div class="priority-title">App Store Connect IDs in eas.json</div>
+      <div class="priority-desc">Replace REPLACE_WITH_APP_STORE_CONNECT_APP_ID and REPLACE_WITH_APPLE_TEAM_ID. Get from developer.apple.com → 20 minutes.</div>
+      <div class="priority-file">artifacts/connectsphere-mobile/eas.json</div>
+    </div>
+  </div>
+  <div class="priority-item">
+    <div class="priority-num">4</div>
+    <div class="priority-body">
+      <div class="priority-title">Firebase push config files</div>
+      <div class="priority-desc">Without these, push notifications are completely dead. This kills re-engagement and tanks D7 retention before you even see it.</div>
+      <div class="priority-file">GoogleService-Info.plist (iOS) + google-services.json (Android) → Firebase Console → Project Settings</div>
+    </div>
+  </div>
+  <div class="priority-item">
+    <div class="priority-num">5</div>
+    <div class="priority-body">
+      <div class="priority-title">Cold-start walkthrough on real device</div>
+      <div class="priority-desc">New account, no data. Walk every flow: sign up → discover → match → chat → events → Spark AI → premium. Write down every flinch. Fix those before submitting.</div>
+      <div class="priority-file">Do this before submitting to App Store</div>
+    </div>
+  </div>
+  <div class="priority-item">
+    <div class="priority-num">6</div>
+    <div class="priority-body">
+      <div class="priority-title">Play Store service account (Android)</div>
+      <div class="priority-desc">Needed for eas submit to Android. Can do after iOS testing is confirmed working.</div>
+      <div class="priority-file">google-play-service-account.json → artifacts/connectsphere-mobile</div>
     </div>
   </div>
 </div>
 
-<hr>
-
-<!-- TABS -->
-<div class="section">
-  <div class="section-title">Tab bar — 4 visible tabs + floating profile avatar</div>
-  <div class="tabs-grid">
-
-    <!-- DISCOVER -->
-    <div class="tab-col">
-      <div class="tab-header tab">🧭 Discover</div>
-      <div class="tab-item">Swipe cards — like / pass</div>
-      <div class="tab-item ti-screen">Mutual like → /congrats</div>
-      <div class="tab-item ti-chat">→ chat/dating/[id]<br>(dating chat)</div>
-      <div class="tab-item ti-screen">Deck empty<br>→ /(tabs)/moments</div>
-      <div class="tab-item ti-screen">Likes You CTA<br>→ /likes-you 💎</div>
-      <div class="tab-item ti-screen">Profile views<br>→ /profile-views</div>
-      <div class="tab-item ti-deep">Tap card<br>→ /user/[userId]</div>
-    </div>
-
-    <!-- CONNECT -->
-    <div class="tab-col">
-      <div class="tab-header tab">👥 Connect</div>
-      <div class="tab-item ti-hidden">4 segments: Chats · Requests · Reactions · Moments</div>
-      <div class="tab-item ti-chat">Chats → chat/[matchId]<br>or chat/dating/[id]</div>
-      <div class="tab-item ti-screen">Requests: accept<br>→ /user/[userId]</div>
-      <div class="tab-item ti-screen">Reactions: like back<br>→ match → chat</div>
-      <div class="tab-item ti-modal">Moment Requests:<br>accept → profile</div>
-      <div class="tab-item ti-deep">Moment Likes<br>→ /user/[userId]</div>
-      <div class="tab-item ti-chat">Spark AI<br>→ chat/ai-bot</div>
-    </div>
-
-    <!-- EVENTS -->
-    <div class="tab-col">
-      <div class="tab-header tab">📅 Events</div>
-      <div class="tab-item ti-modal">Tap card<br>→ EventDetailSheet<br>(bottom sheet)</div>
-      <div class="tab-item ti-modal">RSVP / Join<br>stays in-sheet</div>
-      <div class="tab-item">Filter by category<br>(in-screen)</div>
-      <div class="tab-item">Create plan from event<br>→ Connect tab</div>
-    </div>
-
-    <!-- SPACES -->
-    <div class="tab-col">
-      <div class="tab-header tab">🪐 Spaces</div>
-      <div class="tab-item ti-screen">Community card<br>→ /communities/[id]</div>
-      <div class="tab-item ti-screen">Thread tap<br>→ /communities/<br>thread/[postId]</div>
-      <div class="tab-item ti-screen">Create<br>→ /communities/create</div>
-      <div class="tab-item">Post / reply<br>in-screen</div>
-    </div>
-
-    <!-- MOMENTS -->
-    <div class="tab-col">
-      <div class="tab-header tab">✨ Moments</div>
-      <div class="tab-item ti-hidden">href: null — hidden tab.<br>Enter from Discover when deck is empty.</div>
-      <div class="tab-item ti-modal">Story ring / card tap<br>→ MomentViewer</div>
-      <div class="tab-item ti-api">Reply → POST API<br>then → Connect/moments</div>
-      <div class="tab-item ti-api">Like → POST API<br>(optimistic)</div>
-      <div class="tab-item ti-modal">Post new<br>→ CreateMomentSheet</div>
-      <div class="tab-item ti-screen">Requests btn<br>→ Connect?segment=moments</div>
-    </div>
-
+<div class="section-title">Routing Health Summary</div>
+<div class="grid">
+  <div class="card" style="border-color:rgba(34,197,94,0.3)">
+    <div class="card-name" style="color:#22C55E;font-size:32px;margin-bottom:8px;">18</div>
+    <div class="card-desc">Routes confirmed working or fixed</div>
+  </div>
+  <div class="card" style="border-color:rgba(245,158,11,0.3)">
+    <div class="card-name" style="color:#F59E0B;font-size:32px;margin-bottom:8px;">7</div>
+    <div class="card-desc">Routes that need a device test to confirm</div>
+  </div>
+  <div class="card" style="border-color:rgba(168,85,247,0.3)">
+    <div class="card-name" style="color:#A855F7;font-size:32px;margin-bottom:8px;">5</div>
+    <div class="card-desc">Manual steps before App Store submission</div>
+  </div>
+  <div class="card" style="border-color:rgba(239,68,68,0.3)">
+    <div class="card-name" style="color:#EF4444;font-size:32px;margin-bottom:8px;">0</div>
+    <div class="card-desc">Known broken routes — Spark fix applied ✓</div>
   </div>
 </div>
-
-<hr>
-
-<!-- PROFILE -->
-<div class="section">
-  <div class="section-title">Profile — floating avatar in tab bar</div>
-  <div class="row">
-    <div class="node"><div class="box tab">👤 /(tabs)/profile</div></div>
-    <div class="arr">→</div>
-    <div class="col">
-      <div class="row">
-        <div class="node"><div class="box screen">/settings</div></div>
-        <div class="arr">→</div>
-        <div class="col">
-          <div class="node"><div class="box screen">/blocked-users</div></div>
-          <div class="node"><div class="box screen">/legal/privacy &amp; /legal/terms</div></div>
-          <div class="node"><div class="box auth">Sign Out → /(auth)/welcome</div></div>
-        </div>
-      </div>
-    </div>
-    <div style="width:24px"></div>
-    <div class="node"><div class="box modal">/premium 💎</div></div>
-    <div class="arr">→</div>
-    <div class="node"><div class="box screen">Stripe checkout<br>(web) or RevenueCat</div></div>
-    <div class="arr">→</div>
-    <div class="node"><div class="box screen">/success</div></div>
-  </div>
-  <div style="margin-top:10px">
-    <div class="row">
-      <div class="node"><div class="box screen">/referral</div></div>
-      <div style="width:16px"></div>
-      <div class="node"><div class="box deep">/invite/[code]</div><div class="sub">deep link</div></div>
-    </div>
-  </div>
-</div>
-
-<hr>
-
-<!-- CHATS -->
-<div class="section">
-  <div class="section-title">Chat screens</div>
-  <div class="row" style="gap:12px; flex-wrap:wrap;">
-    <div class="node">
-      <div class="box chat">chat/dating/[id]</div>
-      <div class="sub">local dating matches</div>
-      <div class="sub">chatId.startsWith("local:")</div>
-    </div>
-    <div class="node">
-      <div class="box chat">chat/[matchId]</div>
-      <div class="sub">server matches</div>
-    </div>
-    <div class="node">
-      <div class="box chat">chat/ai-bot</div>
-      <div class="sub">Spark / Vibe AI companion</div>
-      <div class="sub">5 free msgs → HTTP 402 paywall</div>
-    </div>
-  </div>
-  <div style="margin-top:10px; font-size:10.5px; color:var(--muted);">All chats: tap avatar → /user/[userId] &nbsp;·&nbsp; Report/Block → ReportBlockSheet</div>
-</div>
-
-<hr>
-
-<!-- GLOBAL SCREENS -->
-<div class="section">
-  <div class="section-title">Global screens + deep links</div>
-  <div class="global-wrap">
-    <div class="node"><div class="box deep">/user/[userId]</div><div class="sub">any profile</div></div>
-    <div class="node"><div class="box deep">/likes-you</div><div class="sub">who liked you 💎</div></div>
-    <div class="node"><div class="box deep">/profile-views</div><div class="sub">who viewed you</div></div>
-    <div class="node"><div class="box deep">/congrats</div><div class="sub">match celebration</div></div>
-    <div class="node"><div class="box deep">/referral</div><div class="sub">invite friends</div></div>
-    <div class="node"><div class="box deep">/invite/[code]</div><div class="sub">invite deep link</div></div>
-    <div class="node"><div class="box deep">/u/[username]</div><div class="sub">profile deep link</div></div>
-    <div class="node"><div class="box screen">/resume</div><div class="sub">onboarding resume</div></div>
-    <div class="node"><div class="box screen">/success</div><div class="sub">post-payment</div></div>
-  </div>
-</div>
-
-<hr>
-
-<!-- PUSH NOTIFICATIONS -->
-<div class="section">
-  <div class="section-title">Push notifications → routing (PushTokenRegistrar.tsx)</div>
-  <div class="table-wrap">
-    <table class="notif-table">
-      <thead>
-        <tr>
-          <th>Notification type</th>
-          <th>data shape</th>
-          <th>Routes to</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="notif-type">message · friend_accept · plan_invite · plan_join · double_date_match</td>
-          <td class="notif-shape">{ chatId, matchId, url, type }</td>
-          <td class="notif-dest">openChat(chatId)</td>
-        </tr>
-        <tr>
-          <td class="notif-type">Anti-ghost nudge</td>
-          <td class="notif-shape">{ route: "/chat/dating/&lt;id&gt;" }</td>
-          <td class="notif-dest">chat/dating/[id]</td>
-        </tr>
-        <tr>
-          <td class="notif-type">Daily spark</td>
-          <td class="notif-shape">{ route: "/(tabs)/index" | "/(tabs)/matches" }</td>
-          <td class="notif-dest">Discover or Connect tab</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<hr>
-
-<!-- PAYWALL -->
-<div class="section">
-  <div class="section-title">Paywall — Spark / Vibe AI (chat/ai-bot)</div>
-  <div class="row" style="flex-wrap:wrap; gap:8px;">
-    <div class="node"><div class="box chat">Message 1–4</div><div class="sub">normal replies</div></div>
-    <div class="arr">→</div>
-    <div class="node"><div class="box modal">Message 5 (isLastFree)</div><div class="sub">soft nudge + [GO:premium:Unlock Plus ⚡] chip</div></div>
-    <div class="arr">→</div>
-    <div class="node"><div class="box screen">Message 6+ (isOverLimit)</div><div class="sub">HTTP 402 → upsell banner → /premium</div></div>
-  </div>
-</div>
-
-<footer>
-  <span>ConnectSphere · Expo Router v6 · Express API on Render · PostgreSQL via Drizzle ORM · Clerk auth</span>
-  <span>connectsphere-routing-map.html</span>
-</footer>
 
 </body>
 </html>
