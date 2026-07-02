@@ -32,6 +32,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -331,7 +332,16 @@ function PostCard({ post, onLike, onReply, onAvatarPress }: PostCardProps) {
             <Text style={ss.postActionCount}>{formatCount(post.replyCount)}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={ss.postAction} activeOpacity={0.75}>
+          <TouchableOpacity
+            style={ss.postAction}
+            activeOpacity={0.75}
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              void Share.share({
+                message: `"${post.content}" — @${post.author.handle} on ConnectSphere`,
+              }).catch(() => {});
+            }}
+          >
             <Ionicons name="share-outline" size={17} color="rgba(255,255,255,0.4)" />
           </TouchableOpacity>
         </View>

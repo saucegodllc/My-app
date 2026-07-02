@@ -37,6 +37,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -302,7 +303,16 @@ function OriginalPost({ post, onLike, onAvatarPress }: OriginalPostProps) {
           <Ionicons name="chatbubble-outline" size={18} color={BRAND.purple} />
           <Text style={[ss.opStatCount, { color: BRAND.purple }]}>{formatCount(post.replyCount)}</Text>
         </View>
-        <TouchableOpacity style={ss.opStatBtn} activeOpacity={0.75}>
+        <TouchableOpacity
+          style={ss.opStatBtn}
+          activeOpacity={0.75}
+          onPress={() => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            void Share.share({
+              message: `"${post.content}" — @${post.author.handle} on ConnectSphere`,
+            }).catch(() => {});
+          }}
+        >
           <Ionicons name="share-outline" size={18} color="rgba(255,255,255,0.4)" />
         </TouchableOpacity>
       </View>

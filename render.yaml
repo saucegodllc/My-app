@@ -68,4 +68,10 @@ services:
     startCommand: >
       curl -s -X POST
       "${API_BASE_URL}/api/notifications/anti-ghost/broadcast"
-     
+      -H "x-cron-secret: ${CRON_SECRET}"
+      -H "Content-Type: application/json"
+    envVars:
+      - key: API_BASE_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false

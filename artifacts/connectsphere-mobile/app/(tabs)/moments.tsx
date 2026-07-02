@@ -932,7 +932,7 @@ export default function MomentsScreen() {
           <Text style={styles.headerSub}>Miami · 47 live now</Text>
         </View>
         <Pressable
-          onPress={() => router.push("/(tabs)/matches?segment=moments" as never)}
+          onPress={() => router.push({ pathname: "/(tabs)/matches", params: { segment: "moments" } } as never)}
           style={styles.requestsBtn}
         >
           <Ionicons name="paper-plane-outline" size={16} color={PINK} />

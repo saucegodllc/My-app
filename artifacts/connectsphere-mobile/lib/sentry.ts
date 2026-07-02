@@ -67,3 +67,43 @@ export function isSentrySmokeEnabled(
 ) {
   const flag = env.EXPO_PUBLIC_ENABLE_SENTRY_SMOKE?.trim().toLowerCase();
   if (["1", "true", "yes", "on", "enabled"].includes(flag ?? "")) return true;
+  if (["0", "false", "no", "off", "disabled"].includes(flag ?? "")) return false;
+  return isDev || env.NODE_ENV === "development";
+}
+
+export async function sendSentrySmokeTest(clientOverride?: SentryLike) {
+  const client = clientOverride ?? await loadSentry();
+  if (!client) return { sent: false, metricsSent: false };
+
+  client.captureException(new Error("ConnectSphere mobile Sentry smoke test error"));
+  client.captureMessage("ConnectSphere mobile Sentry smoke test");
+  client.metrics?.count("connectsphere.sentry_smoke", 1, {
+    unit: "event",
+    attributes: { source: "settings" },
+  });
+  client.metrics?.gauge("connectsphere.sentry_smoke_queue_depth", 1);
+  client.metrics?.distribution("connectsphere.sentry_smoke_response_time", 187.5, {
+    unit: "millisecond",
+  });
+  await client.flush?.(2000);
+
+  return { sent: true, metricsSent: Boolean(client.metrics) };
+}
+
+export const Sentry = {
+  captureException(error: unknown, extra?: Record<string, unknown>) {
+    void loadSentry().then((client) => {
+      if (!client) return;
+      // Pass optional extra context (e.g. componentStack from ErrorBoundary)
+      if (extra) {
+        (client as unknown as { captureException(e: unknown, hint: unknown): void })
+          .captureException(error, { extra });
+      } else {
+        client.captureException(error);
+      }
+    });
+  },
+  captureMessage(message: string) {
+    void loadSentry().then((client) => client?.captureMessage(message));
+  },
+};

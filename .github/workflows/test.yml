@@ -21,6 +21,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Tap audit — every button must have a handler or disabled state
+        run: pnpm --filter @workspace/connectsphere-mobile run audit:taps
       - name: Mobile unit and component coverage
         run: >
           pnpm --filter @workspace/connectsphere-mobile exec jest

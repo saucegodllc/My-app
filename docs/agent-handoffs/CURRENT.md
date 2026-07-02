@@ -78,4 +78,21 @@ handoff workflow.
 ## Unfinished work
 
 - Publish unified `main` safely. Remote `origin/main` is an older divergent
-  
+  visual history and must not be force-overwritten.
+- Change the GitHub default branch only after unified `main` is pushed and
+  reviewed.
+- Remove stale branches/worktrees only after archive refs are pushed.
+- Future feature work must use `claude/<task>` or `codex/<task>`.
+
+## Next task
+
+Fix the documented baseline test and tap audit debt on a dedicated
+`codex/baseline-quality-gates` or
+`claude/baseline-quality-gates` branch. Push unified `main` as a reviewed branch
+before changing the remote default branch.
+
+## File ownership
+
+- Active owner: Codex
+- Owned files: shared workflow documentation and root repository index
+- Protected files: all active application files listed in `AGENTS.md`

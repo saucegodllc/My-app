@@ -295,6 +295,45 @@ Status: ✅ wired · ⚠️ soft-limit · 🔜 planned
 | Report | Opens report sheet | ✅ |
 | Back (←) | `router.back()` | ✅ |
 
+### Communities hub (`app/(tabs)/communities.tsx`)
+| Element | Destination / Outcome | Status |
+|---|---|---|
+| Community card | `openCommunity(slug)` → `/communities/[id]` | ✅ |
+| Join / Joined toggle | `handleJoin` — optimistic join/leave, synced to hub | ✅ |
+| Joined chip | `openCommunity(slug)` | ✅ |
+| Create community card / CTA | `openCreateCommunity()` → `/communities/create` | ✅ |
+| Search clear (×) | `setSearchQuery("")` | ✅ |
+
+### `/communities/[id]` (community feed)
+| Element | Destination / Outcome | Status |
+|---|---|---|
+| Back (←) | `router.back()` | ✅ |
+| Join/leave (header) | Toggle, synced to hub | ✅ |
+| Hot / New / Top tabs | Sort switch | ✅ |
+| Post card | `/communities/thread/[postId]` (`pathname` + `params`) | ✅ |
+| Author avatar / name | ProfilePeekSheet → View Profile \| Shoot Your Shot | ✅ |
+| Like (♥) | Optimistic like/unlike + haptics | ✅ |
+| Reply (💬) | Opens thread / compose | ✅ |
+| Share | `Share.share(post content + @handle)` — **wired 2026-07-01** (was dead) | ✅ |
+| FAB compose | Create-post modal | ✅ |
+| Compose: Cancel / Post | Close modal / `handlePost` (disabled while empty or submitting) | ✅ |
+
+### `/communities/create`
+| Element | Destination / Outcome | Status |
+|---|---|---|
+| Back (←) | `router.back()` | ✅ |
+| Category select | Sets category | ✅ |
+| Create CTA | `handleCreate` → new community → feed | ✅ |
+
+### `/communities/thread/[postId]`
+| Element | Destination / Outcome | Status |
+|---|---|---|
+| Back (←) | `router.back()` | ✅ |
+| Like (♥) on OP / replies | Optimistic like + haptics | ✅ |
+| Reply count | Display only (`View`, not a button) | ✅ |
+| Share | `Share.share(post content + @handle)` — **wired 2026-07-01** (was dead) | ✅ |
+| Reply input send (➤) | `handleSubmitReply` (disabled while empty or submitting) | ✅ |
+
 ---
 
 ## Push Notifications → In-App Routes
@@ -321,9 +360,19 @@ Status: ✅ wired · ⚠️ soft-limit · 🔜 planned
 
 ## Audit Summary
 
+### 2026-06 session
 - **Total tappable elements audited:** ~95
-- **Dead buttons found and fixed this session:** 3 (Echo, handleLike, accept navigate)
+- **Dead buttons found and fixed:** 3 (Echo, handleLike, accept navigate)
+
+### 2026-07-01 session
+- **Dead buttons found and fixed:** 2 — share buttons in `/communities/[id]` and `/communities/thread/[postId]` (no `onPress`; now `Share.share`)
+- **Double celebration fixed:** accepting a Shot fired both the provider-level `DatingMatchModal` and the screen-level `MatchMomentOverlay`; the context no longer opens its modal for shot accepts (matches.tsx owns the moment)
+- **Route-string convention fix:** Moments "Requests" button used `"/(tabs)/matches?segment=moments"`; now `{ pathname, params }` per `docs/architecture/ROUTING.md`
+- **Route resolution sweep:** every `router.push` / `pathname:` target across `app/`, `components/`, `contexts/` resolves to a real screen file — 0 broken routes
+- **`audit:taps`:** PASSES clean. Script rewritten with brace-aware JSX tag parsing (a `>` inside `onPress={() => …}` or a ternary no longer truncates the tag → no more false positives). Safe to gate CI.
 - **Dead buttons remaining:** 0
-- **Missing empty states:** 0 (all 5 tabs + likes-you + profile-views covered)
-- **Missing back navigation:** 0 (all nested screens verified)
-- **Broken routes:** 0 (all route strings registered in `_layout.tsx`)
+- **Missing back navigation:** 0
+- **Known intentional placeholder:** Moments "Echo" button → "coming soon" alert (planned feature, visible feedback)
+
+### Standing debt (blocks regression safety)
+- 59 failing mobile tests, 2 failing API tests, 2 failing Functions tests (pre-existing baseline). Until green, Jest cannot guard tap/routing regressions — fix on a `*/baseline-quality-gates` branch, then add `audit:taps` to the CI unit job.
