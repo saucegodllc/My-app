@@ -8,6 +8,7 @@ import { runMigrations } from "stripe-replit-sync";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { startEventsBackgroundRefresh } from "./routes/events";
+import { restoreSocialStore, startSocialStoreBackup } from "./lib/socialStorePersistence";
 import { assertProductionLaunchSafety, shouldUseLocalDbFallback } from "./launchGuards";
 
 const rawPort = process.env["PORT"];
@@ -104,6 +105,10 @@ httpServer.listen(port, async (err?: Error) => {
     logger.warn("DATABASE_URL not set; running JSON-backed routes without Postgres startup tasks");
     return;
   }
+  // Restore db.json (plans, interests, push tokens…) from its Postgres
+  // snapshot before anything mutates it — Render's disk is wiped on deploy.
+  await restoreSocialStore();
+  startSocialStoreBackup();
   await runLivenessMigrations();
   await initStripe();
 });

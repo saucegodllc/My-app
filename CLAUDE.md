@@ -123,6 +123,21 @@ pnpm --filter @workspace/db push
 
 ---
 
+## Social store persistence (db.json ↔ Postgres) — 2026-07
+
+**Problem solved:** `db.json` (plans, plan members, join requests, event interests, push tokens) lived only on Render's ephemeral disk — every deploy/restart silently wiped it.
+
+**Solution (no route changes):** `artifacts/api-server/src/lib/socialStorePersistence.ts`
+- Boot: restores `db.json` from the `social_store` Postgres table (single jsonb row, id="main") when the file is missing/empty; if a local file exists it wins and refreshes the snapshot.
+- Runtime: 30s change-detection backup loop (`SOCIAL_STORE_BACKUP_INTERVAL_MS` to tune).
+- Shutdown: SIGTERM/SIGINT flush → loss window ≈ 0 on Render deploys.
+- Table auto-created via `CREATE TABLE IF NOT EXISTS` AND present in `lib/db/src/schema/socialStore.ts` for `drizzle-kit push`.
+- Wired in `src/index.ts` after the `shouldUseLocalDbFallback()` guard — dev/test without DATABASE_URL behave exactly as before (pure file mode).
+
+**Deliberate scope choice:** routes still read/write `db.json` synchronously. A per-entity Postgres migration (proper tables for plans/interests/etc.) would touch 10+ route files and all their sync call sites — do that later on a dedicated branch with the test suite green. This snapshot layer removes the data-loss risk today.
+
+---
+
 ## Drizzle ORM — correct query pattern
 
 Always use the select builder, never `db.query.*`:

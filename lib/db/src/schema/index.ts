@@ -13,3 +13,4 @@ export * from "./networkConnections";
 export * from "./pushTokens";
 export * from "./sparkMemory";
 export * from "./discoveryActionUsage";
+export * from "./socialStore";
