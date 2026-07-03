@@ -4,7 +4,7 @@ module.exports = {
   testEnvironment: "node",
   roots: ["<rootDir>/src"],
   testMatch: ["**/*.test.ts"],
-  testPathIgnorePatterns: ["/node_modules/", "stripe.webhook.test.ts"],
+  testPathIgnorePatterns: ["/node_modules/"],
   coveragePathIgnorePatterns: [
     "/node_modules/",
     "src/routes/stripe.ts",

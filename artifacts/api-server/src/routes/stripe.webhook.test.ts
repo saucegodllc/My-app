@@ -10,24 +10,61 @@
 import request from "supertest";
 import app from "../app";
 
+var mockDbWhere = jest.fn().mockResolvedValue(undefined);
+var mockDbSet = jest.fn().mockReturnValue({ where: mockDbWhere });
+var mockDbUpdate = jest.fn().mockReturnValue({ set: mockDbSet });
+jest.mock("@workspace/db", () => {
+  const actual = jest.requireActual("@workspace/db");
+  return {
+    ...actual,
+    db: {
+      ...actual.db,
+      update: (...args: unknown[]) => mockDbUpdate(...args),
+    },
+  };
+});
+
 // ─── Mock Stripe client ───────────────────────────────────────────────────────
 
-const mockConstructEvent = jest.fn();
+var mockConstructEvent = jest.fn();
 jest.mock("../lib/stripeClient", () => ({
+  ...jest.requireActual("../lib/stripeClient"),
+  // The route handler calls getStripeClient() (async). The previous mock only
+  // stubbed getDirectStripeClient, so getStripeClient ran for real and every
+  // request 503'd — which is why this file sat in testPathIgnorePatterns.
+  getStripeClient: jest.fn().mockResolvedValue({
+    webhooks: { constructEvent: (...args: unknown[]) => mockConstructEvent(...args) },
+    customers: { update: jest.fn().mockResolvedValue({}) },
+    subscriptions: {
+      retrieve: jest.fn().mockResolvedValue({
+        metadata: { clerkUserId: "user_test_abc" },
+        items: { data: [] },
+      }),
+    },
+  }),
   getDirectStripeClient: jest.fn().mockReturnValue({
-    webhooks: {
-      constructEvent: mockConstructEvent,
+    webhooks: { constructEvent: (...args: unknown[]) => mockConstructEvent(...args) },
+    customers: { update: jest.fn().mockResolvedValue({}) },
+    subscriptions: {
+      retrieve: jest.fn().mockResolvedValue({
+        metadata: { clerkUserId: "user_test_abc" },
+        items: { data: [] },
+      }),
     },
   }),
 }));
 
+// Signature verification only runs when a webhook secret is configured. Set one
+// so tests exercise the same constructEvent path as production.
+process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_secret";
+
 // ─── Mock RevenueCat client ───────────────────────────────────────────────────
 
-const mockGrant  = jest.fn().mockResolvedValue(undefined);
-const mockRevoke = jest.fn().mockResolvedValue(undefined);
+var mockGrant  = jest.fn().mockResolvedValue(undefined);
+var mockRevoke = jest.fn().mockResolvedValue(undefined);
 jest.mock("../lib/revenueCatClient", () => ({
-  grantRevenueCatEntitlement:  mockGrant,
-  revokeRevenueCatEntitlement: mockRevoke,
+  grantRevenueCatEntitlement:  (...args: unknown[]) => mockGrant(...args),
+  revokeRevenueCatEntitlement: (...args: unknown[]) => mockRevoke(...args),
 }));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -38,7 +75,8 @@ function buildEvent(type: string, data: object) {
     data: {
       object: {
         id: "cs_test_123",
-        metadata: { userId: "user_test_abc", plan: "monthly" },
+        client_reference_id: "user_test_abc",
+        metadata: { clerkUserId: "user_test_abc", plan: "monthly" },
         subscription: "sub_test_123",
         customer: "cus_test_123",
         ...data,
@@ -75,6 +113,42 @@ describe("POST /api/stripe/webhook", () => {
     });
 
     await postWebhook({}).expect(400);
+  });
+
+  // ── Regression: webhook signature bypass (fixed in 2c5402e) ───────────────
+  // Before the fix, a request that simply omitted the stripe-signature header
+  // fell through to an unverified JSON.parse and PROCESSED the event. An
+  // attacker could forge checkout.session.completed to self-grant premium.
+  it("does NOT process a forged event when the signature header is missing", async () => {
+    const forged = buildEvent("checkout.session.completed", {
+      payment_status: "paid",
+      mode: "subscription",
+    });
+
+    await request(app)
+      .post("/api/stripe/webhook")
+      .set("Content-Type", "application/json")
+      .send(JSON.stringify(forged))
+      .expect(400);
+
+    // The unverified branch must be unreachable: no parse, no entitlement.
+    expect(mockConstructEvent).not.toHaveBeenCalled();
+    expect(mockGrant).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 in production when STRIPE_WEBHOOK_SECRET is not configured", async () => {
+    const savedSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const savedNodeEnv = process.env.NODE_ENV;
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    process.env.NODE_ENV = "production";
+    try {
+      await postWebhook(buildEvent("checkout.session.completed", {})).expect(500);
+      expect(mockGrant).not.toHaveBeenCalled();
+    } finally {
+      if (savedSecret === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
+      else process.env.STRIPE_WEBHOOK_SECRET = savedSecret;
+      process.env.NODE_ENV = savedNodeEnv;
+    }
   });
 
   describe("checkout.session.completed", () => {

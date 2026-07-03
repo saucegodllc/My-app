@@ -317,6 +317,7 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.mode !== "subscription") break;
+        if (session.payment_status !== "paid") break;
 
         const clerkUserId = session.client_reference_id
           ?? session.metadata?.clerkUserId;

@@ -1,5 +1,81 @@
 # Current Claude ↔ Codex handoff
 
+## Update - 2026-07-03 (Codex)
+
+Regression coverage + deploy guard for the Stripe webhook fix (2c5402e), plus
+one webhook behavior guard restored by the re-enabled suite.
+
+**Files changed:**
+- `artifacts/api-server/src/routes/stripe.ts` - checkout sessions only grant
+  premium when `payment_status === "paid"`.
+- `artifacts/api-server/src/routes/stripe.webhook.test.ts` - fixed stale mocks
+  for `getStripeClient`, DB premium writes, Stripe customer/subscription calls,
+  and current Clerk user identity fields; added regression coverage for:
+  1. missing `stripe-signature` header -> 400, `constructEvent`/grant never
+     called (the exact bypass in 2c5402e).
+  2. missing secret + `NODE_ENV=production` -> 500.
+- `artifacts/api-server/jest.config.cjs` - removed `stripe.webhook.test.ts`
+  from `testPathIgnorePatterns` so the suite actually runs.
+- `artifacts/api-server/scripts/check-production-env.mjs` - already contains
+  the production `STRIPE_WEBHOOK_SECRET` requirement on `origin/main`.
+
+**Verification:**
+- `pnpm.cmd --filter @workspace/api-server exec jest src/routes/stripe.webhook.test.ts`
+  did not reach Jest locally; pnpm stopped on ignored dependency build approvals
+  (`ERR_PNPM_IGNORED_BUILDS`).
+- Direct package Jest succeeded:
+  `artifacts/api-server/node_modules/.bin/jest.CMD src/routes/stripe.webhook.test.ts`
+  -> 1 suite passed, 10 tests passed.
+- Env guard succeeded: production with `DATABASE_URL` but no
+  `STRIPE_WEBHOOK_SECRET` exits 1; adding `STRIPE_WEBHOOK_SECRET=whsec_test`
+  exits 0.
+
+**Visual changes:** none.
+
+**Deploy note:** confirm `STRIPE_WEBHOOK_SECRET` is set in Render before the
+next API deploy; the env guard intentionally blocks production boot without it.
+
+---
+
+## Update — 2026-07-03 (Claude · TDD follow-up)
+
+Regression coverage + deploy guard for the Stripe webhook fix (2c5402e).
+
+**Files changed (uncommitted on disk — see repo-repair note below):**
+- `artifacts/api-server/src/routes/stripe.webhook.test.ts` — fixed the stale
+  mock (route calls `getStripeClient`, not `getDirectStripeClient`; suite used
+  to 503 on every request), set `STRIPE_WEBHOOK_SECRET` for the test env, and
+  added two regression tests:
+  1. missing `stripe-signature` header → 400, `constructEvent`/grant never
+     called (the exact bypass in 2c5402e).
+  2. missing secret + `NODE_ENV=production` → 500.
+- `artifacts/api-server/jest.config.cjs` — removed `stripe.webhook.test.ts`
+  from `testPathIgnorePatterns` so the suite actually runs.
+- `artifacts/api-server/scripts/check-production-env.mjs` — require
+  `STRIPE_WEBHOOK_SECRET` when `NODE_ENV=production` (fails boot fast).
+
+**Test commands to run (could NOT execute locally — pnpm symlinks unresolved
+in the sandbox):**
+- `pnpm --filter @workspace/api-server exec jest src/routes/stripe.webhook.test.ts`
+- Env guard (verified locally, plain node):
+  `NODE_ENV=production DATABASE_URL=x node scripts/check-production-env.mjs` →
+  exits 1 without the secret, 0 with it.
+
+**Expected result:** webhook suite green, including the 2 new regression cases.
+If the suite is red for environment reasons, re-add the file to
+`testPathIgnorePatterns` and hand back.
+
+**Pre-existing failures (NOT introduced here):** API typecheck errors in
+`socialStorePersistence.ts`, `antiGhostNudge.ts`, `dailySpark.ts`. No remaining
+`moments.ts` errors.
+
+**Deploy note:** confirm `STRIPE_WEBHOOK_SECRET` is set in Render before the
+next API deploy — the new env guard will otherwise block boot by design.
+
+**Visual changes:** none.
+
+---
+
 ## Update — 2026-07-02 (Claude)
 
 - **Security fix pushed to shared `main`:** commit `2c5402e`
@@ -138,15 +214,3 @@ before changing the remote default branch.
 - Active owner: Codex
 - Owned files: shared workflow documentation and root repository index
 - Protected files: all active application files listed in `AGENTS.md`
-
-## Update - 2026-07-02 (Codex)
-
-- Branch: `main`.
-- Fixed the GitHub Actions `API auth integration coverage` job failure.
-- Root cause: `artifacts/api-server/src/routes/moments.ts` imported `nanoid@5`, an ESM-only package. The auth coverage test imports the full Express app, which imports `moments.ts`, and Jest's CommonJS runtime failed before auth assertions ran.
-- Fix: replaced `nanoid` usage in `moments.ts` with Node's built-in `crypto.randomUUID()`, matching the rest of the API route patterns.
-- Cleanup: removed the direct `nanoid` dependency from `artifacts/api-server/package.json` and the API importer entry from `pnpm-lock.yaml`.
-- Also corrected existing `moments.ts` rate-limit option names from `keyFn` to `key`, matching `src/middlewares/rateLimit.ts`.
-- Verification: `artifacts/api-server/.\\node_modules\\.bin\\jest.CMD src/auth401.test.ts src/routes/events.test.ts --runInBand --coverage` passed: 2 suites passed, 9 tests passed.
-- Verification caveat: `artifacts/api-server/.\\node_modules\\.bin\\tsc.CMD -p tsconfig.json --noEmit` still fails on unrelated existing type drift in `src/lib/socialStorePersistence.ts`, `src/routes/antiGhostNudge.ts`, and `src/routes/dailySpark.ts`. No remaining `moments.ts` errors.
-- Visual changes: none.
