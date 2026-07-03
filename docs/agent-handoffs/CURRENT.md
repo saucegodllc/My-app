@@ -1,5 +1,29 @@
 # Current Claude ↔ Codex handoff
 
+## Update — 2026-07-02 (Claude)
+
+- **Security fix pushed to shared `main`:** commit `2c5402e`
+  `fix(api): reject unverified Stripe webhooks in production`.
+- File: `artifacts/api-server/src/routes/stripe.ts` (webhook handler only).
+- **What was wrong:** the handler fell through to unverified `JSON.parse`
+  whenever the `stripe-signature` header was absent — even with
+  `STRIPE_WEBHOOK_SECRET` set. An attacker could omit the header and POST a
+  forged `checkout.session.completed` to self-grant premium.
+- **Fix behavior now:** secret set + missing/invalid signature → `400`;
+  secret missing in production → `500` (refuses to process); unverified parse
+  is reachable only outside production (guarded by `isProductionEnv()`).
+- **Codex action required:** confirm `STRIPE_WEBHOOK_SECRET` is set in Render
+  for the API service. With this fix, a prod deploy WITHOUT the secret now
+  hard-fails the webhook by design — subscriptions won't activate until it's
+  present. This is the intended safe tradeoff vs. accepting forged events.
+- Optional follow-up (not done): add `STRIPE_WEBHOOK_SECRET` to
+  `scripts/check-production-env.mjs` so a misconfigured deploy fails at boot
+  instead of at first webhook.
+- Scope: only `stripe.ts` was committed. Other pre-existing dirty files in the
+  working tree were left untouched.
+
+---
+
 ## Update — 2026-07-01 (Claude)
 
 - Branch: `main`, commit `2c62395` (`chore: checkpoint session work`) on top of `a35b43d`.
