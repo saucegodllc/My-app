@@ -28,6 +28,7 @@ import { profilesTable } from "@workspace/db";
 import { getStripeClient, isStripePlan, STRIPE_PRICES } from "../lib/stripeClient";
 import { grantRevenueCatEntitlement, revokeRevenueCatEntitlement } from "../lib/revenueCatClient";
 import { logger } from "../lib/logger";
+import { isProductionEnv } from "../launchGuards";
 
 /** Write isPremium directly to the profiles table. This is the primary source
  *  of truth — RevenueCat is an optional signal on top. */
@@ -263,8 +264,14 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
   const sig = req.headers["stripe-signature"] as string | undefined;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  if (!webhookSecret) {
-    logger.warn("STRIPE_WEBHOOK_SECRET not set — accepting webhook without verification (dev only)");
+  // A webhook secret is mandatory in production. Without it we cannot prove a
+  // request actually came from Stripe, and an attacker could forge a
+  // `checkout.session.completed` event to grant themselves premium. Refuse to
+  // process the webhook rather than trust an unverified payload.
+  if (!webhookSecret && isProductionEnv()) {
+    logger.error("STRIPE_WEBHOOK_SECRET is not set in production — rejecting webhook");
+    res.status(500).json({ error: "Webhook not configured" });
+    return;
   }
 
   let stripe: Stripe;
@@ -279,10 +286,21 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
 
   try {
     const rawBody = req.body as Buffer;
-    if (webhookSecret && sig) {
+    if (webhookSecret) {
+      // Signature verification is required whenever a secret is configured.
+      // `constructEvent` throws if the signature header is missing or invalid,
+      // so a request that simply omits `stripe-signature` is rejected below —
+      // it can NOT fall through to the unverified branch.
+      if (!sig) {
+        logger.warn("stripe webhook missing stripe-signature header");
+        res.status(400).json({ error: "Missing signature" });
+        return;
+      }
       event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     } else {
-      // Dev-only: no signature verification
+      // Only reachable outside production (guarded above). Local dev without a
+      // configured webhook secret: accept the payload without verification.
+      logger.warn("STRIPE_WEBHOOK_SECRET not set — accepting webhook without verification (dev only)");
       event = JSON.parse(rawBody.toString()) as Stripe.Event;
     }
   } catch (err) {
