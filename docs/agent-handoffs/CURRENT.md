@@ -138,3 +138,15 @@ before changing the remote default branch.
 - Active owner: Codex
 - Owned files: shared workflow documentation and root repository index
 - Protected files: all active application files listed in `AGENTS.md`
+
+## Update - 2026-07-02 (Codex)
+
+- Branch: `main`.
+- Fixed the GitHub Actions `API auth integration coverage` job failure.
+- Root cause: `artifacts/api-server/src/routes/moments.ts` imported `nanoid@5`, an ESM-only package. The auth coverage test imports the full Express app, which imports `moments.ts`, and Jest's CommonJS runtime failed before auth assertions ran.
+- Fix: replaced `nanoid` usage in `moments.ts` with Node's built-in `crypto.randomUUID()`, matching the rest of the API route patterns.
+- Cleanup: removed the direct `nanoid` dependency from `artifacts/api-server/package.json` and the API importer entry from `pnpm-lock.yaml`.
+- Also corrected existing `moments.ts` rate-limit option names from `keyFn` to `key`, matching `src/middlewares/rateLimit.ts`.
+- Verification: `artifacts/api-server/.\\node_modules\\.bin\\jest.CMD src/auth401.test.ts src/routes/events.test.ts --runInBand --coverage` passed: 2 suites passed, 9 tests passed.
+- Verification caveat: `artifacts/api-server/.\\node_modules\\.bin\\tsc.CMD -p tsconfig.json --noEmit` still fails on unrelated existing type drift in `src/lib/socialStorePersistence.ts`, `src/routes/antiGhostNudge.ts`, and `src/routes/dailySpark.ts`. No remaining `moments.ts` errors.
+- Visual changes: none.

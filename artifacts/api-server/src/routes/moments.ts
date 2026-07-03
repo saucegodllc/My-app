@@ -19,7 +19,7 @@
 
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
-import { nanoid } from "nanoid";
+import { randomUUID } from "crypto";
 import { rateLimit } from "../middlewares/rateLimit";
 
 const router = Router();
@@ -146,7 +146,7 @@ function seedDemoMoments() {
   ];
 
   for (const d of demos) {
-    const id = nanoid();
+    const id = randomUUID();
     momentStore.set(id, { id, ...d });
   }
 }
@@ -249,7 +249,7 @@ router.get("/moments/likes", (req, res) => {
 /** POST /moments — create */
 router.post(
   "/moments",
-  rateLimit({ windowMs: 60_000, max: 5, keyFn: (req) => getAuth(req).userId ?? "anon" }),
+  rateLimit({ key: "moments_create", windowMs: 60_000, max: 5 }),
   (req, res) => {
     const { userId } = getAuth(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
@@ -283,7 +283,7 @@ router.post(
 
     const now = Date.now();
     const moment: Moment = {
-      id: nanoid(),
+      id: randomUUID(),
       userId,
       userDisplayName,
       userPhotoUrl,
@@ -326,12 +326,13 @@ router.post("/moments/:id/view", (req, res) => {
 /** POST /moments/:id/like */
 router.post(
   "/moments/:id/like",
-  rateLimit({ windowMs: 60_000, max: 30, keyFn: (req) => getAuth(req).userId ?? "anon" }),
+  rateLimit({ key: "moments_like", windowMs: 60_000, max: 30 }),
   (req, res) => {
     const { userId } = getAuth(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const moment = momentStore.get(req.params["id"]!);
+    const momentId = String(req.params["id"]);
+    const moment = momentStore.get(momentId);
     if (!moment || moment.expiresAt < Date.now()) {
       return res.status(404).json({ error: "Moment not found or expired" });
     }
@@ -347,7 +348,7 @@ router.post(
     };
 
     const like: MomentLike = {
-      id: nanoid(),
+      id: randomUUID(),
       momentId: moment.id,
       momentText: moment.text,
       fromUserId: userId,
@@ -375,12 +376,13 @@ router.delete("/moments/:id/like", (req, res) => {
 /** POST /moments/:id/reply — creates a Moment Request */
 router.post(
   "/moments/:id/reply",
-  rateLimit({ windowMs: 60_000, max: 10, keyFn: (req) => getAuth(req).userId ?? "anon" }),
+  rateLimit({ key: "moments_reply", windowMs: 60_000, max: 10 }),
   (req, res) => {
     const { userId } = getAuth(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const moment = momentStore.get(req.params["id"]!);
+    const momentId = String(req.params["id"]);
+    const moment = momentStore.get(momentId);
     if (!moment || moment.expiresAt < Date.now()) {
       return res.status(404).json({ error: "Moment not found or expired" });
     }
@@ -413,7 +415,7 @@ router.post(
     }
 
     const request: MomentRequest = {
-      id: nanoid(),
+      id: randomUUID(),
       momentId: moment.id,
       momentText: moment.text,
       momentLocation: moment.location,
