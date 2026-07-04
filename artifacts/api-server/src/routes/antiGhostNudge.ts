@@ -1,29 +1,15 @@
 /**
- * Anti-Ghost Nudge — fires once per match when a chat goes silent for 48 hours.
+ * Anti-Ghost Nudge - fires once per match when a chat goes silent for 48 hours.
  *
  * POST /api/notifications/anti-ghost/broadcast
  *   Called by the `connectsphere-anti-ghost` Render cron job daily.
  *   Protected by x-cron-secret header.
- *
- * Logic:
- *   1. Find all matches where:
- *      - Status is "matched" (not expired / unmatched)
- *      - The last message was sent 48–71 hours ago  ← silence window
- *      - OR no message was ever sent and the match is 48–71 hours old
- *      - A nudge hasn't already been sent for this match (ops store flag)
- *   2. Identify the user who should receive the nudge:
- *      - If no messages: notify both sides (they both need to move)
- *      - If last message was from userId1: nudge userId2 (they're the ghost)
- *      - If last message was from userId2: nudge userId1
- *   3. Send an Expo push, mark the match as nudged in the ops store.
- *
- * Nudge copy is warm, not guilt-trippy — we want them excited, not anxious.
  */
 
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { matches as matchesTable, profiles, pushTokens } from "@workspace/db/schema";
-import { and, eq, sql, between, isNull, or } from "drizzle-orm";
+import { matches as matchesTable, messagesTable } from "@workspace/db/schema";
+import { and, between, desc, eq, or, sql } from "drizzle-orm";
 import { readOpsStore, writeOpsStore } from "../lib/operationalStore";
 import { logger } from "../lib/logger";
 
@@ -70,8 +56,6 @@ async function sendExpoPush(
   }
 }
 
-// ─── Broadcast endpoint ───────────────────────────────────────────────────────
-
 router.post("/notifications/anti-ghost/broadcast", async (req, res) => {
   const secret = req.headers["x-cron-secret"];
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
@@ -79,12 +63,10 @@ router.post("/notifications/anti-ghost/broadcast", async (req, res) => {
   }
 
   const now = Date.now();
-  // Silence window: 48h – 71h ago (we fire once, not every hour)
-  const windowStart = new Date(now - 71 * 3600_000).toISOString();
-  const windowEnd   = new Date(now - 48 * 3600_000).toISOString();
+  const windowStart = new Date(now - 71 * 3600_000);
+  const windowEnd = new Date(now - 48 * 3600_000);
 
   const store = readOpsStore();
-  // Set of matchIds already nudged (stored as chatControl with action "anti_ghost_sent")
   const alreadyNudged = new Set(
     store.chatControls
       .filter((c) => (c.action as string) === "anti_ghost_sent")
@@ -96,42 +78,50 @@ router.post("/notifications/anti-ghost/broadcast", async (req, res) => {
   let errors = 0;
 
   try {
-    // Matches where the last activity (message or match creation) was in the silence window
     const candidateMatches = await db
       .select()
       .from(matchesTable)
       .where(
-        and(
-          eq(matchesTable.status, "matched"),
-          or(
-            // No messages yet — use createdAt
-            and(
-              isNull(matchesTable.lastMessageAt),
-              between(matchesTable.createdAt, windowStart, windowEnd),
-            ),
-            // Has messages — use lastMessageAt
-            between(matchesTable.lastMessageAt, windowStart, windowEnd),
+        or(
+          and(
+            between(matchesTable.matchedAt, windowStart, windowEnd),
+            sql`NOT EXISTS (
+              SELECT 1 FROM ${messagesTable}
+              WHERE ${messagesTable.matchId} = ${matchesTable.id}
+            )`,
           ),
+          sql`(
+            SELECT max(${messagesTable.createdAt})
+            FROM ${messagesTable}
+            WHERE ${messagesTable.matchId} = ${matchesTable.id}
+          ) BETWEEN ${windowStart} AND ${windowEnd}`,
         ),
       );
 
     for (const match of candidateMatches) {
-      if (alreadyNudged.has(match.id)) { skipped++; continue; }
+      if (alreadyNudged.has(match.id)) {
+        skipped++;
+        continue;
+      }
 
-      // Determine who should be nudged
+      const [lastMessage] = await db
+        .select()
+        .from(messagesTable)
+        .where(eq(messagesTable.matchId, match.id))
+        .orderBy(desc(messagesTable.createdAt))
+        .limit(1);
+
       const userIdsToNudge: string[] = [];
-      if (!match.lastMessageAt) {
-        // Neither has messaged — nudge both
+      if (!lastMessage) {
         userIdsToNudge.push(match.userId1, match.userId2);
-      } else if (match.lastSenderId === match.userId1) {
-        // userId1 sent last → userId2 is ghosting
+      } else if (lastMessage.senderId === match.userId1) {
         userIdsToNudge.push(match.userId2);
       } else {
         userIdsToNudge.push(match.userId1);
       }
 
       const copy = pickNudgeCopy(match.id);
-      const data = { route: `/chat/dating/${match.chatId ?? match.id}`, reason: "anti_ghost" };
+      const data = { route: `/chat/dating/${match.id}`, reason: "anti_ghost" };
 
       for (const userId of userIdsToNudge) {
         const tokenRow = await db.query.pushTokens?.findFirst({
@@ -146,7 +136,6 @@ router.post("/notifications/anti-ghost/broadcast", async (req, res) => {
         }
       }
 
-      // Mark as nudged so we don't double-fire
       store.chatControls.push({
         id: `anti_ghost_${match.id}_${now}`,
         chatId: match.id,

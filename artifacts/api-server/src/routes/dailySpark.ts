@@ -19,8 +19,8 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { db } from "@workspace/db";
-import { profiles, matches, pushTokens } from "@workspace/db/schema";
-import { and, eq, gt, sql, ne } from "drizzle-orm";
+import { profiles, matches, messagesTable, likesTable, pushTokens } from "@workspace/db/schema";
+import { and, eq, gt, sql, ne, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -54,11 +54,11 @@ async function buildSparkForUser(userId: string): Promise<{
     // Check for pending reactions (someone liked them)
     const pendingReactions = await db
       .select({ count: sql<number>`count(*)` })
-      .from(matches)
+      .from(likesTable)
       .where(
         and(
-          eq(matches.userId2, userId),
-          eq(matches.status, "pending"),
+          eq(likesTable.toUserId, userId),
+          ne(likesTable.action, "pass"),
         )
       )
       .catch(() => [{ count: 0 }]);
@@ -76,7 +76,7 @@ async function buildSparkForUser(userId: string): Promise<{
 
     // Check for recent new vibers (profiles created in last 24h nearby)
     // Simplified: just count new profiles today
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString();
+    const yesterday = new Date(Date.now() - 86_400_000);
     const newVibers = await db
       .select({ count: sql<number>`count(*)` })
       .from(profiles)
@@ -103,10 +103,12 @@ async function buildSparkForUser(userId: string): Promise<{
       .from(matches)
       .where(
         and(
-          eq(matches.status, "matched"),
-          sql`(${matches.userId1} = ${userId} OR ${matches.userId2} = ${userId})`,
-          sql`${matches.lastMessageAt} IS NULL`,
-          gt(matches.createdAt, new Date(Date.now() - 7 * 86_400_000).toISOString()),
+          or(eq(matches.userId1, userId), eq(matches.userId2, userId)),
+          gt(matches.matchedAt, new Date(Date.now() - 7 * 86_400_000)),
+          sql`NOT EXISTS (
+            SELECT 1 FROM ${messagesTable}
+            WHERE ${messagesTable.matchId} = ${matches.id}
+          )`,
         )
       )
       .catch(() => [{ count: 0 }]);

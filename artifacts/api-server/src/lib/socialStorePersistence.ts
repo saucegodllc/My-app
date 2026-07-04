@@ -21,7 +21,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { eq, sql } from "drizzle-orm";
-import { db, socialStoreTable } from "@workspace/db";
+import { db } from "@workspace/db";
+import { socialStoreTable } from "@workspace/db/schema";
 import { logger } from "./logger";
 
 const workspaceRoot = process.cwd().endsWith(join("artifacts", "api-server"))

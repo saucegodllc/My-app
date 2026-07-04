@@ -1,5 +1,47 @@
 # Current Claude ↔ Codex handoff
 
+## Update - 2026-07-04 (Codex)
+
+Branch: `codex/api-typecheck-fixes`.
+
+Resolved the real API TypeScript failures that were hidden behind the earlier
+working-tree corruption/truncation artifacts.
+
+**Files changed:**
+- `artifacts/api-server/src/lib/socialStorePersistence.ts` - imports
+  `socialStoreTable` from the schema entrypoint so the API no longer depends on
+  the root DB package export shape.
+- `artifacts/api-server/src/routes/antiGhostNudge.ts` - removed references to
+  non-existent `matches.status`, `matches.createdAt`, `matches.lastMessageAt`,
+  `matches.lastSenderId`, and `matches.chatId`; derives silence windows from
+  `matches.matchedAt` and `chat_messages`.
+- `artifacts/api-server/src/routes/dailySpark.ts` - uses `likes` for pending
+  reactions and `chat_messages`/`matchedAt` for stale matched chats instead of
+  non-existent match columns; passes `Date` values to timestamp comparisons.
+- `pnpm-workspace.yaml` - records pnpm 11 build-script approvals so `pnpm`
+  commands reach TypeScript instead of stopping at `ERR_PNPM_IGNORED_BUILDS`.
+
+**Verification:**
+- `pnpm.cmd --filter @workspace/db exec tsc -p tsconfig.json` - passed.
+- `pnpm.cmd --filter @workspace/api-server run typecheck` - passed.
+- `pnpm.cmd run typecheck` - passed.
+- `pnpm.cmd --filter @workspace/api-server exec jest --runInBand` - failed
+  with pre-existing non-touched suite failures: `routes/icebreakers.test.ts`
+  unauth expected 401 got 200; `inboxRoutes.test.ts` expected one message got
+  zero; `routes/agegate.test.ts` profile/account-delete expectations fail due
+  409/500/429 responses and a mocked `db.delete is not a function`. Passing
+  suites included `stripe.webhook.test.ts`, `auth401.test.ts`,
+  `events.test.ts`, `launchGuards.test.ts`, `discoveryActionHardening.test.ts`,
+  `friendsMatchRouting.test.ts`, and `matchThreads.test.ts`.
+
+**Visual changes:** none.
+
+**Unfinished work / next task:**
+- Baseline API Jest failures above remain and should be handled on a dedicated
+  quality-gates branch; they are unrelated to the API typecheck repair.
+
+---
+
 ## Update - 2026-07-03 (Codex)
 
 Regression coverage + deploy guard for the Stripe webhook fix (2c5402e), plus
