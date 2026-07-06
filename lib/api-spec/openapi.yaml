@@ -292,42 +292,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/SubscriptionStatus"
 
-  /subscriptions/checkout:
-    post:
-      operationId: createCheckoutSession
-      tags: [subscriptions]
-      summary: Create a Stripe checkout session for premium subscription
-      security:
-        - clerkAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateCheckoutBody"
-      responses:
-        "200":
-          description: Checkout session URL
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CheckoutSessionResponse"
-
-  /subscriptions/portal:
-    post:
-      operationId: createCustomerPortal
-      tags: [subscriptions]
-      summary: Create a Stripe customer portal session
-      security:
-        - clerkAuth: []
-      responses:
-        "200":
-          description: Portal URL
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PortalSessionResponse"
-
   /subscriptions/products:
     get:
       operationId: getProducts
@@ -914,36 +878,6 @@ components:
           type: boolean
       required:
         - isPremium
-
-    CreateCheckoutBody:
-      type: object
-      properties:
-        priceId:
-          type: string
-        successUrl:
-          type: string
-        cancelUrl:
-          type: string
-      required:
-        - priceId
-        - successUrl
-        - cancelUrl
-
-    CheckoutSessionResponse:
-      type: object
-      properties:
-        url:
-          type: string
-      required:
-        - url
-
-    PortalSessionResponse:
-      type: object
-      properties:
-        url:
-          type: string
-      required:
-        - url
 
     Product:
       type: object

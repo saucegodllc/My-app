@@ -1,10 +1,7 @@
 import { createServer } from "http";
-import express from "express";
 import app from "./app";
 import { setupSocketIO } from "./socket";
 import { logger } from "./lib/logger";
-import { getStripeSync } from "./lib/stripeClient";
-import { runMigrations } from "stripe-replit-sync";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { startEventsBackgroundRefresh } from "./routes/events";
@@ -24,24 +21,6 @@ const port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
-
-app.post(
-  "/api/stripe/webhook",
-  express.raw({ type: "application/json" }),
-  async (req, res) => {
-    const signature = req.headers["stripe-signature"];
-    if (!signature) return res.status(400).json({ error: "Missing signature" });
-    const sig = Array.isArray(signature) ? signature[0] : signature;
-    try {
-      const stripeSync = await getStripeSync();
-      await stripeSync.processWebhook(req.body as Buffer, sig);
-      return res.status(200).json({ received: true });
-    } catch (err) {
-      logger.error({ err }, "Stripe webhook error");
-      return res.status(400).json({ error: "Webhook error" });
-    }
-  }
-);
 
 async function runLivenessMigrations() {
   try {
@@ -70,24 +49,6 @@ async function runLivenessMigrations() {
   }
 }
 
-async function initStripe() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    logger.warn("DATABASE_URL not set, skipping Stripe initialization");
-    return;
-  }
-  try {
-    await runMigrations({ databaseUrl });
-    const stripeSync = await getStripeSync();
-    const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
-    await stripeSync.findOrCreateManagedWebhook(`${webhookBaseUrl}/api/stripe/webhook`);
-    await stripeSync.syncBackfill();
-    logger.info("Stripe initialized successfully");
-  } catch (err) {
-    logger.warn({ err }, "Stripe initialization failed (non-fatal)");
-  }
-}
-
 const httpServer = createServer(app);
 setupSocketIO(httpServer);
 
@@ -110,5 +71,4 @@ httpServer.listen(port, async (err?: Error) => {
   await restoreSocialStore();
   startSocialStoreBackup();
   await runLivenessMigrations();
-  await initStripe();
 });

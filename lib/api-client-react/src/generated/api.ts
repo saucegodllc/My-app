@@ -19,8 +19,6 @@ import type {
 import type {
   BlockUserBody,
   BlockedUsersResponse,
-  CheckoutSessionResponse,
-  CreateCheckoutBody,
   DashboardSummary,
   DiscoveryActionBody,
   DiscoveryActionResponse,
@@ -36,7 +34,6 @@ import type {
   MatchListResponse,
   Message,
   MessageListResponse,
-  PortalSessionResponse,
   ProductsResponse,
   Profile,
   ReportUserBody,
@@ -51,14 +48,6 @@ import type {
   UpsertProfileBody,
   VenuesResponse,
   WhoLikedMeResponse,
-  GetNetworkDirectoryParams,
-  NetworkDirectoryResponse,
-  NetworkConnectionsResponse,
-  NetworkRequestBody,
-  NetworkRequestResponse,
-  NetworkRespondBody,
-  NetworkChatMatchBody,
-  NetworkChatMatchResponse,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -69,8 +58,6 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-type QueryOptionsWithoutKey<TQueryFnData, TError, TData> = Omit<UseQueryOptions<TQueryFnData, TError, TData>, "queryKey" | "queryFn"> & { queryKey?: QueryKey };
 
 /**
  * @summary Health check
@@ -96,7 +83,7 @@ export const getHealthCheckQueryOptions = <
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -131,7 +118,7 @@ export function useHealthCheck<
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -169,7 +156,7 @@ export const getGetMyProfileQueryOptions = <
   TData = Awaited<ReturnType<typeof getMyProfile>>,
   TError = ErrorType<ErrorResponse>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getMyProfile>>,
     TError,
     TData
@@ -204,7 +191,7 @@ export function useGetMyProfile<
   TData = Awaited<ReturnType<typeof getMyProfile>>,
   TError = ErrorType<ErrorResponse>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getMyProfile>>,
     TError,
     TData
@@ -333,7 +320,7 @@ export const getGetProfileQueryOptions = <
 >(
   userId: string,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getProfile>>,
       TError,
       TData
@@ -376,7 +363,7 @@ export function useGetProfile<
 >(
   userId: string,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getProfile>>,
       TError,
       TData
@@ -434,7 +421,7 @@ export const getGetDiscoveryFeedQueryOptions = <
 >(
   params?: GetDiscoveryFeedParams,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getDiscoveryFeed>>,
       TError,
       TData
@@ -473,7 +460,7 @@ export function useGetDiscoveryFeed<
 >(
   params?: GetDiscoveryFeedParams,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getDiscoveryFeed>>,
       TError,
       TData
@@ -615,7 +602,7 @@ export const getGetMatchesQueryOptions = <
 >(
   params?: GetMatchesParams,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getMatches>>,
       TError,
       TData
@@ -653,7 +640,7 @@ export function useGetMatches<
 >(
   params?: GetMatchesParams,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getMatches>>,
       TError,
       TData
@@ -801,7 +788,7 @@ export const getGetMessagesQueryOptions = <
   matchId: string,
   params?: GetMessagesParams,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getMessages>>,
       TError,
       TData
@@ -846,7 +833,7 @@ export function useGetMessages<
   matchId: string,
   params?: GetMessagesParams,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getMessages>>,
       TError,
       TData
@@ -974,7 +961,7 @@ export const getGetSubscriptionStatusQueryOptions = <
   TData = Awaited<ReturnType<typeof getSubscriptionStatus>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getSubscriptionStatus>>,
     TError,
     TData
@@ -1009,7 +996,7 @@ export function useGetSubscriptionStatus<
   TData = Awaited<ReturnType<typeof getSubscriptionStatus>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getSubscriptionStatus>>,
     TError,
     TData
@@ -1024,173 +1011,6 @@ export function useGetSubscriptionStatus<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
-
-/**
- * @summary Create a Stripe checkout session for premium subscription
- */
-export const getCreateCheckoutSessionUrl = () => {
-  return `/api/subscriptions/checkout`;
-};
-
-export const createCheckoutSession = async (
-  createCheckoutBody: CreateCheckoutBody,
-  options?: RequestInit,
-): Promise<CheckoutSessionResponse> => {
-  return customFetch<CheckoutSessionResponse>(getCreateCheckoutSessionUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(createCheckoutBody),
-  });
-};
-
-export const getCreateCheckoutSessionMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createCheckoutSession>>,
-    TError,
-    { data: BodyType<CreateCheckoutBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createCheckoutSession>>,
-  TError,
-  { data: BodyType<CreateCheckoutBody> },
-  TContext
-> => {
-  const mutationKey = ["createCheckoutSession"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createCheckoutSession>>,
-    { data: BodyType<CreateCheckoutBody> }
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return createCheckoutSession(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type CreateCheckoutSessionMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createCheckoutSession>>
->;
-export type CreateCheckoutSessionMutationBody = BodyType<CreateCheckoutBody>;
-export type CreateCheckoutSessionMutationError = ErrorType<unknown>;
-
-/**
- * @summary Create a Stripe checkout session for premium subscription
- */
-export const useCreateCheckoutSession = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createCheckoutSession>>,
-    TError,
-    { data: BodyType<CreateCheckoutBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof createCheckoutSession>>,
-  TError,
-  { data: BodyType<CreateCheckoutBody> },
-  TContext
-> => {
-  return useMutation(getCreateCheckoutSessionMutationOptions(options));
-};
-
-/**
- * @summary Create a Stripe customer portal session
- */
-export const getCreateCustomerPortalUrl = () => {
-  return `/api/subscriptions/portal`;
-};
-
-export const createCustomerPortal = async (
-  options?: RequestInit,
-): Promise<PortalSessionResponse> => {
-  return customFetch<PortalSessionResponse>(getCreateCustomerPortalUrl(), {
-    ...options,
-    method: "POST",
-  });
-};
-
-export const getCreateCustomerPortalMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createCustomerPortal>>,
-    TError,
-    void,
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createCustomerPortal>>,
-  TError,
-  void,
-  TContext
-> => {
-  const mutationKey = ["createCustomerPortal"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createCustomerPortal>>,
-    void
-  > = () => {
-    return createCustomerPortal(requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type CreateCustomerPortalMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createCustomerPortal>>
->;
-
-export type CreateCustomerPortalMutationError = ErrorType<unknown>;
-
-/**
- * @summary Create a Stripe customer portal session
- */
-export const useCreateCustomerPortal = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createCustomerPortal>>,
-    TError,
-    void,
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof createCustomerPortal>>,
-  TError,
-  void,
-  TContext
-> => {
-  return useMutation(getCreateCustomerPortalMutationOptions(options));
-};
 
 /**
  * @summary Get available premium products and prices
@@ -1216,7 +1036,7 @@ export const getGetProductsQueryOptions = <
   TData = Awaited<ReturnType<typeof getProducts>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getProducts>>,
     TError,
     TData
@@ -1251,7 +1071,7 @@ export function useGetProducts<
   TData = Awaited<ReturnType<typeof getProducts>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getProducts>>,
     TError,
     TData
@@ -1463,7 +1283,7 @@ export const getGetBlockedUsersQueryOptions = <
   TData = Awaited<ReturnType<typeof getBlockedUsers>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getBlockedUsers>>,
     TError,
     TData
@@ -1498,7 +1318,7 @@ export function useGetBlockedUsers<
   TData = Awaited<ReturnType<typeof getBlockedUsers>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getBlockedUsers>>,
     TError,
     TData
@@ -1538,7 +1358,7 @@ export const getGetDashboardSummaryQueryOptions = <
   TData = Awaited<ReturnType<typeof getDashboardSummary>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getDashboardSummary>>,
     TError,
     TData
@@ -1573,7 +1393,7 @@ export function useGetDashboardSummary<
   TData = Awaited<ReturnType<typeof getDashboardSummary>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getDashboardSummary>>,
     TError,
     TData
@@ -1613,7 +1433,7 @@ export const getGetWhoLikedMeQueryOptions = <
   TData = Awaited<ReturnType<typeof getWhoLikedMe>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getWhoLikedMe>>,
     TError,
     TData
@@ -1648,7 +1468,7 @@ export function useGetWhoLikedMe<
   TData = Awaited<ReturnType<typeof getWhoLikedMe>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof getWhoLikedMe>>,
     TError,
     TData
@@ -1777,7 +1597,7 @@ export const getGetObjectQueryOptions = <
 >(
   path: string,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getObject>>,
       TError,
       TData
@@ -1818,7 +1638,7 @@ export function useGetObject<
 >(
   path: string,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getObject>>,
       TError,
       TData
@@ -1862,7 +1682,7 @@ export const getGetPublicObjectQueryOptions = <
 >(
   path: string,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getPublicObject>>,
       TError,
       TData
@@ -1905,7 +1725,7 @@ export function useGetPublicObject<
 >(
   path: string,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getPublicObject>>,
       TError,
       TData
@@ -1961,7 +1781,7 @@ export const getGetEventsQueryOptions = <
 >(
   params?: GetEventsParams,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getEvents>>,
       TError,
       TData
@@ -1999,7 +1819,7 @@ export function useGetEvents<
 >(
   params?: GetEventsParams,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getEvents>>,
       TError,
       TData
@@ -2055,7 +1875,7 @@ export const getGetVenuesQueryOptions = <
 >(
   params?: GetVenuesParams,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getVenues>>,
       TError,
       TData
@@ -2093,7 +1913,7 @@ export function useGetVenues<
 >(
   params?: GetVenuesParams,
   options?: {
-    query?: QueryOptionsWithoutKey<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getVenues>>,
       TError,
       TData
@@ -2110,32 +1930,45 @@ export function useGetVenues<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-// ---- Saved Venues ----
-
-export const getSavedVenuesUrl = () => `/api/venues/saved`;
+/**
+ * @summary Get the authenticated user's saved venue place IDs
+ */
+export const getGetSavedVenuesUrl = () => {
+  return `/api/venues/saved`;
+};
 
 export const getSavedVenues = async (
   options?: RequestInit,
 ): Promise<SavedVenuesResponse> => {
-  return customFetch<SavedVenuesResponse>(getSavedVenuesUrl(), {
+  return customFetch<SavedVenuesResponse>(getGetSavedVenuesUrl(), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetSavedVenuesQueryKey = () => [`/api/venues/saved`] as const;
+export const getGetSavedVenuesQueryKey = () => {
+  return [`/api/venues/saved`] as const;
+};
 
 export const getGetSavedVenuesQueryOptions = <
   TData = Awaited<ReturnType<typeof getSavedVenues>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getSavedVenues>>, TError, TData>;
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSavedVenues>>,
+    TError,
+    TData
+  >;
   request?: SecondParameter<typeof customFetch>;
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
+
   const queryKey = queryOptions?.queryKey ?? getGetSavedVenuesQueryKey();
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSavedVenues>>> = ({ signal }) =>
-    getSavedVenues({ signal, ...requestOptions });
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSavedVenues>>> = ({
+    signal,
+  }) => getSavedVenues({ signal, ...requestOptions });
+
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getSavedVenues>>,
     TError,
@@ -2143,68 +1976,190 @@ export const getGetSavedVenuesQueryOptions = <
   > & { queryKey: QueryKey };
 };
 
+export type GetSavedVenuesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSavedVenues>>
+>;
+export type GetSavedVenuesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get the authenticated user's saved venue place IDs
+ */
+
 export function useGetSavedVenues<
   TData = Awaited<ReturnType<typeof getSavedVenues>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getSavedVenues>>, TError, TData>;
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSavedVenues>>,
+    TError,
+    TData
+  >;
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetSavedVenuesQueryOptions(options);
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-export const saveVenueUrl = (placeId: string) => `/api/venues/${placeId}/save`;
+/**
+ * @summary Save a venue to the user's favourites
+ */
+export const getSaveVenueUrl = (placeId: string) => {
+  return `/api/venues/${placeId}/save`;
+};
 
 export const saveVenue = async (
   placeId: string,
-  body: SaveVenueBody,
+  saveVenueBody: SaveVenueBody,
   options?: RequestInit,
 ): Promise<SaveVenueResponse> => {
-  return customFetch<SaveVenueResponse>(saveVenueUrl(placeId), {
+  return customFetch<SaveVenueResponse>(getSaveVenueUrl(placeId), {
     ...options,
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) },
-    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(saveVenueBody),
   });
 };
 
-export const useSaveVenue = <TError = ErrorType<unknown>, TContext = unknown>(options?: {
+export const getSaveVenueMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof saveVenue>>,
     TError,
-    { placeId: string; data: SaveVenueBody },
+    { placeId: string; data: BodyType<SaveVenueBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveVenue>>,
+  TError,
+  { placeId: string; data: BodyType<SaveVenueBody> },
+  TContext
+> => {
+  const mutationKey = ["saveVenue"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveVenue>>,
+    { placeId: string; data: BodyType<SaveVenueBody> }
+  > = (props) => {
+    const { placeId, data } = props ?? {};
+
+    return saveVenue(placeId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveVenueMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveVenue>>
+>;
+export type SaveVenueMutationBody = BodyType<SaveVenueBody>;
+export type SaveVenueMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save a venue to the user's favourites
+ */
+export const useSaveVenue = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveVenue>>,
+    TError,
+    { placeId: string; data: BodyType<SaveVenueBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof saveVenue>>,
   TError,
-  { placeId: string; data: SaveVenueBody },
+  { placeId: string; data: BodyType<SaveVenueBody> },
   TContext
 > => {
-  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof saveVenue>>,
-    { placeId: string; data: SaveVenueBody }
-  > = ({ placeId, data }) => saveVenue(placeId, data, requestOptions);
-  return useMutation({ mutationFn, ...mutationOptions });
+  return useMutation(getSaveVenueMutationOptions(options));
 };
 
-export const unsaveVenueUrl = (placeId: string) => `/api/venues/${placeId}/save`;
+/**
+ * @summary Remove a venue from the user's favourites
+ */
+export const getUnsaveVenueUrl = (placeId: string) => {
+  return `/api/venues/${placeId}/save`;
+};
 
 export const unsaveVenue = async (
   placeId: string,
   options?: RequestInit,
 ): Promise<SaveVenueResponse> => {
-  return customFetch<SaveVenueResponse>(unsaveVenueUrl(placeId), {
+  return customFetch<SaveVenueResponse>(getUnsaveVenueUrl(placeId), {
     ...options,
     method: "DELETE",
   });
 };
 
-export const useUnsaveVenue = <TError = ErrorType<unknown>, TContext = unknown>(options?: {
+export const getUnsaveVenueMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unsaveVenue>>,
+    TError,
+    { placeId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unsaveVenue>>,
+  TError,
+  { placeId: string },
+  TContext
+> => {
+  const mutationKey = ["unsaveVenue"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unsaveVenue>>,
+    { placeId: string }
+  > = (props) => {
+    const { placeId } = props ?? {};
+
+    return unsaveVenue(placeId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnsaveVenueMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unsaveVenue>>
+>;
+
+export type UnsaveVenueMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove a venue from the user's favourites
+ */
+export const useUnsaveVenue = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof unsaveVenue>>,
     TError,
@@ -2218,220 +2173,5 @@ export const useUnsaveVenue = <TError = ErrorType<unknown>, TContext = unknown>(
   { placeId: string },
   TContext
 > => {
-  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof unsaveVenue>>,
-    { placeId: string }
-  > = ({ placeId }) => unsaveVenue(placeId, requestOptions);
-  return useMutation({ mutationFn, ...mutationOptions });
+  return useMutation(getUnsaveVenueMutationOptions(options));
 };
-
-export const getNetworkDirectoryUrl = (params?: GetNetworkDirectoryParams) => {
-  const searchParams = new URLSearchParams();
-  if (params?.page) searchParams.set("page", String(params.page));
-  if (params?.limit) searchParams.set("limit", String(params.limit));
-  if (params?.search) searchParams.set("search", params.search);
-  if (params?.careerStage) searchParams.set("careerStage", params.careerStage);
-  if (params?.networkingGoal) searchParams.set("networkingGoal", params.networkingGoal);
-  const qs = searchParams.toString();
-  return `/api/network/directory${qs ? `?${qs}` : ""}`;
-};
-
-export const getNetworkDirectory = async (
-  params?: GetNetworkDirectoryParams,
-  options?: RequestInit,
-): Promise<NetworkDirectoryResponse> => {
-  return customFetch<NetworkDirectoryResponse>(getNetworkDirectoryUrl(params), {
-    ...options,
-  });
-};
-
-export const getGetNetworkDirectoryQueryKey = (params?: GetNetworkDirectoryParams) =>
-  [`/api/network/directory`, ...(params ? [params] : [])] as const;
-
-export const getGetNetworkDirectoryQueryOptions = <
-  TData = Awaited<ReturnType<typeof getNetworkDirectory>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetNetworkDirectoryParams,
-  options?: {
-    query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getNetworkDirectory>>, TError, TData>;
-    request?: SecondParameter<typeof customFetch>;
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-  const queryKey = queryOptions?.queryKey ?? getGetNetworkDirectoryQueryKey(params);
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNetworkDirectory>>> = ({ signal }) =>
-    getNetworkDirectory(params, { signal, ...requestOptions });
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getNetworkDirectory>>,
-    TError,
-    TData
-  >;
-};
-
-export function useGetNetworkDirectory<
-  TData = Awaited<ReturnType<typeof getNetworkDirectory>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetNetworkDirectoryParams,
-  options?: {
-    query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getNetworkDirectory>>, TError, TData>;
-    request?: SecondParameter<typeof customFetch>;
-  }
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetNetworkDirectoryQueryOptions(params, options);
-  const query = useQuery(queryOptions);
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getNetworkConnectionsUrl = () => `/api/network/connections`;
-
-export const getNetworkConnections = async (
-  options?: RequestInit,
-): Promise<NetworkConnectionsResponse> => {
-  return customFetch<NetworkConnectionsResponse>(getNetworkConnectionsUrl(), { ...options });
-};
-
-export const getGetNetworkConnectionsQueryKey = () => [`/api/network/connections`] as const;
-
-export const getGetNetworkConnectionsQueryOptions = <
-  TData = Awaited<ReturnType<typeof getNetworkConnections>>,
-  TError = ErrorType<unknown>,
->(options?: {
-  query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getNetworkConnections>>, TError, TData>;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-  const queryKey = queryOptions?.queryKey ?? getGetNetworkConnectionsQueryKey();
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNetworkConnections>>> = ({ signal }) =>
-    getNetworkConnections({ signal, ...requestOptions });
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getNetworkConnections>>,
-    TError,
-    TData
-  >;
-};
-
-export function useGetNetworkConnections<
-  TData = Awaited<ReturnType<typeof getNetworkConnections>>,
-  TError = ErrorType<unknown>,
->(options?: {
-  query?: QueryOptionsWithoutKey<Awaited<ReturnType<typeof getNetworkConnections>>, TError, TData>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetNetworkConnectionsQueryOptions(options);
-  const query = useQuery(queryOptions);
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const sendNetworkRequestUrl = () => `/api/network/request`;
-
-export const sendNetworkRequest = async (
-  body: NetworkRequestBody,
-  options?: RequestInit,
-): Promise<NetworkRequestResponse> => {
-  return customFetch<NetworkRequestResponse>(sendNetworkRequestUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) },
-    body: JSON.stringify(body),
-  });
-};
-
-export const useSendNetworkRequest = <TError = ErrorType<unknown>, TContext = unknown>(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof sendNetworkRequest>>,
-    TError,
-    { data: NetworkRequestBody },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof sendNetworkRequest>>,
-  TError,
-  { data: NetworkRequestBody },
-  TContext
-> => {
-  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof sendNetworkRequest>>,
-    { data: NetworkRequestBody }
-  > = ({ data }) => sendNetworkRequest(data, requestOptions);
-  return useMutation({ mutationFn, ...mutationOptions });
-};
-
-export const respondNetworkRequestUrl = () => `/api/network/respond`;
-
-export const respondNetworkRequest = async (
-  body: NetworkRespondBody,
-  options?: RequestInit,
-): Promise<NetworkRequestResponse> => {
-  return customFetch<NetworkRequestResponse>(respondNetworkRequestUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) },
-    body: JSON.stringify(body),
-  });
-};
-
-export const useRespondNetworkRequest = <TError = ErrorType<unknown>, TContext = unknown>(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof respondNetworkRequest>>,
-    TError,
-    { data: NetworkRespondBody },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof respondNetworkRequest>>,
-  TError,
-  { data: NetworkRespondBody },
-  TContext
-> => {
-  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof respondNetworkRequest>>,
-    { data: NetworkRespondBody }
-  > = ({ data }) => respondNetworkRequest(data, requestOptions);
-  return useMutation({ mutationFn, ...mutationOptions });
-};
-
-export const createNetworkChatMatchUrl = () => `/api/network/chat-match`;
-
-export const createNetworkChatMatch = async (
-  body: NetworkChatMatchBody,
-  options?: RequestInit,
-): Promise<NetworkChatMatchResponse> => {
-  return customFetch<NetworkChatMatchResponse>(createNetworkChatMatchUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) },
-    body: JSON.stringify(body),
-  });
-};
-
-export const useCreateNetworkChatMatch = <TError = ErrorType<unknown>, TContext = unknown>(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createNetworkChatMatch>>,
-    TError,
-    { data: NetworkChatMatchBody },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof createNetworkChatMatch>>,
-  TError,
-  { data: NetworkChatMatchBody },
-  TContext
-> => {
-  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createNetworkChatMatch>>,
-    { data: NetworkChatMatchBody }
-  > = ({ data }) => createNetworkChatMatch(data, requestOptions);
-  return useMutation({ mutationFn, ...mutationOptions });
-};
-
-
-

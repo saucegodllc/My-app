@@ -58,7 +58,7 @@ export type AbuseEvent = {
 export type PremiumEntitlementRecord = {
   userId: string;
   isPremium: boolean;
-  source: "revenuecat" | "stripe" | "manual" | "none";
+  source: "revenuecat" | "manual" | "none";
   tier: "plus" | "free";
   entitlementId: string;
   productId?: string;

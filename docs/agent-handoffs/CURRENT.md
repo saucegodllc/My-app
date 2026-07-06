@@ -1,5 +1,60 @@
 # Current Claude ↔ Codex handoff
 
+## Update - 2026-07-06 (Codex)
+
+Branch: `codex/remove-stripe-payments`.
+
+Removed Stripe from active ConnectSphere app, API, generated clients, deploy
+configuration, and package dependencies. Premium purchases now stay on the
+RevenueCat/App Store in-app purchase path, with no web checkout or billing
+portal fallback.
+
+**Files changed:**
+- `artifacts/connectsphere-mobile/app/premium.tsx` - removed web checkout,
+  browser/deep-link success handling, Stripe fallback, and web subscription
+  footer links; purchase failures remain in the in-app purchase path.
+- `artifacts/connectsphere/src/pages/premium.tsx` and
+  `artifacts/connectsphere/src/pages/settings.tsx` - removed web checkout and
+  customer portal usage.
+- `artifacts/api-server/src/routes/subscriptions.ts`,
+  `artifacts/api-server/src/routes/index.ts`, `artifacts/api-server/src/app.ts`,
+  and `artifacts/api-server/src/index.ts` - removed Stripe checkout, portal,
+  webhook, raw-body, startup sync, and product lookup behavior.
+- Deleted Stripe-only API files:
+  `artifacts/api-server/src/routes/stripe.ts`,
+  `artifacts/api-server/src/routes/stripe.webhook.test.ts`,
+  `artifacts/api-server/src/lib/stripeClient.ts`, and the old
+  Stripe-grant RevenueCat helper.
+- `lib/api-spec/openapi.yaml` plus generated API client/Zod outputs - removed
+  checkout and portal endpoints/types.
+- `package.json`, `artifacts/api-server/package.json`, `pnpm-lock.yaml`,
+  `pnpm-workspace.yaml`, `render.yaml`, and `artifacts/render.yaml` - removed
+  Stripe dependencies and Stripe env vars.
+- `lib/db/src/schema/profiles.ts` and profile fallback types - removed Stripe
+  customer/subscription fields from active app schema usage.
+
+**Verification:**
+- `pnpm.cmd --filter @workspace/api-spec run codegen` - generated clients, then
+  failed at `typecheck:libs` until stale manual barrel exports were removed.
+- `pnpm.cmd run typecheck:libs` - passed.
+- `pnpm.cmd --filter @workspace/api-server run typecheck` - passed.
+- `pnpm.cmd --filter @workspace/connectsphere-mobile run typecheck` - passed.
+- `pnpm.cmd -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` - passed.
+- `pnpm.cmd run typecheck` - passed.
+- `rg -n "Stripe|stripe|STRIPE|@stripe|stripe-replit-sync|checkout\\.session|web_checkout|Subscribe on Web|Manage on Web|PaymentSheet|payment sheet" -S -g "!artifacts/work-snapshots/**" -g "!**/node_modules/**" -g "!**/.git/**"` - no matches.
+
+**Visual changes:**
+- Intentional: mobile premium footer no longer shows web subscription/manage
+  links and web premium/settings pages no longer expose checkout/portal billing
+  controls.
+- Screenshots not captured in this pass.
+
+**Unfinished work / next task:**
+- Configure/verify RevenueCat Apple products and entitlement IDs in App Store
+  Connect and RevenueCat before submission.
+
+---
+
 ## Update - 2026-07-04 (Codex)
 
 Branch: `codex/api-typecheck-fixes`.

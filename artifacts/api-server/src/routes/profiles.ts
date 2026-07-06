@@ -66,8 +66,6 @@ type LocalProfile = {
   communityCodeAcceptedAt?: string;
   isPremium?: boolean;
   isVerified?: boolean;
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
   profileViews?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -409,8 +407,6 @@ router.put("/profiles/me", rateLimit({ key: "profile_update", windowMs: 60_000, 
       communityCodeAcceptedAt: willAccept ? now : existing?.communityCodeAcceptedAt,
       isPremium: existing?.isPremium ?? false,
       isVerified: existing?.isVerified ?? false,
-      stripeCustomerId: existing?.stripeCustomerId,
-      stripeSubscriptionId: existing?.stripeSubscriptionId,
       profileViews: existing?.profileViews ?? 0,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,

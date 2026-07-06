@@ -30,8 +30,6 @@ export const profilesTable = pgTable("profiles", {
   communityCodeAcceptedAt: timestamp("community_code_accepted_at"),
   isPremium: boolean("is_premium").notNull().default(false),
   isVerified: boolean("is_verified").notNull().default(false),
-  stripeCustomerId: text("stripe_customer_id"),
-  stripeSubscriptionId: text("stripe_subscription_id"),
   profileViews: integer("profile_views").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

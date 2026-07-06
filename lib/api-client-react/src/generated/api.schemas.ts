@@ -32,14 +32,11 @@ export interface Profile {
   id: string;
   userId: string;
   displayName: string;
-  username?: string;
   bio?: string;
   birthDate?: string;
   age?: number;
   gender?: string;
   location?: string;
-  latitude?: number;
-  longitude?: number;
   country?: string;
   intent: ConnectionIntent;
   interests?: string[];
@@ -48,8 +45,6 @@ export interface Profile {
   role?: string;
   profession?: string;
   connectionSubtype?: string;
-  modeData?: { [key: string]: unknown };
-  profileViews?: number;
   isPremium: boolean;
   isVerified: boolean;
   createdAt?: string;
@@ -69,7 +64,6 @@ export const UpsertProfileBodyLocationVisibility = {
 
 export interface UpsertProfileBody {
   displayName: string;
-  username?: string;
   bio?: string;
   birthDate?: string;
   gender?: string;
@@ -160,20 +154,6 @@ export interface SubscriptionStatus {
   status?: string | null;
   currentPeriodEnd?: string | null;
   cancelAtPeriodEnd?: boolean;
-}
-
-export interface CreateCheckoutBody {
-  priceId: string;
-  successUrl: string;
-  cancelUrl: string;
-}
-
-export interface CheckoutSessionResponse {
-  url: string;
-}
-
-export interface PortalSessionResponse {
-  url: string;
 }
 
 export interface Price {
@@ -267,12 +247,6 @@ export interface Event {
   isFree: boolean;
   price: string;
   category: string;
-  source?: string;
-  sourceId?: string;
-  sourceLabel?: string;
-  status?: string;
-  updatedAt?: string;
-  lastSeenAt?: string;
 }
 
 export interface EventsResponse {
@@ -300,6 +274,25 @@ export interface Venue {
 export interface VenuesResponse {
   venues: Venue[];
   configured: boolean;
+}
+
+export interface SaveVenueBody {
+  name: string;
+  category: string;
+  address: string;
+  photoUrl: string;
+  priceTier: string;
+  latitude: number;
+  longitude: number;
+  rating?: number;
+}
+
+export interface SaveVenueResponse {
+  saved: boolean;
+}
+
+export interface SavedVenuesResponse {
+  placeIds: string[];
 }
 
 export type GetDiscoveryFeedParams = {
@@ -373,89 +366,3 @@ export type GetVenuesParams = {
    */
   priceFilter?: string;
 };
-
-export interface SaveVenueBody {
-  name: string;
-  category: string;
-  address: string;
-  photoUrl: string;
-  priceTier: string;
-  latitude: number;
-  longitude: number;
-  rating?: number;
-}
-
-export interface SaveVenueResponse {
-  saved: boolean;
-}
-
-export interface SavedVenuesResponse {
-  placeIds: string[];
-}
-
-export interface NetworkProfile {
-  id: string;
-  userId: string;
-  displayName: string;
-  bio?: string | null;
-  role?: string | null;
-  profession?: string | null;
-  photos?: string[] | null;
-  intent: string;
-  isVerified: boolean;
-  location?: string | null;
-  networkingGoals?: string | null;
-  interests?: string[] | null;
-}
-
-export interface NetworkConnection {
-  id: string;
-  requesterId: string;
-  recipientId: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  otherProfile?: NetworkProfile | null;
-}
-
-export interface NetworkDirectoryResponse {
-  profiles: NetworkProfile[];
-  total: number;
-  page: number;
-  hasMore: boolean;
-}
-
-export interface NetworkConnectionsResponse {
-  accepted: NetworkConnection[];
-  pendingIncoming: NetworkConnection[];
-  pendingOutgoing: NetworkConnection[];
-}
-
-export interface NetworkRequestBody {
-  recipientId: string;
-}
-
-export interface NetworkRespondBody {
-  connectionId: string;
-  action: "accepted" | "ignored";
-}
-
-export interface NetworkRequestResponse {
-  connection: NetworkConnection;
-}
-
-export interface GetNetworkDirectoryParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  careerStage?: string;
-  networkingGoal?: string;
-}
-
-export interface NetworkChatMatchBody {
-  otherUserId: string;
-}
-
-export interface NetworkChatMatchResponse {
-  matchId: string;
-}

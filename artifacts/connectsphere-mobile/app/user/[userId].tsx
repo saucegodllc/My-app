@@ -34,7 +34,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import ReportBlockSheet from "@/components/ReportBlockSheet";
-import { useGetProfile } from "@workspace/api-client-react";
+import { getGetProfileQueryKey, useGetProfile } from "@workspace/api-client-react";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PHOTO_HEIGHT = SCREEN_WIDTH * 1.22;
@@ -258,7 +258,7 @@ export default function UserProfileScreen() {
   }, [userId, currentUserId]);
 
   const { data: profile, isLoading } = useGetProfile(userId ?? "", {
-    query: { enabled: !!userId && !!isSignedIn },
+    query: { queryKey: getGetProfileQueryKey(userId ?? ""), enabled: !!userId && !!isSignedIn },
   });
 
   const hasFallback = !!(fallbackName || fallbackPhoto);

@@ -18,13 +18,6 @@ if (process.env.NODE_ENV === "production") {
     failures.push("DATABASE_URL is required when NODE_ENV=production.");
   }
 
-  if (!process.env.STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET.trim() === "") {
-    failures.push(
-      "STRIPE_WEBHOOK_SECRET is required when NODE_ENV=production. " +
-      "Without it the Stripe webhook cannot verify request signatures and refuses to process events.",
-    );
-  }
-
   if (flagEnabled(process.env.CONNECTSPHERE_LOCAL_DB_FALLBACK)) {
     failures.push("CONNECTSPHERE_LOCAL_DB_FALLBACK must be disabled when NODE_ENV=production.");
   }

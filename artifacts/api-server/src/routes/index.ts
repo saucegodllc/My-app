@@ -19,7 +19,6 @@ import doubleDateRouter from "./doubleDate";
 import notificationsRouter from "./notifications";
 import accountRouter from "./account";
 import meRouter from "./me";
-import stripeRouter from "./stripe";
 import icebreakersRouter from "./icebreakers";
 import dailySparkRouter from "./dailySpark";
 import antiGhostNudgeRouter from "./antiGhostNudge";
@@ -29,7 +28,6 @@ import momentsRouter from "./moments";
 const router: IRouter = Router();
 
 router.use((req, res, next) => {
-  if (req.path === "/stripe/webhook") return next();
   return express.json({ limit: "15mb" })(req, res, next);
 });
 
@@ -53,7 +51,6 @@ router.use(venuesRouter);
 router.use(notificationsRouter);
 router.use(accountRouter);
 router.use(meRouter);
-router.use(stripeRouter);
 router.use(icebreakersRouter);
 router.use(dailySparkRouter);
 router.use(antiGhostNudgeRouter);

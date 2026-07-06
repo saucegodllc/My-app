@@ -21,7 +21,6 @@ export const GetMyProfileResponse = zod.object({
   id: zod.string(),
   userId: zod.string(),
   displayName: zod.string(),
-  username: zod.string().optional(),
   bio: zod.string().optional(),
   birthDate: zod.string().optional(),
   age: zod.number().optional(),
@@ -35,8 +34,6 @@ export const GetMyProfileResponse = zod.object({
   role: zod.string().optional(),
   profession: zod.string().optional(),
   connectionSubtype: zod.string().optional(),
-  modeData: zod.record(zod.string(), zod.unknown()).optional(),
-  profileViews: zod.number().optional(),
   isPremium: zod.boolean(),
   isVerified: zod.boolean(),
   createdAt: zod.string().optional(),
@@ -48,7 +45,6 @@ export const GetMyProfileResponse = zod.object({
  */
 export const UpsertMyProfileBody = zod.object({
   displayName: zod.string(),
-  username: zod.string().optional(),
   bio: zod.string().optional(),
   birthDate: zod.string().optional(),
   gender: zod.string().optional(),
@@ -74,7 +70,6 @@ export const UpsertMyProfileResponse = zod.object({
   id: zod.string(),
   userId: zod.string(),
   displayName: zod.string(),
-  username: zod.string().optional(),
   bio: zod.string().optional(),
   birthDate: zod.string().optional(),
   age: zod.number().optional(),
@@ -88,8 +83,6 @@ export const UpsertMyProfileResponse = zod.object({
   role: zod.string().optional(),
   profession: zod.string().optional(),
   connectionSubtype: zod.string().optional(),
-  modeData: zod.record(zod.string(), zod.unknown()).optional(),
-  profileViews: zod.number().optional(),
   isPremium: zod.boolean(),
   isVerified: zod.boolean(),
   createdAt: zod.string().optional(),
@@ -107,7 +100,6 @@ export const GetProfileResponse = zod.object({
   id: zod.string(),
   userId: zod.string(),
   displayName: zod.string(),
-  username: zod.string().optional(),
   bio: zod.string().optional(),
   birthDate: zod.string().optional(),
   age: zod.number().optional(),
@@ -121,8 +113,6 @@ export const GetProfileResponse = zod.object({
   role: zod.string().optional(),
   profession: zod.string().optional(),
   connectionSubtype: zod.string().optional(),
-  modeData: zod.record(zod.string(), zod.unknown()).optional(),
-  profileViews: zod.number().optional(),
   isPremium: zod.boolean(),
   isVerified: zod.boolean(),
   createdAt: zod.string().optional(),
@@ -361,26 +351,6 @@ export const GetSubscriptionStatusResponse = zod.object({
 });
 
 /**
- * @summary Create a Stripe checkout session for premium subscription
- */
-export const CreateCheckoutSessionBody = zod.object({
-  priceId: zod.string(),
-  successUrl: zod.string(),
-  cancelUrl: zod.string(),
-});
-
-export const CreateCheckoutSessionResponse = zod.object({
-  url: zod.string(),
-});
-
-/**
- * @summary Create a Stripe customer portal session
- */
-export const CreateCustomerPortalResponse = zod.object({
-  url: zod.string(),
-});
-
-/**
  * @summary Get available premium products and prices
  */
 export const GetProductsResponse = zod.object({
@@ -552,12 +522,6 @@ export const GetEventsResponse = zod.object({
       isFree: zod.boolean(),
       price: zod.string(),
       category: zod.string(),
-      source: zod.string().optional(),
-      sourceId: zod.string().optional(),
-      sourceLabel: zod.string().optional(),
-      status: zod.string().optional(),
-      updatedAt: zod.string().optional(),
-      lastSeenAt: zod.string().optional(),
     }),
   ),
   total: zod.number(),
@@ -607,4 +571,44 @@ export const GetVenuesResponse = zod.object({
     }),
   ),
   configured: zod.boolean(),
+});
+
+/**
+ * @summary Get the authenticated user's saved venue place IDs
+ */
+export const GetSavedVenuesResponse = zod.object({
+  placeIds: zod.array(zod.string()),
+});
+
+/**
+ * @summary Save a venue to the user's favourites
+ */
+export const SaveVenueParams = zod.object({
+  placeId: zod.coerce.string(),
+});
+
+export const SaveVenueBody = zod.object({
+  name: zod.string(),
+  category: zod.string(),
+  address: zod.string(),
+  photoUrl: zod.string(),
+  priceTier: zod.string(),
+  latitude: zod.number(),
+  longitude: zod.number(),
+  rating: zod.number().optional(),
+});
+
+export const SaveVenueResponse = zod.object({
+  saved: zod.boolean(),
+});
+
+/**
+ * @summary Remove a venue from the user's favourites
+ */
+export const UnsaveVenueParams = zod.object({
+  placeId: zod.coerce.string(),
+});
+
+export const UnsaveVenueResponse = zod.object({
+  saved: zod.boolean(),
 });

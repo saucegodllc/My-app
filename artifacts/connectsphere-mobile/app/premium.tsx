@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as WebBrowser from "expo-web-browser";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -87,9 +86,6 @@ export default function PremiumScreen() {
   const [loadingPlan, setLoadingPlan]         = useState<WebPlan | null>(null);
   const [entitlement, setEntitlement]         = useState<PremiumEntitlement | null>(null);
   const [revenueCatReady, setRevenueCatReady] = useState(false);
-  const browserInFlightRef   = useRef(false);
-  const purchaseHandledRef   = useRef(false); // prevents double-alert if deep link + poll both fire
-  const stripeOpenedRef      = useRef(false); // true while Stripe browser is open
 
   // ── Load RevenueCat offerings ──────────────────────────────────────────────
   useEffect(() => {
@@ -140,68 +136,17 @@ export default function PremiumScreen() {
     return synced;
   }
 
-  // ── Web / Stripe checkout ──────────────────────────────────────────────────
-  async function openBillingUrl(url: string) {
-    if (browserInFlightRef.current) return;
-    browserInFlightRef.current = true;
-    try {
-      if (Platform.OS === "web") {
-        await Linking.openURL(url);
-      } else {
-        await WebBrowser.openBrowserAsync(url);
-      }
-    } catch {
-      await Linking.openURL(url);
-    } finally {
-      browserInFlightRef.current = false;
-    }
-  }
-
-  async function handleWebCheckout(plan: WebPlan) {
-    if (!user?.id || browserInFlightRef.current) return;
-    const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
-    if (!apiUrl) {
-      Alert.alert("Checkout unavailable", "The production API URL is not configured for this build.");
-      return;
-    }
-    const url = `${apiUrl}/api/stripe/subscribe?userId=${encodeURIComponent(user.id)}&plan=${plan}`;
-    track("web_checkout_tapped", { plan });
-    setLoadingPlan(plan);
-    purchaseHandledRef.current = false;
-    stripeOpenedRef.current    = true;
-    try {
-      await openBillingUrl(url);
-      // Browser closed — deep link may or may not have fired.
-      // Wait briefly for the webhook to land, then poll for entitlement.
-      await new Promise((resolve) => setTimeout(resolve, 1800));
-      if (!purchaseHandledRef.current) {
-        const synced = await getPremiumEntitlement().catch(() => null);
-        if (synced?.isPremium) {
-          purchaseHandledRef.current = true;
-          track("web_checkout_succeeded");
-          setEntitlement(synced);
-          Alert.alert("Welcome to Plus! ⭐", "Your premium access is now active.", [
-            { text: "Let's Go! 🚀", onPress: () => router.back() },
-          ]);
-        }
-      }
-    } finally {
-      stripeOpenedRef.current = false;
-      setLoadingPlan(null);
-    }
-  }
-
   // ── Main purchase handler ─────────────────────────────────────────────────
-  // Tapping any plan calls this. If RC packages are available, tries RC first;
-  // otherwise falls straight through to Stripe web checkout.
   const loading = loadingPlan !== null;
 
   async function handleCheckout(plan: WebPlan) {
     if (loading) return;
 
-    // No RC available → Stripe web checkout immediately
     if (!revenueCatReady || packages.length === 0) {
-      await handleWebCheckout(plan);
+      Alert.alert(
+        "Purchases unavailable",
+        "ConnectSphere Plus is available through App Store purchases. Please try again once in-app purchases finish loading.",
+      );
       return;
     }
 
@@ -234,9 +179,8 @@ export default function PremiumScreen() {
         setLoadingPlan(null);
         return;
       }
-      // RC failed → fall back to Stripe
       Analytics.purchaseFailed("plus", err instanceof Error ? err.message : "unknown");
-      await handleWebCheckout(plan);
+      Alert.alert("Purchase unavailable", "Please try again through the App Store purchase flow.");
     } finally {
       setLoadingPlan(null);
     }
@@ -245,14 +189,9 @@ export default function PremiumScreen() {
   // ── Restore ────────────────────────────────────────────────────────────────
   async function handleRestore() {
     if (!revenueCatReady) {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
       Alert.alert(
-        "Manage your subscription",
-        "If you subscribed via the web, manage your plan at connectsphere.app/billing.",
-        [
-          { text: "Open Billing", onPress: () => void openBillingUrl(`${apiUrl}/api/stripe/portal?userId=${user?.id ?? ""}`) },
-          { text: "Cancel", style: "cancel" },
-        ],
+        "Restore unavailable",
+        "ConnectSphere Plus purchases are restored through the App Store. Please try again once in-app purchases finish loading.",
       );
       return;
     }
@@ -285,42 +224,8 @@ export default function PremiumScreen() {
       );
       return;
     }
-    await openBillingUrl(url);
+    await Linking.openURL(url);
   }
-
-  // ── Deep-link from Stripe success page ────────────────────────────────────
-  useEffect(() => {
-    async function handleDeepLink(event: { url: string }) {
-      if (!event.url.includes("premium-success")) return;
-      if (purchaseHandledRef.current) return; // poll already handled it
-      purchaseHandledRef.current = true;
-      try {
-        if (revenueCatReady) {
-          const info   = await Purchases.getCustomerInfo();
-          const synced = await syncFromCustomerInfo(info);
-          if (synced.isPremium) {
-            track("web_checkout_succeeded");
-            Alert.alert("Welcome to Plus! ⭐", "Your premium access is now active.", [
-              { text: "Let's Go! 🚀", onPress: () => router.back() },
-            ]);
-          }
-        } else {
-          const synced = await getPremiumEntitlement().catch(() => null);
-          if (synced) setEntitlement(synced);
-          track("web_checkout_succeeded");
-          Alert.alert("Welcome to Plus! ⭐", "Your premium access is now active.", [
-            { text: "Let's Go! 🚀", onPress: () => router.back() },
-          ]);
-        }
-      } catch {
-        // silent — entitlement syncs on next app open
-      }
-    }
-
-    const sub = Linking.addEventListener("url", handleDeepLink);
-    return () => sub.remove();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, revenueCatReady]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   const PRIMARY = colors.primary;
@@ -514,24 +419,12 @@ export default function PremiumScreen() {
               <Pressable onPress={handleManage}>
                 <Text style={[styles.footerLink, { color: PRIMARY }]}>Manage</Text>
               </Pressable>
-              <Text style={[styles.footerDot, { color: colors.mutedForeground }]}>·</Text>
             </>
-          )}
-          {revenueCatReady ? (
-            <Pressable onPress={() => handleWebCheckout("yearly")}>
-              <Text style={[styles.footerLink, { color: PRIMARY }]}>Subscribe on Web</Text>
-            </Pressable>
-          ) : (
-            <Pressable onPress={handleManage}>
-              <Text style={[styles.footerLink, { color: colors.mutedForeground }]}>Manage on Web</Text>
-            </Pressable>
           )}
         </View>
 
         <Text style={[styles.legalText, { color: colors.mutedForeground }]}>
-          {revenueCatReady
-            ? "Subscriptions auto-renew until cancelled. Cancel anytime in App Store settings. Payment charged to your Apple ID at confirmation."
-            : "Secure payment via Stripe. Cancel anytime at connectsphere.app/billing."}
+          Subscriptions auto-renew until cancelled. Cancel anytime in App Store settings. Payment charged to your Apple ID at confirmation.
         </Text>
       </View>
 

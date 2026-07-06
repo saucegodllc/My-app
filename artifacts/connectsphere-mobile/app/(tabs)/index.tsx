@@ -60,7 +60,7 @@ import {
   sendFriendDeckAction,
   type FriendPerson as ApiFriendPerson,
 } from "@/services/friendsApi";
-import { useGetDiscoveryFeed, useGetMyProfile, type Profile as ApiProfile } from "@workspace/api-client-react";
+import { getGetDiscoveryFeedQueryKey, useGetDiscoveryFeed, useGetMyProfile, type Profile as ApiProfile } from "@workspace/api-client-react";
 import {
   Animated,
   Easing,
@@ -1417,7 +1417,12 @@ function DiscoverScreenInner() {
     isFetching: datingFeedFetching,
   } = useGetDiscoveryFeed(
     { page: 1, limit: 30, intent: "dating", ...(discoverySubtype ? { subtype: discoverySubtype } : {}) },
-    { query: { enabled: activeIntent === "dating" && activeSubTab !== "Double Dates" } },
+    {
+      query: {
+        queryKey: getGetDiscoveryFeedQueryKey({ page: 1, limit: 30, intent: "dating", ...(discoverySubtype ? { subtype: discoverySubtype } : {}) }),
+        enabled: activeIntent === "dating" && activeSubTab !== "Double Dates",
+      },
+    },
   );
 
   const loadFriendPeople = useCallback(async () => {

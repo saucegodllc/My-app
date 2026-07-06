@@ -29,10 +29,6 @@ services:
         sync: false          # Set manually in Render dashboard — needed by /api/ai-chat routes (server-side only, never in client bundle)
       - key: REVENUECAT_API_SECRET_KEY
         sync: false          # Set manually in Render dashboard
-      - key: STRIPE_SECRET_KEY
-        sync: false          # Set manually — use live key at launch
-      - key: STRIPE_WEBHOOK_SECRET
-        sync: false          # From Stripe dashboard → Webhooks
       - key: TICKETMASTER_API_KEY
         sync: false          # Set manually in Render dashboard — get from developer.ticketmaster.com
       - key: EVENTS_USE_MOCKS

@@ -57,7 +57,7 @@ import {
   type CsConversation,
 } from "@/services/connectApi";
 import { archiveChat, clearChat, markChatRead, muteChat, reportMessage, unmatchChat } from "@/services/launchReadyApi";
-import { useGetMessages, useSendMessage } from "@workspace/api-client-react";
+import { getGetMessagesQueryKey, useGetMessages, useSendMessage } from "@workspace/api-client-react";
 
 type MessageType = "text" | "voice" | "gif" | "image" | "plan_request";
 
@@ -844,7 +844,10 @@ export default function ChatScreen() {
   const isFriendDirectChat = jsonChat?.chat?.type === "friend_direct";
   const isFriendPlanChat = jsonChat?.chat?.type === "friend_plan" || jsonChat?.chat?.type === "plan";
   const { data, isLoading, isError, error, refetch, isRefetching } = useGetMessages(matchId ?? "", undefined, {
-    query: { enabled: !!matchId && !!isSignedIn && checkedPreferredChat && !isInboxChat && !isJsonChat },
+    query: {
+      queryKey: getGetMessagesQueryKey(matchId ?? "", undefined),
+      enabled: !!matchId && !!isSignedIn && checkedPreferredChat && !isInboxChat && !isJsonChat,
+    },
   });
 
   // Detect expired / deleted match — API returns 404 or 403 (unmatched)

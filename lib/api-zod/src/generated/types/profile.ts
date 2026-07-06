@@ -11,7 +11,6 @@ export interface Profile {
   id: string;
   userId: string;
   displayName: string;
-  username?: string;
   bio?: string;
   birthDate?: string;
   age?: number;
@@ -25,8 +24,6 @@ export interface Profile {
   role?: string;
   profession?: string;
   connectionSubtype?: string;
-  modeData?: { [key: string]: unknown };
-  profileViews?: number;
   isPremium: boolean;
   isVerified: boolean;
   createdAt?: string;

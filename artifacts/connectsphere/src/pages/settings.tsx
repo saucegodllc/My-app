@@ -3,7 +3,6 @@ import {
   useGetBlockedUsers,
   useBlockUser,
   useGetSubscriptionStatus,
-  useCreateCustomerPortal,
   getGetBlockedUsersQueryKey,
   getGetSubscriptionStatusQueryKey,
 } from "@workspace/api-client-react";
@@ -16,7 +15,6 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
 import { UserX, CreditCard, LogOut, Sparkles, ShieldCheck } from "lucide-react";
 
 type SubStatus = { isPremium?: boolean; plan?: string; currentPeriodEnd?: string; cancelAtPeriodEnd?: boolean };
@@ -34,20 +32,9 @@ export default function SettingsPage() {
   const { data: subStatus } = useGetSubscriptionStatus({
     query: { queryKey: getGetSubscriptionStatusQueryKey() },
   });
-  const { mutateAsync: createPortal, isPending: portalPending } = useCreateCustomerPortal();
 
   const blockedUsers = (blockedData as { blockedUsers?: BlockedUser[] })?.blockedUsers ?? [];
   const sub = subStatus as SubStatus | undefined;
-
-  async function handleManageSubscription() {
-    try {
-      const result = await createPortal();
-      const url = (result as { url?: string })?.url;
-      if (url) window.location.href = url;
-    } catch {
-      toast.error("Failed to open billing portal");
-    }
-  }
 
   async function handleSignOut() {
     await signOut();
@@ -83,9 +70,9 @@ export default function SettingsPage() {
                     {sub.cancelAtPeriodEnd ? "Cancels" : "Renews"} on {new Date(sub.currentPeriodEnd).toLocaleDateString()}
                   </p>
                 )}
-                <Button variant="outline" size="sm" onClick={handleManageSubscription} disabled={portalPending}>
-                  {portalPending ? "Opening..." : "Manage Billing"}
-                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Manage your subscription from your App Store account on your iPhone.
+                </p>
               </div>
             ) : (
               <div>

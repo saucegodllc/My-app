@@ -30,7 +30,14 @@ import { useSessionState } from "@/hooks/useSessionState";
 import { getInboxReactions } from "@/services/connectApi";
 import { getFriendPeople } from "@/services/friendsApi";
 import { getProfileCompletion, type ProfileCompletionStatus } from "@/services/launchReadyApi";
-import { useGetMyProfile, useGetSavedVenues, useGetSubscriptionStatus } from "@workspace/api-client-react";
+import {
+  getGetMyProfileQueryKey,
+  getGetSavedVenuesQueryKey,
+  getGetSubscriptionStatusQueryKey,
+  useGetMyProfile,
+  useGetSavedVenues,
+  useGetSubscriptionStatus,
+} from "@workspace/api-client-react";
 import { useTranslation } from "react-i18next";
 
 const PINK = "#FF007F";
@@ -180,9 +187,15 @@ export default function ProfileScreen() {
   const [completion, setCompletion] = useState<ProfileCompletionStatus | null>(null);
   const completionAnim = useMemo(() => new Animated.Value(0), []);
 
-  const { data: profile, isLoading, refetch } = useGetMyProfile({ query: { enabled: !!isSignedIn, refetchOnMount: "always" } });
-  const { data: subscription } = useGetSubscriptionStatus({ query: { enabled: !!isSignedIn } });
-  const { data: savedVenuesData } = useGetSavedVenues({ query: { enabled: !!isSignedIn } });
+  const { data: profile, isLoading, refetch } = useGetMyProfile({
+    query: { queryKey: getGetMyProfileQueryKey(), enabled: !!isSignedIn, refetchOnMount: "always" },
+  });
+  const { data: subscription } = useGetSubscriptionStatus({
+    query: { queryKey: getGetSubscriptionStatusQueryKey(), enabled: !!isSignedIn },
+  });
+  const { data: savedVenuesData } = useGetSavedVenues({
+    query: { queryKey: getGetSavedVenuesQueryKey(), enabled: !!isSignedIn },
+  });
 
   const savedVenueCount = savedVenuesData?.placeIds?.length ?? 0;
   const profileExtras = profile as (NonNullable<typeof profile> & { username?: string; modeData?: ModeData }) | undefined;

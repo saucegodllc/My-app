@@ -65,7 +65,7 @@ app.use(cors({
   credentials: true,
   origin: allowedOrigins.length > 0
     ? (origin, callback) => {
-        // Allow server-to-server calls with no origin (e.g. Stripe webhooks, health checks)
+        // Allow server-to-server calls with no origin (e.g. health checks)
         if (!origin) return callback(null, true);
         if (allowedOrigins.includes(origin)) return callback(null, true);
         callback(new Error(`CORS policy: origin '${origin}' not allowed`));
@@ -75,12 +75,7 @@ app.use(cors({
 app.use(cookieParser());
 app.use(clerkMiddleware());
 
-app.use((req, res, next) => {
-  if (req.path === "/api/stripe/webhook") {
-    return express.raw({ type: "application/json" })(req, res, next);
-  }
-  return express.json({ limit: "10mb" })(req, res, next);
-});
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);

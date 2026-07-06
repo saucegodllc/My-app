@@ -6,6 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface PortalSessionResponse {
-  url: string;
+export interface SaveVenueResponse {
+  saved: boolean;
 }

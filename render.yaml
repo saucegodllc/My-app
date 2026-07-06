@@ -19,16 +19,6 @@ services:
         sync: false
       - key: REVENUECAT_API_SECRET_KEY
         sync: false
-      - key: STRIPE_SECRET_KEY
-        sync: false
-      - key: STRIPE_WEBHOOK_SECRET
-        sync: false
-      - key: STRIPE_PRICE_MONTHLY
-        sync: false
-      - key: STRIPE_PRICE_SIXMONTH
-        sync: false
-      - key: STRIPE_PRICE_YEARLY
-        sync: false
       - key: TICKETMASTER_API_KEY
         sync: false
       - key: SENTRY_DSN

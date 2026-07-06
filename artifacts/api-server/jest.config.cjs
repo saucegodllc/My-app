@@ -7,9 +7,6 @@ module.exports = {
   testPathIgnorePatterns: ["/node_modules/"],
   coveragePathIgnorePatterns: [
     "/node_modules/",
-    "src/routes/stripe.ts",
-    "src/lib/stripeClient.ts",
-    "src/lib/revenueCatClient.ts",
   ],
   extensionsToTreatAsEsm: [".ts"],
   transform: {

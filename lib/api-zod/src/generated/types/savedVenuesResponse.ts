@@ -6,6 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CheckoutSessionResponse {
-  url: string;
+export interface SavedVenuesResponse {
+  placeIds: string[];
 }

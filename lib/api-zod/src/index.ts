@@ -1,9 +1,7 @@
 export * from "./generated/api";
 export type { BlockedUsersResponse } from "./generated/types/blockedUsersResponse";
 export type { BlockedUsersResponseBlockedUsersItem } from "./generated/types/blockedUsersResponseBlockedUsersItem";
-export type { CheckoutSessionResponse } from "./generated/types/checkoutSessionResponse";
 export type { ConnectionIntent } from "./generated/types/connectionIntent";
-export type { CreateCheckoutBody } from "./generated/types/createCheckoutBody";
 export type { DashboardSummary } from "./generated/types/dashboardSummary";
 export type { DiscoveryActionBody } from "./generated/types/discoveryActionBody";
 export type { DiscoveryActionBodyAction } from "./generated/types/discoveryActionBodyAction";
@@ -22,7 +20,6 @@ export type { Match } from "./generated/types/match";
 export type { MatchListResponse } from "./generated/types/matchListResponse";
 export type { Message } from "./generated/types/message";
 export type { MessageListResponse } from "./generated/types/messageListResponse";
-export type { PortalSessionResponse } from "./generated/types/portalSessionResponse";
 export type { Price } from "./generated/types/price";
 export type { Product } from "./generated/types/product";
 export type { ProductsResponse } from "./generated/types/productsResponse";

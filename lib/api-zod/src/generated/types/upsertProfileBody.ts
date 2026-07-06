@@ -11,7 +11,6 @@ import type { UpsertProfileBodyModeData } from "./upsertProfileBodyModeData";
 
 export interface UpsertProfileBody {
   displayName: string;
-  username?: string;
   bio?: string;
   birthDate?: string;
   gender?: string;
