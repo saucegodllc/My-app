@@ -1,5 +1,57 @@
 # Current Claude ↔ Codex handoff
 
+## Update - 2026-07-06 (Claude · repo repair + launch readiness V2 kickoff)
+
+**Repo corruption repaired (second occurrence of the same failure mode).**
+A crashed/interrupted writer truncated `.git` metadata and working files, on
+2026-07-03 and again during this session:
+
+- `packed-refs` truncated mid-line → backed up to
+  `.git/packed-refs.corrupt-backup-2026-07-06`, broken line removed.
+- `HEAD` truncated twice (`refs/heads/codex` then
+  `refs/heads/codex/remove-stripe-paymen`) → restored to
+  `refs/heads/codex/remove-stripe-payments`.
+- Commit-graph chain corrupt ("improper chunk offset") → disabled via
+  `core.commitGraph=false`, `fetch.writeCommitGraph=false`,
+  `core.multiPackIndex=false`. Run `git gc` when the environment is stable to
+  rebuild, then re-enable.
+- Index corrupt ("unknown extension") → rebuilt from HEAD.
+- ~20 working files tail-truncated or NUL-filled (`subscriptions.ts`,
+  `package.json`, `render.yaml`, `profiles.ts`, generated clients, etc.) →
+  all restored byte-identical from committed HEAD (`eac62c9`). No committed
+  work was lost. Leftover deleted-in-HEAD Stripe files removed from disk.
+- fsck still reports junk loose refs with `?`-suffixed names and zero SHAs
+  (e.g. `refs/heads/main?`) — harmless warnings; delete those loose ref files
+  during cleanup.
+- File writes were STILL truncating during this session (a first commit
+  attempt captured tail-clipped versions of both docs and was superseded).
+
+**Suspected root cause:** the repo lives under `C:\Users\fazer\Documents\...`
+— if OneDrive/backup sync manages Documents, it is the prime suspect for the
+truncated writes. Recommend excluding the repo from sync or moving it.
+Also: Claude and Codex sessions were open on the same working tree
+concurrently; per AGENTS.md, do not run both at once.
+
+**Launch readiness V2 decisions (user, 2026-07-06), recorded in
+`LAUNCH_READINESS_CHECKLIST.md`:**
+- Moments: SHIP — move backend to Postgres (4.2–4.5).
+- Communities: BUILD full backend (4.6 build path) — dedicated branch, after
+  Phase 1–3 blockers.
+- Data layer: Postgres (likes-you/profile-views/referral get API endpoints);
+  Firebase is push-only.
+- Checklist Phase 1 updated for Stripe removal: 1.1 obsolete, 1.3 env list
+  now matches render.yaml (RC-only).
+
+**Verification:** committed blobs round-trip-verified via `git hash-object`;
+NUL scans clean; boot guard requires only `DATABASE_URL`.
+
+**Visual changes:** none (docs + repo metadata only).
+
+**Next task:** Phase 1 env/deploy verification (user-driven, Render
+dashboard), then Phase 2 media storage rewrite (objectStorage.ts → R2/S3).
+
+---
+
 ## Update - 2026-07-06 (Codex)
 
 Branch: `codex/remove-stripe-payments`.
@@ -311,3 +363,4 @@ before changing the remote default branch.
 - Active owner: Codex
 - Owned files: shared workflow documentation and root repository index
 - Protected files: all active application files listed in `AGENTS.md`
+
